@@ -14,3 +14,14 @@ app = FastAPI(lifespan=lifespan)
 @app.get("/health")
 def health():
     return {"connected": ib.isConnected()}
+
+@app.get("/positions")
+async def positions():
+    result = []
+    for p in ib.positions():
+        result.append({
+            "symbol": p.contract.symbol,
+            "quantity": p.position,
+            "avg_cost": p.avgCost,
+        })
+    return result
