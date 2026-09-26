@@ -25,3 +25,21 @@ async def positions():
             "avg_cost": p.avgCost,
         })
     return result
+
+@app.get("/account")
+async def account():
+    summary = await ib.accountSummaryAsync()
+
+    wanted = {
+        "NetLiquidation": "net_liquidation",
+        "TotalCashValue": "cash",
+        "GrossPositionValue": "positions_value",
+        "BuyingPower": "buying_power",
+    }
+
+    result = {}
+    for item in summary:
+        if item.tag in wanted: 
+            result[wanted[item.tag]] = float(item.value)
+            result["currency"] = item.currency
+    return result
