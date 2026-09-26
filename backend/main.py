@@ -1,11 +1,19 @@
+import os
+from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from ib_async import IB
+
+load_dotenv()
+
+IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
+IB_PORT = int(os.getenv("IB_PORT", "4002"))
+
 ib = IB()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await ib.connectAsync("127.0.0.1", 4002, clientId=1, readonly=True)
+    await ib.connectAsync(IB_HOST, IB_PORT, clientId=1, readonly=True)
     yield
     ib.disconnect()
 
