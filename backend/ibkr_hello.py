@@ -1,6 +1,5 @@
-from ib_insync import IB, util
+from ib_async import IB
 
-# Connect to IB Gateway
 # 127.0.0.1 = your own machine, 4002 = paper trading port
 ib = IB()
 ib.connect('127.0.0.1', 4002, clientId=1)

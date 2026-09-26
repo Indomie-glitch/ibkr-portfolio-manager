@@ -1,3 +1,4 @@
+aeventkit==2.1.0
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
@@ -5,7 +6,7 @@ click==8.5.0
 eventkit==1.0.3
 fastapi==0.141.1
 h11==0.16.0
-ib-insync==0.9.86
+ib_async==2.1.0
 idna==3.20
 nest-asyncio==1.6.0
 numpy==2.4.6
@@ -15,4 +16,5 @@ python-dotenv==1.2.3
 starlette==1.7.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
+tzdata==2025.3
 uvicorn==0.54.0
