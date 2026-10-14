@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB
 
 load_dotenv()
@@ -18,6 +19,13 @@ async def lifespan(app: FastAPI):
     ib.disconnect()
 
 app = FastAPI(lifespan=lifespan)
+
+# Let the Vite dev server call the API from the browser
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["GET"],
+)
 
 @app.get("/health")
 def health():
