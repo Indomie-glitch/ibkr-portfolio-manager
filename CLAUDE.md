@@ -28,6 +28,20 @@ Current API
 GET /health returns {"connected": bool}
 GET /positions returns a list of {"symbol", "quantity", "avg_cost"}
 GET /account returns net_liquidation, cash, positions_value, buying_power, currency
+Design
+Source: Figma file e8rdacwgUA1ZtyNaw81Ry7 (Overview + Positions, light + dark, Components frame). Figma MCP calls are limited, so do not re-fetch it; use the values below.
+Style: macOS-like. Font Inter (400/500/600/700). Plain CSS with CSS variables in frontend/src/index.css; dark mode via prefers-color-scheme. No Tailwind, no chart library (charts are hand-drawn SVG).
+Icons: frontend/src/components/icons.jsx (from frontend/src/assets/icons/), drawn with currentColor.
+Colours (light / dark):
+  bg #ffffff / #1e1e1e; sidebar panel #f2f2f6 / #262628; surface-2 (stat cards) #f5f5f7 / #2c2c2e
+  text #1d1d1f / #f5f5f7; text-2 #6e6e73 / #98989d; text-3 #8e8e93 (both)
+  border rgba(0,0,0,.08) / rgba(255,255,255,.11); row border .06 / .08; fill (pills, active item) rgba(0,0,0,.06-.07) / rgba(255,255,255,.08-.10)
+  accent #007aff / #0a84ff; gain text #248a3d / #30d158; loss text #d70015 / #ff453a; day-change pills #34c759 and #ff3b30 with white text
+  delayed badge bg rgba(255,149,0,.12), text #b25f00 / #ff9f0a
+  allocation palette #007aff #5856d6 #30b0c7 #ff9500 #ff2d55 (dark #0a84ff #5e5ce6 #40c8e0 #ff9f0a #ff375f)
+Layout: sidebar 256px; toolbar 12px/28px padding; page body padding 28px, gap 22px; cards radius 14px; buttons are pills (radius 999px)
+Type scale: page title 15/700; net liquidation 36/700; stat value 22/600; holding price 42/700; body 13; captions 11
+Screens: Overview (net liquidation, 3 stat cards, positions table, allocation donut, AI summary card). Clicking a row opens that holding on Positions (resizable list 220-480px, holding detail with price chart, position stats, AI summary card). AI and Trade buttons are placeholders until milestones 5 and 6.
 Milestones
 Connect to IB Gateway (done)
 Backend REST API (done)
