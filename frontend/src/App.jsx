@@ -1,121 +1,73 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react'
+import { fetchAccount, fetchPositions } from './api.js'
+import AccountSummary from './components/AccountSummary.jsx'
+import PositionsTable from './components/PositionsTable.jsx'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [account, setAccount] = useState(null)
+  const [positions, setPositions] = useState([])
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(true)
+  // Bumping this number re-runs the effect below, which refetches the data
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => {
+    let ignore = false
+
+    async function load() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [accountData, positionsData] = await Promise.all([
+          fetchAccount(),
+          fetchPositions(),
+        ])
+        if (!ignore) {
+          setAccount(accountData)
+          setPositions(positionsData)
+        }
+      } catch (err) {
+        if (!ignore) setError(err.message)
+      } finally {
+        if (!ignore) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      ignore = true
+    }
+  }, [refreshKey])
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
+    <main className="page">
+      <header className="header">
+        <h1>Portfolio</h1>
         <button
           type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          onClick={() => setRefreshKey((k) => k + 1)}
+          disabled={loading}
         >
-          Count is {count}
+          {loading ? 'Loading…' : 'Refresh'}
         </button>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {error && (
+        <div className="error" role="alert">
+          <strong>Could not load data.</strong> Make sure the backend is
+          running on port 8000 and IB Gateway is logged in.
+          <div className="error-detail">{error}</div>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      {account && (
+        <>
+          <AccountSummary account={account} />
+          <h2>Positions</h2>
+          <PositionsTable positions={positions} />
+        </>
+      )}
+    </main>
   )
 }
 
