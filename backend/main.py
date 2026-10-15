@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB, Contract
+from names import display_name
 
 load_dotenv()
 
@@ -84,10 +85,12 @@ async def positions():
     for item, (contract, long_name) in zip(items, infos):
         c = item.contract
         cost_basis = item.averageCost * item.position
+        name, name_truncated = display_name(long_name, c.symbol)
         result.append({
             "con_id": c.conId,
             "symbol": c.symbol,
-            "name": long_name or c.symbol,
+            "name": name,
+            "name_truncated": name_truncated,
             "sec_type": c.secType,
             "currency": c.currency,
             "exchange": (contract.primaryExchange if contract else None) or c.primaryExchange,
