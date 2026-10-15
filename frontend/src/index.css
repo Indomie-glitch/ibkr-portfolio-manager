@@ -32,6 +32,7 @@
   --chart-grid: rgba(0, 0, 0, 0.06);
   --handle: rgba(0, 0, 0, 0.18);
   --zero-line: rgba(0, 0, 0, 0.2);
+  --accent-skeleton: rgba(0, 122, 255, 0.12);
   --chart-1: #007aff;
   --chart-2: #5856d6;
   --chart-3: #30b0c7;
@@ -89,6 +90,7 @@
   --chart-grid: rgba(255, 255, 255, 0.08);
   --handle: rgba(255, 255, 255, 0.22);
   --zero-line: rgba(255, 255, 255, 0.25);
+  --accent-skeleton: rgba(10, 132, 255, 0.24);
   --chart-1: #0a84ff;
   --chart-2: #5e5ce6;
   --chart-3: #40c8e0;
@@ -1114,8 +1116,10 @@ p {
   flex-direction: column;
   gap: 22px;
   min-width: 0;
-  padding: 26px 32px;
+  padding: 26px 32px 40px;
   overflow-y: auto;
+  /* Lets the sections below adapt to the panel's width (it changes when the list is resized) */
+  container-type: inline-size;
 }
 
 .detail-header,
@@ -1260,5 +1264,367 @@ p {
 
   .position-stats {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ---------- Expanded stock detail sections ---------- */
+
+.disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 0 6px;
+  border-top: 1px solid var(--border);
+}
+
+.disclosure-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.disclosure-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.disclosure-toggle h3 {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.disclosure-toggle.accent h3 {
+  color: var(--accent);
+}
+
+.disclosure-toggle:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.disclosure-arrow {
+  display: flex;
+  color: var(--text-2);
+  transform: rotate(-90deg);
+  transition: transform 0.15s ease;
+}
+
+.disclosure-arrow.open {
+  transform: none;
+}
+
+.disclosure-note {
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.button-primary.compact {
+  padding: 6px 13px;
+}
+
+.link-button {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.section-footnote {
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.section-unavailable,
+.section-empty {
+  padding: 4px 0 8px;
+  color: var(--text-2);
+}
+
+.section-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 8px;
+}
+
+.skeleton-line {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--fill);
+}
+
+.skeleton-line.accent {
+  background: var(--accent-skeleton);
+}
+
+/* Key statistics: 4 columns of label/value rows */
+.key-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0 28px;
+}
+
+.key-stats-column {
+  margin: 0;
+}
+
+.key-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.key-stats-column .key-stat:last-child {
+  border-bottom: 0;
+}
+
+.key-stat dt {
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.key-stat dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* About */
+.about {
+  display: flex;
+  gap: 32px;
+}
+
+.about-description {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.about-description p {
+  line-height: 1.55;
+}
+
+.about-description p.clamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.about-facts {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: 1fr 1fr;
+  align-content: start;
+  gap: 14px 16px;
+  width: 360px;
+  margin: 0;
+}
+
+.fact dt {
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.fact dd {
+  margin: 2px 0 0;
+  font-weight: 500;
+}
+
+.fact a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.fact a:hover {
+  text-decoration: underline;
+}
+
+/* AI summary placeholder */
+.ai-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--accent-border);
+  border-radius: 14px;
+  background: var(--accent-tint);
+}
+
+.ai-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-block-heading {
+  font-weight: 600;
+}
+
+/* News */
+.news-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.news-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.news-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.news-item:hover .news-title {
+  color: var(--accent);
+}
+
+.news-item:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--accent);
+}
+
+.news-badge {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.news-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.news-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.news-meta {
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.news-chevron {
+  display: flex;
+  color: var(--text-3);
+}
+
+/* Performance */
+.return-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.return-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.return-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.return-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.return-top {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.return-top .num {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.return-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--fill);
+}
+
+.return-bar {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.return-bar.gain {
+  background: var(--pill-gain);
+}
+
+.return-bar.loss {
+  background: var(--pill-loss);
+}
+
+.return-bar.benchmark {
+  background: var(--text-3);
+}
+
+/* Narrower detail panel (small window or a wide holdings list) */
+@container (max-width: 680px) {
+  .key-stats,
+  .return-tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .about {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .about-facts {
+    width: auto;
   }
 }
