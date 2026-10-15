@@ -6,6 +6,7 @@ Each block has an id ("D:key_stats", news "N1"...) that the model must cite.
 from datetime import date, datetime, timedelta
 
 import yahoo
+from secrets_guard import mask_secrets
 
 CURRENCY_SYMBOLS = {"AUD": "A$", "USD": "US$"}
 MINUS = "−"
@@ -73,7 +74,7 @@ async def safe(load, what, missing):
     try:
         return await load()
     except Exception as exc:
-        print(f"Summary facts: {what} unavailable ({exc.__class__.__name__}: {exc})")
+        print(f"Summary facts: {what} unavailable ({exc.__class__.__name__}: {mask_secrets(exc)})")
         missing.append(f"{what} (Yahoo Finance unavailable)")
         return None
 

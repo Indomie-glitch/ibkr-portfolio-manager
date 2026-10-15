@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB, Contract
 import ai_summary
+from secrets_guard import mask_secrets
 import summary_facts
 import summary_store
 import yahoo
@@ -290,7 +291,7 @@ async def call_yahoo(fetch):
     except HTTPException:
         raise
     except Exception as exc:
-        print(f"Yahoo lookup failed: {exc.__class__.__name__}: {exc}")
+        print(f"Yahoo lookup failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
         raise HTTPException(status_code=502, detail=YAHOO_UNAVAILABLE)
 
 @app.get("/profile/{con_id}", dependencies=[Depends(require_ib)])
@@ -432,8 +433,8 @@ def latest_summary(con_id: int):
 summary_locks = {}
 
 def sse(event, data):
-    """One Server-Sent Event: a named event with a JSON payload."""
-    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+    """One Server-Sent Event: a named event with a JSON payload (masked, as a safety net)."""
+    return f"event: {event}\ndata: {mask_secrets(json.dumps(data, ensure_ascii=False))}\n\n"
 
 @app.post("/summary/{con_id}", dependencies=[Depends(require_ib)])
 async def generate_summary(con_id: int, request: Request):
@@ -456,7 +457,7 @@ async def generate_summary(con_id: int, request: Request):
             try:
                 built = await summary_facts_for(con_id)
             except Exception as exc:
-                print(f"Summary facts failed: {exc.__class__.__name__}: {exc}")
+                print(f"Summary facts failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
                 yield sse("error", {"code": "facts_failed", "message": "Couldn't gather the data for this holding."})
                 return
             facts, links = built["facts"], built["links"]
@@ -479,7 +480,7 @@ async def generate_summary(con_id: int, request: Request):
             except ai_summary.SummaryError as exc:
                 yield sse("error", {"code": exc.code, "message": exc.message})
             except Exception as exc:
-                print(f"Summary failed: {exc.__class__.__name__}: {exc}")
+                print(f"Summary failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
                 yield sse("error", {"code": "unexpected", "message": "Something went wrong while writing the summary."})
 
     # no-cache and X-Accel-Buffering stop anything in between from holding events back
