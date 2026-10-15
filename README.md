@@ -33,8 +33,10 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Light, dark or system appearance
 * Refreshes every 60 seconds, and recovers on its own if IB Gateway disconnects and comes back
 
+* AI stock summary (Claude): a 10-part briefing on any holding, covering the business, financial health, valuation, a news digest, why the price moved, upcoming events, bull and bear case, key risks, what it means for your position, and what changed since your last summary. It only uses data the app fetched, cites a source for every point, and never gives buy/sell advice
+
 ### Planned
-* AI generated summaries for stocks in your portfolio (powered by Claude)
+* AI summary of the whole portfolio
 * Place trades directly from the app
 * Optional desktop app version
 
@@ -45,7 +47,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 3:** Minimal React UI
 * [x] **Milestone 4:** Polished UI
 * [x] **Milestone 4.5:** Expanded stock detail (key statistics, company profile, news, performance via yfinance)
-* [ ] **Milestone 5:** AI stock summaries via the Claude API
+* [x] **Milestone 5:** AI stock summaries via the Claude API
 * [ ] **Milestone 6:** Trade placement
 * [ ] **Later:** Desktop app wrapper (Tauri)
 
@@ -107,7 +109,8 @@ cp .env.example .env
 
 | Variable | Description |
 |---|---|
-| `ANTHROPIC_API_KEY` | Your Claude API key (needed for AI summaries) |
+| `ANTHROPIC_API_KEY` | Your Claude API key (needed for AI summaries; only used by the backend) |
+| `AI_MODEL` | Claude model for summaries, `claude-haiku-4-5` by default |
 | `IB_HOST` | IB Gateway host, usually `127.0.0.1` |
 | `IB_PORT` | IB Gateway port (`4002` for paper trading, `4001` for live) |
 | `IB_CLIENT_ID` | API client ID, `1` by default; use a different one if another app is already connected with it |
@@ -144,8 +147,13 @@ Open http://localhost:5173. The backend starts even if IB Gateway isn't running 
 | `GET /stats/{con_id}` | Market cap, P/E, EPS, beta, dividends, 52-week range, analyst target (Yahoo, cached 1 hour) |
 | `GET /news/{con_id}` | Recent headlines that name the company (Yahoo, cached 15 minutes) |
 | `GET /performance/{con_id}` | Total return YTD, 1Y, 3Y, 5Y vs a total return index (Yahoo, cached 1 day) |
+| `GET /summary/{con_id}` | The last saved AI summary for a holding |
+| `POST /summary/{con_id}` | Writes a new AI summary, streamed section by section (Server-Sent Events) |
+| `GET /summary/{con_id}/facts` | The exact data the AI summary is based on (no API call) |
 
 **Note on market data:** if your live IBKR account is logged in somewhere else (TWS, the mobile app or the web portal), IB blocks quotes on the paper account (error 10197). The app then works out day change from IB's daily price history instead.
+
+**Note on AI summaries:** each summary costs roughly US$0.02 with Claude Haiku 4.5. Summaries are saved locally in `data/` (not committed). The purchase date for the 12-month capital gains tax discount isn't available from IB's API yet, so it shows as unknown.
 
 **Note on Yahoo Finance:** yfinance is an unofficial library and Yahoo can change or block it. If it fails, only the sections that use it show "unavailable"; the rest of the app keeps working. News comes from Yahoo's search, because yfinance's per-stock news call currently returns 404.
 
