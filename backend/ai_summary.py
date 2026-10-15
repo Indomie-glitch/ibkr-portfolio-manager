@@ -7,6 +7,7 @@ soon as each one is complete.
 import copy
 import json
 import os
+import re
 
 import anthropic
 import jiter
@@ -39,6 +40,10 @@ Rules:
 - Always write dates explicitly ("on 12 Oct 2026"), never "today", "yesterday" or "this week":
   summaries are saved and read later.
 - News items are headlines only. Don't state details a headline doesn't contain.
+- Every claim in a point must be supported by the sources it cites. Don't add causes, motives or
+  conditions that no cited source states: no competition, churn, market maturity, pricing power,
+  "capital allocation pressure", "positioning for growth" and the like unless a cited headline says
+  so. "Suggests" or "indicates" may only describe what the cited numbers directly show.
 - Key risks must be specific to this company: its business, finances, regulation or events in
   its news. Leave out general market risk (interest rates, recessions) unless the facts tie it to
   this company.
@@ -55,15 +60,17 @@ Fill every section, in this order:
    past P/E (D:valuation_history). Comparison with similar companies is not available; say so in
    one short point. 2-3 points.
 4. news_digest: group the news into 2-4 themes; each point cites the news ids it summarises.
-5. price_moves: link the recent moves in D:price_moves to dated news and to the benchmark's move
-   over the same period. Sector performance is not available; say so briefly. If no news explains
-   a move, say so. 2-3 points.
+5. price_moves: compare the recent moves in D:price_moves with the benchmark's move over the same
+   period. Link a daily move only to the news ids listed in its news_on_or_up_to_3_days_before, and
+   cite those news ids when you do; if that list is empty, say no news in the data explains the
+   move. Never link a move to news from other dates, and don't claim the news caused the move. Sector performance is not available; say so briefly. 2-3 points.
 6. upcoming_events: explain why each event in D:events matters for this company. Don't add events
    or dates that aren't listed.
 7. bull_bear: the 2-3 strongest arguments for and against, each backed by a number or a news item.
    Every argument is about the business, its numbers or its news, never about where the price
-   might go.
-8. key_risks: 2-4 risks specific to this company.
+   might go (no upside to analyst targets, re-rating or "cheap/expensive" arguments).
+8. key_risks: 2-4 risks specific to this company. Not about the share price itself (its 52-week
+   range or recent falls are not risks).
 9. your_position: explain the figures in D:position (gain or loss, portfolio weight, expected
    yearly dividends, the 12-month date for the capital gains tax discount, or that the purchase
    date is unknown). Restate the figures; give no advice.
@@ -75,6 +82,21 @@ POINT_RANGES = {
     "business_snapshot": (2, 3), "financial_health": (2, 4), "valuation": (2, 3),
     "price_moves": (2, 3), "key_risks": (2, 4),
 }
+
+
+# Wording the rules forbid. Points that match are flagged for the reader (not removed: the
+# wording can be fine in context, e.g. "the target is above the price" in the valuation section).
+RULE_CHECKS = [
+    ("relative date", re.compile(r"\b(today|yesterday|tomorrow|this (?:week|month|year)|last week)\b", re.I), None),
+    # Advice phrases, not the bare words (a bank's "buy-now-pay-later" products are fine)
+    ("advice", re.compile(
+        r"\b(you should|we recommend|recommend (?:buying|selling|holding)|consider (?:buying|selling|trimming)|"
+        r"(?:good|right|bad) time to (?:buy|sell)|(?:a )?(?:buy|sell|hold) (?:rating|signal|opportunity))\b", re.I), None),
+    ("price direction", re.compile(
+        r"\b(upside|downside|re-?rat\w*|undervalued|overvalued|cheap|expensive|(?:downward|upward) price|"
+        r"price (?:adjustment|correction)|room (?:for|to) (?:grow|fall|rise)|will (?:rise|fall|climb|drop|recover))\b", re.I),
+     {"bull_bear", "key_risks"}),
+]
 
 
 def build_schema(source_ids):
@@ -146,6 +168,12 @@ def validate_section(name, section, allowed_ids):
             if not point.get("sources"):
                 point["uncited"] = True
                 warnings.append(f"{name}: a point has no valid source")
+            point.pop("flags", None)  # recompute from scratch
+            flags = [label for label, pattern, sections in RULE_CHECKS
+                     if (sections is None or name in sections) and pattern.search(point.get("text", ""))]
+            if flags:
+                point["flags"] = flags
+                warnings.append(f"{name}: a point may break the rules ({', '.join(flags)})")
     if name in POINT_RANGES and cleaned.get("status") == "ok":
         low, high = POINT_RANGES[name]
         count = len(cleaned.get("points", []))

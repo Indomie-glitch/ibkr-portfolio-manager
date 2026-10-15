@@ -408,12 +408,18 @@ async def summary_facts_preview(con_id: int):
 
 def saved_summary_response(record):
     facts = record["facts"]
+    # Re-run the citation and rule checks, so improved checks also apply to older summaries
+    allowed = set(summary_facts.source_ids(facts))
+    summary, warnings = {}, []
+    for name in ai_summary.SECTIONS:
+        summary[name], section_warnings = ai_summary.validate_section(name, record["summary"][name], allowed)
+        warnings += section_warnings
     return {
         "created_at": record["created_at"],
         "as_of_text": facts.get("as_of_text"),
         "model": record["model"],
-        "summary": record["summary"],
-        "warnings": record["warnings"],
+        "summary": summary,
+        "warnings": warnings,
         "links": facts.get("links", {}),
         "missing": facts.get("D:missing", []),
         "facts": summary_facts.model_facts(facts),
