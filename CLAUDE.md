@@ -26,7 +26,7 @@ CORS allows http://localhost:5173 and http://127.0.0.1:5173, GET only for now.
 After installing any Python package, run pip freeze > requirements.txt from backend/ with the venv active.
 Current API
 GET /health returns {"connected": bool}
-GET /positions returns a list of {"con_id", "symbol", "name", "sec_type", "currency", "exchange", "quantity", "avg_cost", "market_price", "market_value", "unrealized_pnl", "unrealized_pnl_pct"} (from ib.portfolio(); names from contract details, cached)
+GET /positions returns a list of {"con_id", "symbol", "name", "name_truncated", "sec_type", "currency", "exchange", "quantity", "avg_cost", "market_price", "market_value", "unrealized_pnl", "unrealized_pnl_pct"} (from ib.portfolio(); names from contract details, cached, title-cased by backend/names.py; IB cuts longName at 28 characters, which sets name_truncated)
 GET /account returns net_liquidation, cash, positions_value, buying_power, currency, unrealized_pnl, fx_rates ({currency: rate to base})
 GET /quotes returns a list of {"con_id", "last", "prev_close", "day_change", "day_change_pct", "source"}. Tries delayed quotes (reqMarketDataType(3)); if IB sends none, source is "history" and day change comes from daily bars. Quote requests are skipped for 10 min after an empty answer.
 GET /history/{con_id}?range=1D|1W|1M|3M|1Y|All returns {"con_id", "range", "bars": [{"time", "close"}]} via reqHistoricalDataAsync, cached 60s
