@@ -4,7 +4,7 @@ A cleaner, more intuitive portfolio dashboard for Interactive Brokers, with AI g
 
 Interactive Brokers is a powerful broker, but its native interface is dense and hard to navigate. This project connects directly to IBKR through IB Gateway and presents your portfolio in a simpler, modern web interface.
 
-> **Status:** Dashboard working (milestone 4). AI summaries are next.
+> **Status:** Dashboard and expanded stock detail working. AI summaries are next.
 
 ## Screenshots
 
@@ -12,6 +12,12 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 |---|---|---|
 | **Overview** | ![Overview, light mode](docs/screenshots/overview-light.png) | ![Overview, dark mode](docs/screenshots/overview-dark.png) |
 | **Positions** | ![Positions, light mode](docs/screenshots/positions-light.png) | ![Positions, dark mode](docs/screenshots/positions-dark.png) |
+
+**Stock detail** (Positions screen, scrolled):
+
+| Light | Dark |
+|---|---|
+| ![Stock detail, light mode](docs/screenshots/stock-detail-light.png) | ![Stock detail, dark mode](docs/screenshots/stock-detail-dark.png) |
 
 *Paper trading account; prices delayed about 15 minutes.*
 
@@ -22,7 +28,8 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Sortable positions table (money columns compared in AUD, so US and ASX holdings sort correctly)
 * Allocation card that switches between market value, cost basis, quantity and unrealised P&L
 * Positions screen: searchable holdings list with an All / ASX / US filter and a resizable sidebar
-* Price chart per holding (1D to All) with your average cost marked
+* Price chart per holding (1D to All) with your average cost marked and the return for the selected range
+* Stock detail sections you can expand or collapse (remembered): key statistics, company profile, news, and total return vs the ASX 200 or S&P 500 over YTD, 1, 3 and 5 years
 * Light, dark or system appearance
 * Refreshes every 60 seconds, and recovers on its own if IB Gateway disconnects and comes back
 
@@ -37,6 +44,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 2:** Backend REST API exposing account and position data
 * [x] **Milestone 3:** Minimal React UI
 * [x] **Milestone 4:** Polished UI
+* [x] **Milestone 4.5:** Expanded stock detail (key statistics, company profile, news, performance via yfinance)
 * [ ] **Milestone 5:** AI stock summaries via the Claude API
 * [ ] **Milestone 6:** Trade placement
 * [ ] **Later:** Desktop app wrapper (Tauri)
@@ -47,6 +55,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 |---|---|
 | Broker connection | Interactive Brokers IB Gateway |
 | Backend | Python 3.11, [FastAPI](https://fastapi.tiangolo.com/), [ib_async](https://github.com/ib-api-reloaded/ib_async) (the maintained successor to ib_insync) |
+| Extra market data | [yfinance](https://github.com/ranaroussi/yfinance) (Yahoo Finance) for company info, fundamentals, news and long-term performance |
 | Frontend | [React](https://react.dev/) with [Vite](https://vite.dev/), plain CSS, hand-drawn SVG charts |
 | AI summaries | Claude API (Haiku) |
 
@@ -131,8 +140,14 @@ Open http://localhost:5173. The backend starts even if IB Gateway isn't running 
 | `GET /positions` | Each holding with price, market value, unrealised P&L and company name |
 | `GET /quotes` | Last price and day change per holding (delayed) |
 | `GET /history/{con_id}?range=1M` | Price history for the chart (`1D`, `1W`, `1M`, `3M`, `1Y`, `All`) |
+| `GET /profile/{con_id}` | Company profile from Yahoo Finance (cached 1 hour) |
+| `GET /stats/{con_id}` | Market cap, P/E, EPS, beta, dividends, 52-week range, analyst target (Yahoo, cached 1 hour) |
+| `GET /news/{con_id}` | Recent headlines that name the company (Yahoo, cached 15 minutes) |
+| `GET /performance/{con_id}` | Total return YTD, 1Y, 3Y, 5Y vs a total return index (Yahoo, cached 1 day) |
 
 **Note on market data:** if your live IBKR account is logged in somewhere else (TWS, the mobile app or the web portal), IB blocks quotes on the paper account (error 10197). The app then works out day change from IB's daily price history instead.
+
+**Note on Yahoo Finance:** yfinance is an unofficial library and Yahoo can change or block it. If it fails, only the sections that use it show "unavailable"; the rest of the app keeps working. News comes from Yahoo's search, because yfinance's per-stock news call currently returns 404.
 
 ## Project Structure
 
