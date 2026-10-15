@@ -35,6 +35,8 @@ GET /profile/{con_id} (About; cached 1h), /stats/{con_id} (slow key statistics; 
 Yahoo rules (backend/yahoo.py): yahoo_symbol(contract) is the only IB -> Yahoo mapping (ASX -> .AX). yfinance is blocking, so calls run via asyncio.to_thread, one at a time (its SQLite cache errors with "database is locked" under parallel use). Caching via cached() in backend/cache.py (per-key lock, failures remembered 60s). News uses yf.Search by company name (Ticker.news returns 404); headlines must name the company; a bare ASX ticker counts only if the US company with that ticker is the same company. Benchmarks are total return indexes: ^AXJT and ^SP500TR.
 AI summary (backend/summary_facts.py, ai_summary.py, summary_store.py):
   GET /summary/{con_id} returns the last saved summary and ai_configured; POST /summary/{con_id} streams Server-Sent Events (status, facts, section, done, error); GET /summary/{con_id}/facts previews the facts sheet (no API call).
+  History: GET /summary/{con_id}/history (id, created_at, model, price; newest first), GET /summary/{con_id}/history/{summary_id} (one in full, same shape as latest), GET /summary/{con_id}/compare?a=&b= (older, newer, data_changes from compare_data in summary_facts.py). summary_store keeps the last 20 per stock (KEEP_PER_STOCK), pruned on save.
+  Compare tags (frontend/src/summaryDiff.js) match points by wording, so they are a guide only; data_changes are exact. Moves under 1% of the old value are not tagged "Changed" and are marked minor in the data strip (MINOR_CHANGE_PCT in both files).
   All numbers are calculated in summary_facts.py; the model only explains them. Every facts block has an id (D:..., news N1...) and the response schema limits citations to those ids; unknown ids are removed and uncited points flagged anyway.
   10 fixed sections via structured outputs (output_config.format json_schema); sections are streamed as soon as each completes (jiter partial parsing). Summaries are saved in data/summaries.sqlite (gitignored); section 10 compares with the previous one.
   Purchase dates are unknown (IB's API has none); peers and sector performance are not available.
@@ -60,7 +62,8 @@ Backend REST API (done)
 Minimal React UI: account summary and positions table (done)
 Polished UI (done, PR #7, issue #6)
 Milestone 4.5: Expanded stock detail with yfinance (done, PR #9, issue #8)
-AI stock summaries via Claude API (in progress, issue #10, branch feature/ai-summary)
+AI stock summaries via Claude API (done, PR #11, issue #10)
+Summary history and compare (in progress, issue #12, branch feature/summary-history)
 Next after milestone 5: IB Flex Query purchase dates per lot (each with its own 12-month CGT date), manual entry as fallback
 Trade placement
 Later: Tauri desktop wrapper

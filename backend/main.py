@@ -415,6 +415,7 @@ def saved_summary_response(record):
         summary[name], section_warnings = ai_summary.validate_section(name, record["summary"][name], allowed)
         warnings += section_warnings
     return {
+        "id": record["id"],
         "created_at": record["created_at"],
         "as_of_text": facts.get("as_of_text"),
         "model": record["model"],
@@ -433,6 +434,32 @@ def latest_summary(con_id: int):
         "ai_configured": ai_summary.api_key_configured(),
         "model": ai_summary.AI_MODEL,
         "latest": saved_summary_response(record) if record else None,
+    }
+
+@app.get("/summary/{con_id}/history")
+def summary_history(con_id: int):
+    """Saved summaries of a holding, newest first: id, created_at, model and the price at the time."""
+    return summary_store.history(con_id)
+
+def saved_record(con_id, summary_id):
+    record = summary_store.get(con_id, summary_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="No saved summary with that id for this holding")
+    return record
+
+@app.get("/summary/{con_id}/history/{summary_id}")
+def past_summary(con_id: int, summary_id: int):
+    """One saved summary in full, in the same shape as the latest one."""
+    return saved_summary_response(saved_record(con_id, summary_id))
+
+@app.get("/summary/{con_id}/compare")
+def compare_summaries(con_id: int, a: int, b: int):
+    """Two saved summaries (older first) and the exact changes between their facts sheets."""
+    older, newer = sorted((saved_record(con_id, a), saved_record(con_id, b)), key=lambda r: (r["created_at"], r["id"]))
+    return {
+        "older": saved_summary_response(older),
+        "newer": saved_summary_response(newer),
+        "data_changes": summary_facts.compare_data(older["facts"], newer["facts"]),
     }
 
 # One generation per holding at a time, so a double click doesn't pay twice

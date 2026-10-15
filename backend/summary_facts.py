@@ -3,6 +3,7 @@ number calculated here in Python. The model only explains these numbers; it neve
 
 Each block has an id ("D:key_stats", news "N1"...) that the model must cite.
 """
+import re
 from datetime import date, datetime, timedelta
 
 import yahoo
@@ -350,3 +351,75 @@ def model_facts(facts):
 def source_ids(facts):
     """Every id the model may cite for this facts sheet."""
     return [k for k in facts if k.startswith("D:")] + [n["id"] for n in facts.get("news", [])]
+
+
+def parse_money(text):
+    """"−A$15.00" -> -15.0 (saved facts keep money as display strings)."""
+    match = re.search(r"\d[\d,]*(?:\.\d+)?", text or "")
+    if not match:
+        return None
+    value = float(match.group().replace(",", ""))
+    return -value if text.lstrip().startswith((MINUS, "-")) else value
+
+
+# Changes smaller than this share of the old value are shown but marked minor (same rule as the
+# "Changed" tags in frontend/src/summaryDiff.js)
+MINOR_CHANGE_PCT = 1
+
+
+def compare_data(older, newer):
+    """Exact changes between two saved facts sheets, for the top of compare mode.
+
+    Each row is {label, old, new, change, tone, minor}; a value is None when that sheet lacks it.
+    """
+    currency = newer.get("company", {}).get("currency")
+    old_stats, new_stats = older.get("D:key_stats", {}), newer.get("D:key_stats", {})
+    old_pos, new_pos = older.get("D:position", {}), newer.get("D:position", {})
+    rows = []
+
+    def add(label, old, new, values, text=lambda c: f"{c:+.2f}".replace("-", MINUS), tone=False, change=None):
+        """values: the raw (old, new) numbers; change defaults to new - old."""
+        old_value, new_value = values
+        if change is None and old_value is not None and new_value is not None:
+            change = new_value - old_value
+        if change is not None:
+            change = round(change, 2)
+        relative = change_pct(new_value, old_value)
+        minor = bool(change) and relative is not None and abs(relative) < MINOR_CHANGE_PCT
+        if change is None:
+            change_text = None
+        elif change == 0:
+            change_text = "No change"
+        else:
+            change_text = text(change) + (f" (under {MINOR_CHANGE_PCT}%)" if minor else "")
+        rows.append({
+            "label": label, "old": old, "new": new, "change": change_text, "minor": minor,
+            "tone": None if minor or not tone or not change else "gain" if change > 0 else "loss",
+        })
+
+    def as_money(change):
+        return money(change, currency, signed=True)
+
+    def shown(value, suffix=""):
+        return None if value is None else f"{value}{suffix}"
+
+    prices = (older.get("last_price_value"), newer.get("last_price_value"))
+    add("Price", old_stats.get("last_price"), new_stats.get("last_price"), prices,
+        text=lambda c: f"{c:+.2f}%".replace("-", MINUS), tone=True, change=change_pct(prices[1], prices[0]))
+    add("P/E (trailing)", shown(old_stats.get("pe_ttm")), shown(new_stats.get("pe_ttm")),
+        (old_stats.get("pe_ttm"), new_stats.get("pe_ttm")))
+    add("Analyst target", old_stats.get("analyst_target_price"), new_stats.get("analyst_target_price"),
+        (parse_money(old_stats.get("analyst_target_price")), parse_money(new_stats.get("analyst_target_price"))),
+        text=as_money)
+    add("Dividend yield", shown(old_stats.get("dividend_yield_pct"), "%"), shown(new_stats.get("dividend_yield_pct"), "%"),
+        (old_stats.get("dividend_yield_pct"), new_stats.get("dividend_yield_pct")),
+        text=lambda c: f"{c:+.2f} pts".replace("-", MINUS))
+    add("Unrealised P&L", old_pos.get("unrealised_gain_or_loss"), new_pos.get("unrealised_gain_or_loss"),
+        (parse_money(old_pos.get("unrealised_gain_or_loss")), parse_money(new_pos.get("unrealised_gain_or_loss"))),
+        text=as_money, tone=True)
+
+    old_urls = {link["url"] for link in older.get("links", {}).values()}
+    new_news = [news_id for news_id, link in newer.get("links", {}).items() if link["url"] not in old_urls]
+    rows.append({"label": "New news items", "old": None, "new": str(len(new_news)), "change": None, "tone": None, "minor": False,
+                 "note": "Headlines in the newer summary that the older one didn't have"})
+    return rows

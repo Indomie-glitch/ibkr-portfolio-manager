@@ -106,13 +106,32 @@ export function formatAge(isoDateTime, now = Date.now()) {
 }
 
 // "2:14pm", or "15 Oct, 2:14pm" when it isn't today
-export function formatGeneratedTime(isoDateTime, now = new Date()) {
-  if (!isoDateTime) return ''
-  const moment = new Date(isoDateTime)
-  const time = moment
+// "2:14pm"
+function clockTime(moment) {
+  return moment
     .toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true })
     .replace(/\s/g, '')
     .toLowerCase()
+}
+
+// "15 Oct, 2:14pm" (with the year when it isn't this year), for the summary history
+export function formatSummaryTime(isoDateTime, now = new Date()) {
+  const moment = new Date(isoDateTime)
+  const options = { day: 'numeric', month: 'short' }
+  if (moment.getFullYear() !== now.getFullYear()) options.year = 'numeric'
+  return `${moment.toLocaleDateString('en-AU', options)}, ${clockTime(moment)}`
+}
+
+// "15 Oct 2026, 2:14pm"
+export function formatSummaryDate(isoDateTime) {
+  const moment = new Date(isoDateTime)
+  return `${moment.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}, ${clockTime(moment)}`
+}
+
+export function formatGeneratedTime(isoDateTime, now = new Date()) {
+  if (!isoDateTime) return ''
+  const moment = new Date(isoDateTime)
+  const time = clockTime(moment)
   if (moment.toDateString() === now.toDateString()) return time
   return `${moment.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}, ${time}`
 }
