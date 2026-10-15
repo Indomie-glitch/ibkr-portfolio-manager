@@ -5,6 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IBKR Portfolio Manager</title>
+    <script>
+      // Apply the saved appearance before React loads, so dark mode doesn't flash light first.
+      // Same rules as useAppearance in src/appearance.js.
+      ;(function () {
+        var choice = 'system'
+        try {
+          choice = localStorage.getItem('appearance') || 'system'
+        } catch (e) {}
+        var dark =
+          choice === 'dark' || (choice === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
