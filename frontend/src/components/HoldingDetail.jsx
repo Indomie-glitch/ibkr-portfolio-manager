@@ -1,10 +1,33 @@
 import { useEffect, useState } from 'react'
-import { fetchHistory } from '../api.js'
+import { fetchHistory, fetchProfile } from '../api.js'
 import { companyName, formatMoney, formatNumber, formatPercent, trendClass } from '../format.js'
-import AiSummaryCard from './AiSummaryCard.jsx'
+import { benchmarkName } from '../holdings.js'
+import { useFetch } from '../useFetch.js'
+import AboutSection from './detail/AboutSection.jsx'
+import AiSummaryPlaceholder from './detail/AiSummaryPlaceholder.jsx'
+import DisclosureSection from './detail/DisclosureSection.jsx'
+import KeyStats from './detail/KeyStats.jsx'
+import NewsSection from './detail/NewsSection.jsx'
+import PerformanceSection from './detail/PerformanceSection.jsx'
+import { SparklesIcon } from './icons.jsx'
 import PriceChart from './PriceChart.jsx'
 
 const RANGES = ['1D', '1W', '1M', '3M', '1Y', 'All']
+const RANGE_WORDS = { '1W': 'past week', '1M': 'past month', '3M': 'past 3 months', '1Y': 'past year' }
+
+// Change over the selected range: today's move for 1D (vs the previous close),
+// otherwise from the first to the last bar of the chart
+function rangeChange(range, bars, quote) {
+  if (range === '1D') {
+    if (quote?.day_change == null) return null
+    return { change: quote.day_change, pct: quote.day_change_pct, words: 'today' }
+  }
+  if (!bars || bars.length < 2) return null
+  const first = bars[0].close
+  const last = bars.at(-1).close
+  const words = RANGE_WORDS[range] ?? `since ${new Date(bars[0].time).getFullYear()}`
+  return { change: last - first, pct: ((last - first) / first) * 100, words }
+}
 
 function PositionStat({ label, value, className = '' }) {
   return (
@@ -39,9 +62,13 @@ function HoldingDetail({ holding, refreshKey }) {
   const current = history.key === key ? history : { bars: null, error: null }
   const loading = history.key !== key
 
-  const quote = holding.quote
+  // The profile feeds the About section and gives the full company name for the header
+  const profile = useFetch(() => fetchProfile(holding.con_id), holding.con_id)
+  const fullName = profile.data?.long_name ?? companyName(holding)
+  const shortName = profile.data?.short_name ?? holding.symbol
+
   const price = holding.last
-  const change = quote?.day_change
+  const move = rangeChange(range, current.bars, holding.quote)
   const c = holding.currency
 
   return (
@@ -50,7 +77,7 @@ function HoldingDetail({ holding, refreshKey }) {
         <div>
           <h2 className="detail-symbol">{holding.symbol}</h2>
           <p className="detail-subtitle">
-            {companyName(holding)} · {holding.exchange} · {c}
+            {fullName} · {holding.exchange} · {c}
           </p>
         </div>
         <div className="spacer" />
@@ -62,11 +89,11 @@ function HoldingDetail({ holding, refreshKey }) {
       <div className="price-row">
         <div>
           <p className="detail-price num">{formatMoney(price, c)}</p>
-          {change != null && (
-            <p className={`detail-change num ${trendClass(change)}`}>
-              {formatMoney(change, c, { signed: true })} ({formatPercent(quote.day_change_pct)}) since previous close
-            </p>
-          )}
+          <p className={`detail-change num ${trendClass(move?.change)}`}>
+            {move
+              ? `${formatMoney(move.change, c, { signed: true })} (${formatPercent(move.pct)}) ${move.words}`
+              : '…'}
+          </p>
         </div>
         <div className="spacer" />
         <div className="segmented range-control" role="group" aria-label="Chart range">
@@ -106,11 +133,34 @@ function HoldingDetail({ holding, refreshKey }) {
         </div>
       </section>
 
-      <AiSummaryCard
+      <DisclosureSection id="keyStats" title="Key statistics" note="Delayed 15 min">
+        <KeyStats holding={holding} />
+      </DisclosureSection>
+
+      <DisclosureSection id="about" title={`About ${shortName}`}>
+        <AboutSection profile={profile.data} error={profile.error} loading={profile.loading} />
+      </DisclosureSection>
+
+      <DisclosureSection
+        id="aiSummary"
         title="AI summary"
-        buttonLabel="Summarise"
-        description={`No summary yet. Get a short overview of what ${companyName(holding)} does, recent news, and how the price has moved this month.`}
-      />
+        accent
+        actions={
+          <button type="button" className="button-primary compact" disabled title="Coming in milestone 5">
+            <SparklesIcon size={13} /> Summarise
+          </button>
+        }
+      >
+        <AiSummaryPlaceholder name={shortName} />
+      </DisclosureSection>
+
+      <DisclosureSection id="news" title="News">
+        <NewsSection holding={holding} companyName={shortName} />
+      </DisclosureSection>
+
+      <DisclosureSection id="performance" title="Performance" note={`Total return vs ${benchmarkName(holding)}`}>
+        <PerformanceSection holding={holding} />
+      </DisclosureSection>
     </div>
   )
 }

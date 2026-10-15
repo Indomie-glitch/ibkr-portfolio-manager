@@ -4,7 +4,7 @@ A cleaner, more intuitive portfolio dashboard for Interactive Brokers, with AI g
 
 Stack
 Broker: IB Gateway running locally, paper trading account, port 4002
-Backend: Python 3.11, FastAPI, uvicorn, ib_async (the maintained fork of ib_insync; do not use ib_insync)
+Backend: Python 3.11, FastAPI, uvicorn, ib_async (the maintained fork of ib_insync; do not use ib_insync), yfinance for data IB doesn't provide
 Frontend: React with Vite, in frontend/
 AI summaries: Claude API (Haiku), key in .env as ANTHROPIC_API_KEY
 Project layout
@@ -30,6 +30,9 @@ GET /positions returns a list of {"con_id", "symbol", "name", "name_truncated", 
 GET /account returns net_liquidation, cash, positions_value, buying_power, currency, unrealized_pnl, fx_rates ({currency: rate to base})
 GET /quotes returns a list of {"con_id", "last", "prev_close", "day_change", "day_change_pct", "source"}. Tries delayed quotes (reqMarketDataType(3)); if IB sends none, source is "history" and day change comes from daily bars. Quote requests are skipped for 10 min after an empty answer.
 GET /history/{con_id}?range=1D|1W|1M|3M|1Y|All returns {"con_id", "range", "bars": [{"time", "close"}]} via reqHistoricalDataAsync, cached 60s
+GET /quotes also returns open, day_high, day_low, bid, ask, volume, avg_volume (volume and the 3-month average both from IB daily bars, so they match; IB volume runs below Yahoo's consolidated volume)
+GET /profile/{con_id} (About; cached 1h), /stats/{con_id} (slow key statistics; cached 1h, shares one Ticker.info call with /profile), /news/{con_id} (cached 15 min), /performance/{con_id} (cached 1 day). Yahoo failures return 502 so only that section shows "unavailable"; unmapped exchanges return 404.
+Yahoo rules (backend/yahoo.py): yahoo_symbol(contract) is the only IB -> Yahoo mapping (ASX -> .AX). yfinance is blocking, so calls run via asyncio.to_thread, one at a time (its SQLite cache errors with "database is locked" under parallel use). Caching via cached() in backend/cache.py (per-key lock, failures remembered 60s). News uses yf.Search by company name (Ticker.news returns 404); headlines must name the company; a bare ASX ticker counts only if the US company with that ticker is the same company. Benchmarks are total return indexes: ^AXJT and ^SP500TR.
 IB limits: about 60 history requests per 10 minutes, so history is cached. Error 10197 ("competing live session") means the live account is logged in elsewhere (TWS, mobile, web), which blocks market data on the paper account; history still works.
 Design
 Source: Figma file e8rdacwgUA1ZtyNaw81Ry7 (Overview + Positions, light + dark, Components frame). Figma MCP calls are limited, so do not re-fetch it; use the values below.
@@ -44,12 +47,14 @@ Colours (light / dark):
   allocation palette #007aff #5856d6 #30b0c7 #ff9500 #ff2d55 (dark #0a84ff #5e5ce6 #40c8e0 #ff9f0a #ff375f)
 Layout: sidebar 256px; toolbar 12px/28px padding; page body padding 28px, gap 22px; cards radius 14px; buttons are pills (radius 999px)
 Type scale: page title 15/700; net liquidation 36/700; stat value 22/600; holding price 42/700; body 13; captions 11
+Stock detail sections (Figma node 11:260, read once): collapsible sections below "Your position" (DisclosureSection, open state in localStorage "detailSections", closed sections don't fetch): Key statistics, About, AI summary placeholder, News, Performance. Sections adapt to the detail panel width with a container query.
 Screens: Overview (net liquidation, 3 stat cards, positions table, allocation donut, AI summary card). Clicking a row opens that holding on Positions (resizable list 220-480px, holding detail with price chart, position stats, AI summary card). AI and Trade buttons are placeholders until milestones 5 and 6.
 Milestones
 Connect to IB Gateway (done)
 Backend REST API (done)
 Minimal React UI: account summary and positions table (done)
 Polished UI (done, PR #7, issue #6)
+Milestone 4.5: Expanded stock detail with yfinance (issue #8, branch feature/stock-detail)
 AI stock summaries via Claude API
 Trade placement
 Later: Tauri desktop wrapper

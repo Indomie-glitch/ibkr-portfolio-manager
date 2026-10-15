@@ -36,3 +36,20 @@ def display_name(long_name, symbol):
     words = long_name.split()
     name = " ".join(_word(w, symbol.upper(), i == 0) for i, w in enumerate(words))
     return name, truncated
+
+
+# Words dropped from the end of a company name to get the short name people use
+COMPANY_SUFFIXES = {
+    "group", "limited", "ltd", "ltd.", "inc", "inc.", "corporation", "corp", "corp.", "holdings",
+    "plc", "co", "co.", "company", "n.v.", "s.a.", "ag", "se", "llc", "incorporated",
+}
+
+
+def short_company_name(long_name):
+    """"Telstra Group Limited" -> "Telstra", "Apple Inc." -> "Apple", "BHP Group Limited" -> "BHP"."""
+    words = long_name.replace(",", "").split()
+    if words and words[0].lower() == "the":
+        words = words[1:]
+    while len(words) > 1 and words[-1].lower() in COMPANY_SUFFIXES:
+        words.pop()
+    return " ".join(words) or long_name
