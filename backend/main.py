@@ -9,6 +9,8 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB, Contract
+import summary_facts
+import summary_store
 import yahoo
 from cache import cached
 from names import display_name, short_company_name
@@ -296,11 +298,8 @@ async def stats(con_id: int):
     info = await call_yahoo(lambda: yahoo_info(symbol))
     return yahoo.stats_from_info(info)
 
-@app.get("/news/{con_id}", dependencies=[Depends(require_ib)])
-async def news(con_id: int):
-    """Recent headlines that mention the company, newest first (cached 15 minutes)."""
-    contract, symbol = await yahoo_target(con_id)
-
+async def news_items(contract, symbol):
+    """Recent headlines that name the company, newest first (cached 15 minutes)."""
     async def fetch():
         info = await yahoo_info(symbol)
         long_name = info.get("longName") or info.get("shortName")
@@ -317,16 +316,79 @@ async def news(con_id: int):
         return await yahoo.fetch_news(symbol, contract.symbol, long_name,
                                       short_company_name(long_name), is_asx, bare_ticker_ok)
 
-    items = await call_yahoo(lambda: cached(("news", symbol), 15 * 60, fetch))
+    return await cached(("news", symbol), 15 * 60, fetch)
+
+async def performance_data(contract, symbol):
+    """Total return periods for the stock and its benchmark (cached 1 day)."""
+    benchmark = yahoo.benchmark_for(contract)
+    periods = await cached(("performance", symbol), 24 * 60 * 60,
+                           lambda: yahoo.fetch_performance(symbol, benchmark["symbol"]))
+    return {"benchmark": benchmark, "periods": periods}
+
+@app.get("/news/{con_id}", dependencies=[Depends(require_ib)])
+async def news(con_id: int):
+    """Recent headlines that mention the company, newest first (cached 15 minutes)."""
+    contract, symbol = await yahoo_target(con_id)
+    items = await call_yahoo(lambda: news_items(contract, symbol))
     return {"items": items}
 
 @app.get("/performance/{con_id}", dependencies=[Depends(require_ib)])
 async def performance(con_id: int):
     """Total return over YTD, 1Y, 3Y and 5Y for the stock and its benchmark (cached 1 day)."""
     contract, symbol = await yahoo_target(con_id)
-    benchmark = yahoo.benchmark_for(contract)
-    periods = await call_yahoo(lambda: cached(
-        ("performance", symbol), 24 * 60 * 60,
-        lambda: yahoo.fetch_performance(symbol, benchmark["symbol"]),
-    ))
-    return {"benchmark": benchmark, "periods": periods}
+    return await call_yahoo(lambda: performance_data(contract, symbol))
+
+
+# ---------- AI summary ----------
+
+async def summary_facts_for(con_id):
+    """Gather IB and Yahoo data for one holding and build the facts sheet (no Claude call)."""
+    contract, _ = await get_contract_info(con_id)
+    all_positions = await positions()
+    position = next((p for p in all_positions if p["con_id"] == con_id), None)
+    if contract is None or position is None:
+        raise HTTPException(status_code=404, detail="Not a current holding")
+    quote = next((q for q in await quotes() if q["con_id"] == con_id), None)
+    account_data = await account()
+    fx_rates = account_data["fx_rates"]
+    base = account_data["currency"]
+
+    def to_base(p):
+        rate = fx_rates.get(p["currency"], 1 if p["currency"] == base else None)
+        return (p["market_value"] or 0) * rate if rate is not None else 0
+
+    symbol = yahoo.yahoo_symbol(contract)
+    is_asx = (contract.primaryExchange or contract.exchange) == "ASX"
+
+    async def unavailable():
+        raise yahoo.YahooUnavailable("This exchange isn't covered by Yahoo Finance here")
+
+    def yahoo_loader(load):
+        return load if symbol else unavailable
+
+    index_symbol = yahoo.PRICE_INDEXES["ASX" if is_asx else "US"]
+    loaders = {
+        "info": yahoo_loader(lambda: yahoo_info(symbol)),
+        "financials": yahoo_loader(lambda: cached(("financials", symbol), 24 * 60 * 60, lambda: yahoo.fetch_financials(symbol))),
+        "dividends": yahoo_loader(lambda: cached(("dividends", symbol), 24 * 60 * 60, lambda: yahoo.fetch_dividends(symbol))),
+        "performance": yahoo_loader(lambda: performance_data(contract, symbol)),
+        "index_closes": lambda: cached(("index", index_symbol), 60 * 60, lambda: yahoo.fetch_index_closes(index_symbol)),
+        "news": yahoo_loader(lambda: news_items(contract, symbol)),
+    }
+    inputs = {
+        "position": position,
+        "quote": quote,
+        "bars": await get_bars(con_id, "3 M", "1 day", max_age=15 * 60),
+        "base_currency": base,
+        "fx_rate": fx_rates.get(position["currency"], 1),
+        "total_market_value_base": sum(to_base(p) for p in all_positions),
+        "is_asx": is_asx,
+    }
+    return await summary_facts.build_facts(inputs, loaders, previous=summary_store.latest(con_id))
+
+@app.get("/summary/{con_id}/facts", dependencies=[Depends(require_ib)])
+async def summary_facts_preview(con_id: int):
+    """Exactly what the model would be given for this holding. Free: no Claude call."""
+    result = await summary_facts_for(con_id)
+    return {"facts": summary_facts.model_facts(result["facts"]), "links": result["links"],
+            "source_ids": summary_facts.source_ids(result["facts"])}

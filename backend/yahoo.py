@@ -67,7 +67,8 @@ def _date(timestamp, tz_name=None):
 
 
 def _number(value):
-    return value if isinstance(value, (int, float)) and value == value else None  # value == value drops NaN
+    """A plain float, or None for missing/NaN values (yfinance mixes numpy and Python numbers)."""
+    return float(value) if isinstance(value, (int, float)) and value == value else None  # value == value drops NaN
 
 
 # ---------- Company info (one call feeds both About and the slow key statistics) ----------
@@ -226,3 +227,97 @@ def _fetch_performance(symbol, benchmark_symbol):
 
 async def fetch_performance(symbol, benchmark_symbol):
     return await _run(_fetch_performance, symbol, benchmark_symbol)
+
+
+# ---------- Financial statements, dividends and benchmark prices (for the AI summary) ----------
+
+# Price indexes for short-term "why did it move" comparisons. These match IB's price-only
+# history; the Performance section uses total return indexes instead (BENCHMARKS above).
+PRICE_INDEXES = {"ASX": "^AXJO", "US": "^GSPC"}
+
+
+def _row(frame, name):
+    """One line of a yfinance statement as {date: value}, skipping empty years."""
+    if frame is None or name not in frame.index:
+        return {}
+    return {col.date(): float(v) for col, v in frame.loc[name].items() if v == v}  # v == v drops NaN
+
+
+def _fetch_financials(symbol):
+    ticker = yf.Ticker(symbol)
+    income = ticker.income_stmt
+    balance = ticker.balance_sheet
+    if income is None or income.empty:
+        raise YahooUnavailable(f"Yahoo has no financial statements for {symbol}")
+
+    # Unadjusted closes, so past P/E uses the price people actually paid at the time
+    history = ticker.history(period="6y", interval="1d", auto_adjust=False)
+    closes = history["Close"].dropna() if "Close" in history else None
+    if closes is not None:
+        closes.index = closes.index.tz_localize(None).date
+
+    def price_on(day):
+        if closes is None:
+            return None
+        before = closes[closes.index <= day]
+        return float(before.iloc[-1]) if len(before) else None
+
+    eps = _row(income, "Diluted EPS")
+    latest_balance = balance.columns[0].date() if balance is not None and not balance.empty else None
+    surprise = None
+    try:
+        earnings = ticker.earnings_history
+        if earnings is not None and len(earnings):
+            last = earnings.iloc[-1]
+            surprise = {
+                "period_end": earnings.index[-1].date().isoformat() if hasattr(earnings.index[-1], "date") else str(earnings.index[-1]),
+                "eps_actual": _number(last.get("epsActual")),
+                "eps_estimate": _number(last.get("epsEstimate")),
+                "surprise_pct": _number(last.get("surprisePercent") * 100) if _number(last.get("surprisePercent")) is not None else None,  # Yahoo gives 0.0674 for 6.74%
+            }
+    except Exception:
+        surprise = None  # Yahoo often has no estimates for ASX companies
+
+    return {
+        "revenue": _row(income, "Total Revenue"),
+        "net_income": _row(income, "Net Income"),
+        "operating_income": _row(income, "Operating Income"),
+        "diluted_eps": eps,
+        "price_at_year_end": {day: price_on(day) for day in eps},
+        "total_debt": _row(balance, "Total Debt").get(latest_balance),
+        "cash": _row(balance, "Cash And Cash Equivalents").get(latest_balance),
+        "stockholders_equity": _row(balance, "Stockholders Equity").get(latest_balance),
+        "balance_date": latest_balance,
+        "last_earnings": surprise,
+    }
+
+
+async def fetch_financials(symbol):
+    return await _run(_fetch_financials, symbol)
+
+
+def _fetch_dividends(symbol):
+    # Ticker.dividends returns an empty list when the request fails, which looks the same as
+    # "pays no dividends". Price history with raise_errors=True fails loudly instead.
+    history = yf.Ticker(symbol).history(period="2y", interval="1d", actions=True, raise_errors=True)
+    if history is None or history.empty:
+        raise YahooUnavailable(f"Yahoo returned no price history for {symbol}")
+    paid = history["Dividends"] if "Dividends" in history else []
+    return [(day.date(), float(amount)) for day, amount in paid.items() if amount > 0]
+
+
+async def fetch_dividends(symbol):
+    """All past dividends as [(ex-date, amount per share)]; empty if the company pays none."""
+    return await _run(_fetch_dividends, symbol)
+
+
+def _fetch_index_closes(index_symbol):
+    history = yf.Ticker(index_symbol).history(period="6mo", interval="1d", auto_adjust=False)
+    closes = history["Close"].dropna() if "Close" in history else None
+    if closes is None or closes.empty:
+        raise YahooUnavailable(f"Yahoo has no prices for {index_symbol}")
+    return [(day.date(), float(v)) for day, v in closes.items()]
+
+
+async def fetch_index_closes(index_symbol):
+    return await _run(_fetch_index_closes, index_symbol)
