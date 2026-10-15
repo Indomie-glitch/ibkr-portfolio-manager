@@ -123,12 +123,29 @@ async def account():
             # How many units of base currency one unit of this currency is worth
             result["fx_rates"][item.currency] = float(item.value)
     return result
+# When IB sends no quotes at all (e.g. error 10197), asking again just waits several
+# seconds for nothing, so skip quote requests for a while and use the history fallback.
+QUOTE_RETRY_SECONDS = 10 * 60
+quotes_blocked_until = 0
+
+async def fetch_tickers(contracts):
+    global quotes_blocked_until
+    if not contracts or time.monotonic() < quotes_blocked_until:
+        return {}
+    try:
+        tickers = await asyncio.wait_for(ib.reqTickersAsync(*contracts), timeout=4)
+    except asyncio.TimeoutError:
+        tickers = []
+    if not any(clean(t.last) is not None or clean(t.close) is not None for t in tickers):
+        quotes_blocked_until = time.monotonic() + QUOTE_RETRY_SECONDS
+        return {}
+    return {t.contract.conId: t for t in tickers}
+
 @app.get("/quotes")
 async def quotes():
     items = ib.portfolio()
     infos = await asyncio.gather(*(get_contract_info(i.contract.conId) for i in items))
-    contracts = [contract for contract, _ in infos if contract]
-    tickers = {t.contract.conId: t for t in await ib.reqTickersAsync(*contracts)}
+    tickers = await fetch_tickers([contract for contract, _ in infos if contract])
 
     async def quote(item):
         con_id = item.contract.conId
