@@ -32,7 +32,7 @@ function DisclosureSection({ id, title, note, actions, accent = false, children 
   }
 
   return (
-    <section className="disclosure">
+    <section className="disclosure" id={`section-${id}`}>
       <div className="disclosure-header">
         <button
           type="button"

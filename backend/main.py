@@ -1,4 +1,5 @@
 import asyncio
+import json
 import math
 import os
 import time
@@ -6,9 +7,13 @@ from typing import Literal
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB, Contract
+import ai_summary
+from secrets_guard import mask_secrets
+import summary_facts
+import summary_store
 import yahoo
 from cache import cached
 from names import display_name, short_company_name
@@ -88,12 +93,22 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Let the Vite dev server call the API from the browser
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET"],
-)
+# Let the Vite dev server call the API from the browser. Everything is GET-only, except
+# POST /summary/{con_id} (generating a summary), which only these origins may call.
+ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+class PathCORS:
+    """Two CORS policies chosen by path: GET-only everywhere, GET + POST for /summary/."""
+
+    def __init__(self, app):
+        self.get_only = CORSMiddleware(app, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET"])
+        self.get_post = CORSMiddleware(app, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST"])
+
+    async def __call__(self, scope, receive, send):
+        summary_path = scope["type"] == "http" and scope["path"].startswith("/summary/")
+        await (self.get_post if summary_path else self.get_only)(scope, receive, send)
+
+app.add_middleware(PathCORS)
 
 NOT_CONNECTED = "IB Gateway is not connected"
 
@@ -276,7 +291,7 @@ async def call_yahoo(fetch):
     except HTTPException:
         raise
     except Exception as exc:
-        print(f"Yahoo lookup failed: {exc.__class__.__name__}: {exc}")
+        print(f"Yahoo lookup failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
         raise HTTPException(status_code=502, detail=YAHOO_UNAVAILABLE)
 
 @app.get("/profile/{con_id}", dependencies=[Depends(require_ib)])
@@ -296,11 +311,8 @@ async def stats(con_id: int):
     info = await call_yahoo(lambda: yahoo_info(symbol))
     return yahoo.stats_from_info(info)
 
-@app.get("/news/{con_id}", dependencies=[Depends(require_ib)])
-async def news(con_id: int):
-    """Recent headlines that mention the company, newest first (cached 15 minutes)."""
-    contract, symbol = await yahoo_target(con_id)
-
+async def news_items(contract, symbol):
+    """Recent headlines that name the company, newest first (cached 15 minutes)."""
     async def fetch():
         info = await yahoo_info(symbol)
         long_name = info.get("longName") or info.get("shortName")
@@ -317,16 +329,166 @@ async def news(con_id: int):
         return await yahoo.fetch_news(symbol, contract.symbol, long_name,
                                       short_company_name(long_name), is_asx, bare_ticker_ok)
 
-    items = await call_yahoo(lambda: cached(("news", symbol), 15 * 60, fetch))
+    return await cached(("news", symbol), 15 * 60, fetch)
+
+async def performance_data(contract, symbol):
+    """Total return periods for the stock and its benchmark (cached 1 day)."""
+    benchmark = yahoo.benchmark_for(contract)
+    periods = await cached(("performance", symbol), 24 * 60 * 60,
+                           lambda: yahoo.fetch_performance(symbol, benchmark["symbol"]))
+    return {"benchmark": benchmark, "periods": periods}
+
+@app.get("/news/{con_id}", dependencies=[Depends(require_ib)])
+async def news(con_id: int):
+    """Recent headlines that mention the company, newest first (cached 15 minutes)."""
+    contract, symbol = await yahoo_target(con_id)
+    items = await call_yahoo(lambda: news_items(contract, symbol))
     return {"items": items}
 
 @app.get("/performance/{con_id}", dependencies=[Depends(require_ib)])
 async def performance(con_id: int):
     """Total return over YTD, 1Y, 3Y and 5Y for the stock and its benchmark (cached 1 day)."""
     contract, symbol = await yahoo_target(con_id)
-    benchmark = yahoo.benchmark_for(contract)
-    periods = await call_yahoo(lambda: cached(
-        ("performance", symbol), 24 * 60 * 60,
-        lambda: yahoo.fetch_performance(symbol, benchmark["symbol"]),
-    ))
-    return {"benchmark": benchmark, "periods": periods}
+    return await call_yahoo(lambda: performance_data(contract, symbol))
+
+
+# ---------- AI summary ----------
+
+async def summary_facts_for(con_id):
+    """Gather IB and Yahoo data for one holding and build the facts sheet (no Claude call)."""
+    contract, _ = await get_contract_info(con_id)
+    all_positions = await positions()
+    position = next((p for p in all_positions if p["con_id"] == con_id), None)
+    if contract is None or position is None:
+        raise HTTPException(status_code=404, detail="Not a current holding")
+    quote = next((q for q in await quotes() if q["con_id"] == con_id), None)
+    account_data = await account()
+    fx_rates = account_data["fx_rates"]
+    base = account_data["currency"]
+
+    def to_base(p):
+        rate = fx_rates.get(p["currency"], 1 if p["currency"] == base else None)
+        return (p["market_value"] or 0) * rate if rate is not None else 0
+
+    symbol = yahoo.yahoo_symbol(contract)
+    is_asx = (contract.primaryExchange or contract.exchange) == "ASX"
+
+    async def unavailable():
+        raise yahoo.YahooUnavailable("This exchange isn't covered by Yahoo Finance here")
+
+    def yahoo_loader(load):
+        return load if symbol else unavailable
+
+    index_symbol = yahoo.PRICE_INDEXES["ASX" if is_asx else "US"]
+    loaders = {
+        "info": yahoo_loader(lambda: yahoo_info(symbol)),
+        "financials": yahoo_loader(lambda: cached(("financials", symbol), 24 * 60 * 60, lambda: yahoo.fetch_financials(symbol))),
+        "dividends": yahoo_loader(lambda: cached(("dividends", symbol), 24 * 60 * 60, lambda: yahoo.fetch_dividends(symbol))),
+        "performance": yahoo_loader(lambda: performance_data(contract, symbol)),
+        "index_closes": lambda: cached(("index", index_symbol), 60 * 60, lambda: yahoo.fetch_index_closes(index_symbol)),
+        "news": yahoo_loader(lambda: news_items(contract, symbol)),
+    }
+    inputs = {
+        "position": position,
+        "quote": quote,
+        "bars": await get_bars(con_id, "3 M", "1 day", max_age=15 * 60),
+        "base_currency": base,
+        "fx_rate": fx_rates.get(position["currency"], 1),
+        "total_market_value_base": sum(to_base(p) for p in all_positions),
+        "is_asx": is_asx,
+    }
+    return await summary_facts.build_facts(inputs, loaders, previous=summary_store.latest(con_id))
+
+@app.get("/summary/{con_id}/facts", dependencies=[Depends(require_ib)])
+async def summary_facts_preview(con_id: int):
+    """Exactly what the model would be given for this holding. Free: no Claude call."""
+    result = await summary_facts_for(con_id)
+    return {"facts": summary_facts.model_facts(result["facts"]), "links": result["links"],
+            "source_ids": summary_facts.source_ids(result["facts"])}
+
+def saved_summary_response(record):
+    facts = record["facts"]
+    # Re-run the citation and rule checks, so improved checks also apply to older summaries
+    allowed = set(summary_facts.source_ids(facts))
+    summary, warnings = {}, []
+    for name in ai_summary.SECTIONS:
+        summary[name], section_warnings = ai_summary.validate_section(name, record["summary"][name], allowed)
+        warnings += section_warnings
+    return {
+        "created_at": record["created_at"],
+        "as_of_text": facts.get("as_of_text"),
+        "model": record["model"],
+        "summary": summary,
+        "warnings": warnings,
+        "links": facts.get("links", {}),
+        "missing": facts.get("D:missing", []),
+        "facts": summary_facts.model_facts(facts),
+    }
+
+@app.get("/summary/{con_id}")
+def latest_summary(con_id: int):
+    """The last saved summary for a holding (shown instantly), and whether an API key is set."""
+    record = summary_store.latest(con_id)
+    return {
+        "ai_configured": ai_summary.api_key_configured(),
+        "model": ai_summary.AI_MODEL,
+        "latest": saved_summary_response(record) if record else None,
+    }
+
+# One generation per holding at a time, so a double click doesn't pay twice
+summary_locks = {}
+
+def sse(event, data):
+    """One Server-Sent Event: a named event with a JSON payload (masked, as a safety net)."""
+    return f"event: {event}\ndata: {mask_secrets(json.dumps(data, ensure_ascii=False))}\n\n"
+
+@app.post("/summary/{con_id}", dependencies=[Depends(require_ib)])
+async def generate_summary(con_id: int, request: Request):
+    """Generate a new summary and stream it as Server-Sent Events:
+    facts -> section (one per finished section) -> done, or error."""
+    # A cross-site form POST skips the CORS preflight, so check the origin here as well.
+    # Requests without an Origin header come from local tools like curl, not other websites.
+    origin = request.headers.get("origin")
+    if origin is not None and origin not in ALLOWED_ORIGINS:
+        raise HTTPException(status_code=403, detail="Origin not allowed")
+    if not ai_summary.api_key_configured():
+        raise HTTPException(status_code=503, detail="Add ANTHROPIC_API_KEY to .env and restart the backend.")
+    lock = summary_locks.setdefault(con_id, asyncio.Lock())
+    if lock.locked():
+        raise HTTPException(status_code=409, detail="A summary for this holding is already being written")
+
+    async def events():
+        async with lock:
+            yield sse("status", {"message": "Gathering data"})
+            try:
+                built = await summary_facts_for(con_id)
+            except Exception as exc:
+                print(f"Summary facts failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
+                yield sse("error", {"code": "facts_failed", "message": "Couldn't gather the data for this holding."})
+                return
+            facts, links = built["facts"], built["links"]
+            ids = summary_facts.source_ids(facts)
+            yield sse("facts", {"as_of_text": facts["as_of_text"], "links": links,
+                                "missing": facts["D:missing"], "facts": summary_facts.model_facts(facts)})
+            try:
+                async for kind, *payload in ai_summary.stream_sections(summary_facts.model_facts(facts), ids):
+                    if kind == "section":
+                        name, section, warnings = payload
+                        yield sse("section", {"name": name, "section": section, "warnings": warnings})
+                    else:
+                        summary, warnings, usage = payload
+                        saved_facts = {**facts, "links": links}
+                        summary_store.save(con_id, facts["company"]["symbol"], facts["as_of"],
+                                           ai_summary.AI_MODEL, saved_facts, summary, warnings)
+                        print(f"Summary for {facts['company']['symbol']}: {usage['input_tokens']} in, "
+                              f"{usage['output_tokens']} out, {len(warnings)} warnings")
+                        yield sse("done", saved_summary_response(summary_store.latest(con_id)))
+            except ai_summary.SummaryError as exc:
+                yield sse("error", {"code": exc.code, "message": exc.message})
+            except Exception as exc:
+                print(f"Summary failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
+                yield sse("error", {"code": "unexpected", "message": "Something went wrong while writing the summary."})
+
+    # no-cache and X-Accel-Buffering stop anything in between from holding events back
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

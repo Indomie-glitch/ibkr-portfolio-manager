@@ -4,12 +4,11 @@ import { companyName, formatMoney, formatNumber, formatPercent, trendClass } fro
 import { benchmarkName } from '../holdings.js'
 import { useFetch } from '../useFetch.js'
 import AboutSection from './detail/AboutSection.jsx'
-import AiSummaryPlaceholder from './detail/AiSummaryPlaceholder.jsx'
+import AiSummarySection from './detail/AiSummarySection.jsx'
 import DisclosureSection from './detail/DisclosureSection.jsx'
 import KeyStats from './detail/KeyStats.jsx'
 import NewsSection from './detail/NewsSection.jsx'
 import PerformanceSection from './detail/PerformanceSection.jsx'
-import { SparklesIcon } from './icons.jsx'
 import PriceChart from './PriceChart.jsx'
 
 const RANGES = ['1D', '1W', '1M', '3M', '1Y', 'All']
@@ -105,16 +104,18 @@ function HoldingDetail({ holding, refreshKey }) {
         </div>
       </div>
 
-      <PriceChart
-        bars={current.bars}
-        range={range}
-        avgCost={holding.avg_cost}
-        currency={c}
-        loading={loading}
-        error={current.error}
-      />
+      <div id="price-chart">
+        <PriceChart
+          bars={current.bars}
+          range={range}
+          avgCost={holding.avg_cost}
+          currency={c}
+          loading={loading}
+          error={current.error}
+        />
+      </div>
 
-      <section>
+      <section id="your-position">
         <h3 className="section-title">Your position</h3>
         <div className="position-stats">
           <PositionStat label="Quantity" value={formatNumber(holding.quantity, 0)} />
@@ -141,18 +142,7 @@ function HoldingDetail({ holding, refreshKey }) {
         <AboutSection profile={profile.data} error={profile.error} loading={profile.loading} />
       </DisclosureSection>
 
-      <DisclosureSection
-        id="aiSummary"
-        title="AI summary"
-        accent
-        actions={
-          <button type="button" className="button-primary compact" disabled title="Coming in milestone 5">
-            <SparklesIcon size={13} /> Summarise
-          </button>
-        }
-      >
-        <AiSummaryPlaceholder name={shortName} />
-      </DisclosureSection>
+      <AiSummarySection holding={holding} name={shortName} />
 
       <DisclosureSection id="news" title="News">
         <NewsSection holding={holding} companyName={shortName} />

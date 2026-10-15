@@ -15,3 +15,5 @@ build/
 # Mac / editor
 .DS_Store
 .vscode/
+# Local app data (saved AI summaries)
+data/

@@ -6,7 +6,7 @@ Stack
 Broker: IB Gateway running locally, paper trading account, port 4002
 Backend: Python 3.11, FastAPI, uvicorn, ib_async (the maintained fork of ib_insync; do not use ib_insync), yfinance for data IB doesn't provide
 Frontend: React with Vite, in frontend/
-AI summaries: Claude API (Haiku), key in .env as ANTHROPIC_API_KEY
+AI summaries: Claude API, model set by AI_MODEL in .env (default claude-haiku-4-5, the single place to change it), key in .env as ANTHROPIC_API_KEY (backend only, never sent to the frontend)
 Project layout
 backend/         FastAPI app (main.py), ibkr_hello.py, requirements.txt, venv/
 frontend/        React app (Vite)
@@ -22,7 +22,7 @@ Connect to IB Gateway via a background task started in the FastAPI lifespan (kee
 Any endpoint that touches ib must be async def, and should use the async versions of ib_async methods where they exist (e.g. accountSummaryAsync).
 Connection is read only (readonly=True). Do not add order placement until milestone 6.
 Connection settings (IB_HOST, IB_PORT, IB_CLIENT_ID) come from .env via python-dotenv.
-CORS allows http://localhost:5173 and http://127.0.0.1:5173, GET only for now.
+CORS allows http://localhost:5173 and http://127.0.0.1:5173. GET only, except POST /summary/{con_id} (generating an AI summary), which PathCORS in main.py allows from those origins only; the endpoint also checks the Origin header, since simple cross-site POSTs skip the preflight.
 After installing any Python package, run pip freeze > requirements.txt from backend/ with the venv active.
 Current API
 GET /health returns {"connected": bool}
@@ -33,6 +33,11 @@ GET /history/{con_id}?range=1D|1W|1M|3M|1Y|All returns {"con_id", "range", "bars
 GET /quotes also returns open, day_high, day_low, bid, ask, volume, avg_volume (volume and the 3-month average both from IB daily bars, so they match; IB volume runs below Yahoo's consolidated volume)
 GET /profile/{con_id} (About; cached 1h), /stats/{con_id} (slow key statistics; cached 1h, shares one Ticker.info call with /profile), /news/{con_id} (cached 15 min), /performance/{con_id} (cached 1 day). Yahoo failures return 502 so only that section shows "unavailable"; unmapped exchanges return 404.
 Yahoo rules (backend/yahoo.py): yahoo_symbol(contract) is the only IB -> Yahoo mapping (ASX -> .AX). yfinance is blocking, so calls run via asyncio.to_thread, one at a time (its SQLite cache errors with "database is locked" under parallel use). Caching via cached() in backend/cache.py (per-key lock, failures remembered 60s). News uses yf.Search by company name (Ticker.news returns 404); headlines must name the company; a bare ASX ticker counts only if the US company with that ticker is the same company. Benchmarks are total return indexes: ^AXJT and ^SP500TR.
+AI summary (backend/summary_facts.py, ai_summary.py, summary_store.py):
+  GET /summary/{con_id} returns the last saved summary and ai_configured; POST /summary/{con_id} streams Server-Sent Events (status, facts, section, done, error); GET /summary/{con_id}/facts previews the facts sheet (no API call).
+  All numbers are calculated in summary_facts.py; the model only explains them. Every facts block has an id (D:..., news N1...) and the response schema limits citations to those ids; unknown ids are removed and uncited points flagged anyway.
+  10 fixed sections via structured outputs (output_config.format json_schema); sections are streamed as soon as each completes (jiter partial parsing). Summaries are saved in data/summaries.sqlite (gitignored); section 10 compares with the previous one.
+  Purchase dates are unknown (IB's API has none); peers and sector performance are not available.
 IB limits: about 60 history requests per 10 minutes, so history is cached. Error 10197 ("competing live session") means the live account is logged in elsewhere (TWS, mobile, web), which blocks market data on the paper account; history still works.
 Design
 Source: Figma file e8rdacwgUA1ZtyNaw81Ry7 (Overview + Positions, light + dark, Components frame). Figma MCP calls are limited, so do not re-fetch it; use the values below.
@@ -54,8 +59,9 @@ Connect to IB Gateway (done)
 Backend REST API (done)
 Minimal React UI: account summary and positions table (done)
 Polished UI (done, PR #7, issue #6)
-Milestone 4.5: Expanded stock detail with yfinance (issue #8, branch feature/stock-detail)
-AI stock summaries via Claude API
+Milestone 4.5: Expanded stock detail with yfinance (done, PR #9, issue #8)
+AI stock summaries via Claude API (in progress, issue #10, branch feature/ai-summary)
+Next after milestone 5: IB Flex Query purchase dates per lot (each with its own 12-month CGT date), manual entry as fallback
 Trade placement
 Later: Tauri desktop wrapper
 Git workflow

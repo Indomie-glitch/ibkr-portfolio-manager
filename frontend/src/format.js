@@ -104,3 +104,15 @@ export function formatAge(isoDateTime, now = Date.now()) {
   if (months < 12) return `${months}mo ago`
   return `${Math.round(days / 365)}y ago`
 }
+
+// "2:14pm", or "15 Oct, 2:14pm" when it isn't today
+export function formatGeneratedTime(isoDateTime, now = new Date()) {
+  if (!isoDateTime) return ''
+  const moment = new Date(isoDateTime)
+  const time = moment
+    .toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true })
+    .replace(/\s/g, '')
+    .toLowerCase()
+  if (moment.toDateString() === now.toDateString()) return time
+  return `${moment.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}, ${time}`
+}
