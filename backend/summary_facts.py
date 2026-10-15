@@ -3,6 +3,7 @@ number calculated here in Python. The model only explains these numbers; it neve
 
 Each block has an id ("D:key_stats", news "N1"...) that the model must cite.
 """
+import re
 from datetime import date, datetime, timedelta
 
 import yahoo
@@ -350,3 +351,62 @@ def model_facts(facts):
 def source_ids(facts):
     """Every id the model may cite for this facts sheet."""
     return [k for k in facts if k.startswith("D:")] + [n["id"] for n in facts.get("news", [])]
+
+
+def parse_money(text):
+    """"−A$15.00" -> -15.0 (saved facts keep money as display strings)."""
+    match = re.search(r"\d[\d,]*(?:\.\d+)?", text or "")
+    if not match:
+        return None
+    value = float(match.group().replace(",", ""))
+    return -value if text.lstrip().startswith((MINUS, "-")) else value
+
+
+def compare_data(older, newer):
+    """Exact changes between two saved facts sheets, for the top of compare mode.
+
+    Each row is {label, old, new, change, tone}; a value is None when that sheet lacks it.
+    """
+    currency = newer.get("company", {}).get("currency")
+    old_stats, new_stats = older.get("D:key_stats", {}), newer.get("D:key_stats", {})
+    old_pos, new_pos = older.get("D:position", {}), newer.get("D:position", {})
+    rows = []
+
+    def add(label, old, new, change, text=lambda c: f"{c:+.2f}".replace("-", MINUS), tone=False):
+        if change is not None:
+            change = round(change, 2)
+        rows.append({
+            "label": label, "old": old, "new": new,
+            "change": None if change is None else ("No change" if change == 0 else text(change)),
+            "tone": "gain" if tone and change and change > 0 else "loss" if tone and change and change < 0 else None,
+        })
+
+    def diff(old, new):
+        return new - old if old is not None and new is not None else None
+
+    def as_money(change):
+        return money(change, currency, signed=True)
+
+    def shown(value, suffix=""):
+        return None if value is None else f"{value}{suffix}"
+
+    add("Price", old_stats.get("last_price"), new_stats.get("last_price"),
+        change_pct(newer.get("last_price_value"), older.get("last_price_value")),
+        text=lambda c: f"{c:+.2f}%".replace("-", MINUS), tone=True)
+    add("P/E (trailing)", shown(old_stats.get("pe_ttm")), shown(new_stats.get("pe_ttm")),
+        diff(old_stats.get("pe_ttm"), new_stats.get("pe_ttm")))
+    add("Analyst target", old_stats.get("analyst_target_price"), new_stats.get("analyst_target_price"),
+        diff(parse_money(old_stats.get("analyst_target_price")), parse_money(new_stats.get("analyst_target_price"))),
+        text=as_money)
+    add("Dividend yield", shown(old_stats.get("dividend_yield_pct"), "%"), shown(new_stats.get("dividend_yield_pct"), "%"),
+        diff(old_stats.get("dividend_yield_pct"), new_stats.get("dividend_yield_pct")),
+        text=lambda c: f"{c:+.2f} pts".replace("-", MINUS))
+    add("Unrealised P&L", old_pos.get("unrealised_gain_or_loss"), new_pos.get("unrealised_gain_or_loss"),
+        diff(parse_money(old_pos.get("unrealised_gain_or_loss")), parse_money(new_pos.get("unrealised_gain_or_loss"))),
+        text=as_money, tone=True)
+
+    old_urls = {link["url"] for link in older.get("links", {}).values()}
+    new_news = [news_id for news_id, link in newer.get("links", {}).items() if link["url"] not in old_urls]
+    rows.append({"label": "New news items", "old": None, "new": str(len(new_news)), "change": None, "tone": None,
+                 "note": "Headlines in the newer summary that the older one didn't have"})
+    return rows

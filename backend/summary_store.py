@@ -1,7 +1,7 @@
 """Saved AI summaries, one row per generated summary, in a local SQLite file (data/ is gitignored).
 
-Keeping every summary lets the page show the last one instantly and lets the next summary
-say what changed since then.
+Keeping recent summaries lets the page show the last one instantly, lets the next summary
+say what changed since then, and lets the history view show and compare older ones.
 """
 import json
 import sqlite3
@@ -10,6 +10,8 @@ from secrets_guard import mask_secrets
 from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "summaries.sqlite"
+# Older summaries of a stock are deleted when a new one is saved, so the file doesn't grow forever
+KEEP_PER_STOCK = 20
 
 
 def _connect():
@@ -39,7 +41,30 @@ def save(con_id, symbol, created_at, model, facts, summary, warnings):
             (con_id, symbol, created_at, model, mask_secrets(json.dumps(facts)),
              mask_secrets(json.dumps(summary)), mask_secrets(json.dumps(warnings))),
         )
+        # Same transaction as the insert: both happen or neither does
+        conn.execute("""
+            DELETE FROM summaries WHERE con_id = ? AND id NOT IN (
+                SELECT id FROM summaries WHERE con_id = ? ORDER BY created_at DESC, id DESC LIMIT ?
+            )
+        """, (con_id, con_id, KEEP_PER_STOCK))
         return cursor.lastrowid
+
+
+def history(con_id):
+    """Every saved summary of a stock, newest first, without the full text."""
+    with _connect() as conn:
+        rows = conn.execute("""
+            SELECT id, created_at, model, json_extract(facts, '$."D:key_stats".last_price') AS price
+            FROM summaries WHERE con_id = ? ORDER BY created_at DESC, id DESC
+        """, (con_id,)).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get(con_id, summary_id):
+    """One saved summary as a dict, or None if it doesn't exist or belongs to another stock."""
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM summaries WHERE con_id = ? AND id = ?", (con_id, summary_id)).fetchone()
+    return _record(row)
 
 
 def latest(con_id):
@@ -48,6 +73,10 @@ def latest(con_id):
         row = conn.execute(
             "SELECT * FROM summaries WHERE con_id = ? ORDER BY created_at DESC, id DESC LIMIT 1", (con_id,)
         ).fetchone()
+    return _record(row)
+
+
+def _record(row):
     if row is None:
         return None
     return {
