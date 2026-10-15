@@ -70,7 +70,7 @@ function App() {
     setPage('positions')
   }
 
-  const { holdings, totalBase } = buildHoldings(positions, quotes, account)
+  const { holdings } = buildHoldings(positions, quotes, account)
   const updated = updatedAt ? `Updated ${formatTime(updatedAt)}` : 'Loading…'
   const subtitle =
     page === 'overview' ? `${updated} · Prices delayed 15 min` : `${holdings.length} holdings · ${updated}`
@@ -102,7 +102,7 @@ function App() {
 
         {account && page === 'overview' && (
           <div className="page-body">
-            <Overview account={account} holdings={holdings} totalBase={totalBase} onOpenHolding={openHolding} />
+            <Overview account={account} holdings={holdings} onOpenHolding={openHolding} />
           </div>
         )}
 

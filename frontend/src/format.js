@@ -16,10 +16,11 @@ export function formatNumber(value, decimals = 2) {
 
 // formatMoney(1234.5, 'AUD') -> "A$1,234.50"
 // formatMoney(-12.6, 'AUD', { signed: true }) -> "−A$12.60"
-export function formatMoney(value, currency, { signed = false } = {}) {
+// formatMoney(52285.4, 'AUD', { decimals: 0 }) -> "A$52,285"
+export function formatMoney(value, currency, { signed = false, decimals = 2 } = {}) {
   if (value == null) return '—'
   const sign = value < 0 ? MINUS : signed && value > 0 ? '+' : ''
-  return `${sign}${prefixFor(currency)}${formatNumber(Math.abs(value))}`
+  return `${sign}${prefixFor(currency)}${formatNumber(Math.abs(value), decimals)}`
 }
 
 // formatCompactMoney(75552, 'AUD') -> "A$75.6k"
@@ -41,6 +42,11 @@ export function formatPercent(value, { signed = true, decimals = 2 } = {}) {
 
 export function formatTime(date) {
   return date.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+// IB cuts company names off at 28 characters; mark those with an ellipsis
+export function companyName(holding) {
+  return holding.name_truncated ? `${holding.name}…` : holding.name
 }
 
 // CSS class for a gain or loss number

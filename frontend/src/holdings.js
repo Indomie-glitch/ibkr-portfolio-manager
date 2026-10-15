@@ -5,14 +5,23 @@ export function buildHoldings(positions, quotes, account) {
 
   const holdings = positions.map((p) => {
     const rate = fxRates[p.currency] ?? (p.currency === account?.currency ? 1 : null)
-    const marketValueBase = p.market_value != null && rate != null ? p.market_value * rate : null
+    // Convert a value in the holding's currency to the account's base currency (AUD)
+    const toBase = (value) => (value != null && rate != null ? value * rate : null)
+    const quote = quoteById.get(p.con_id) ?? null
+    const last = quote?.last ?? p.market_price
+    const costBasis = p.avg_cost * p.quantity
     return {
       ...p,
-      quote: quoteById.get(p.con_id) ?? null,
-      cost_basis: p.avg_cost * p.quantity,
+      quote,
+      last,
+      cost_basis: costBasis,
       market: p.exchange === 'ASX' ? 'ASX' : 'US',
-      // Market value converted to the account's base currency, for weights and allocation
-      market_value_base: marketValueBase,
+      // Base-currency copies so USD and AUD holdings can be compared, summed and sorted
+      avg_cost_base: toBase(p.avg_cost),
+      last_base: toBase(last),
+      cost_basis_base: toBase(costBasis),
+      market_value_base: toBase(p.market_value),
+      unrealized_pnl_base: toBase(p.unrealized_pnl),
     }
   })
 
@@ -23,5 +32,5 @@ export function buildHoldings(positions, quotes, account) {
 
   // Biggest holdings first
   holdings.sort((a, b) => (b.market_value_base ?? 0) - (a.market_value_base ?? 0))
-  return { holdings, totalBase }
+  return { holdings }
 }

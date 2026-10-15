@@ -91,3 +91,32 @@ export function SearchIcon({ size = 14 }) {
     </Icon>
   )
 }
+
+export function UpDownIcon({ size = 11 }) {
+  return (
+    <Icon size={size} viewBox="0 0 11 11">
+      <path
+        d="M3.4375 4.125L5.5 2.0625L7.5625 4.125M3.4375 6.875L5.5 8.9375L7.5625 6.875"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Icon>
+  )
+}
+
+// Small arrow for the sorted table column; points up for ascending, down for descending
+export function SortArrowIcon({ direction, size = 8 }) {
+  return (
+    <Icon size={size} viewBox="0 0 8 8">
+      <path
+        d={direction === 'asc' ? 'M1.5 5.25L4 2.75L6.5 5.25' : 'M1.5 2.75L4 5.25L6.5 2.75'}
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Icon>
+  )
+}

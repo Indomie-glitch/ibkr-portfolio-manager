@@ -4,7 +4,7 @@ import AllocationCard from '../components/AllocationCard.jsx'
 import PositionsTable from '../components/PositionsTable.jsx'
 import StatCard from '../components/StatCard.jsx'
 
-function Overview({ account, holdings, totalBase, onOpenHolding }) {
+function Overview({ account, holdings, onOpenHolding }) {
   const c = account.currency
   const pnl = account.unrealized_pnl
   // P&L as a percentage of what was paid: today's value minus the gain
@@ -43,7 +43,7 @@ function Overview({ account, holdings, totalBase, onOpenHolding }) {
 
       <div className="holdings-row">
         <PositionsTable holdings={holdings} onOpen={onOpenHolding} />
-        {holdings.length > 0 && <AllocationCard holdings={holdings} totalBase={totalBase} currency={c} />}
+        {holdings.length > 0 && <AllocationCard holdings={holdings} currency={c} />}
       </div>
 
       <AiSummaryCard

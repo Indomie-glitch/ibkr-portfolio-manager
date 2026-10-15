@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchHistory } from '../api.js'
-import { formatMoney, formatNumber, formatPercent, trendClass } from '../format.js'
+import { companyName, formatMoney, formatNumber, formatPercent, trendClass } from '../format.js'
 import AiSummaryCard from './AiSummaryCard.jsx'
 import PriceChart from './PriceChart.jsx'
 
@@ -40,7 +40,7 @@ function HoldingDetail({ holding, refreshKey }) {
   const loading = history.key !== key
 
   const quote = holding.quote
-  const price = quote?.last ?? holding.market_price
+  const price = holding.last
   const change = quote?.day_change
   const c = holding.currency
 
@@ -50,7 +50,7 @@ function HoldingDetail({ holding, refreshKey }) {
         <div>
           <h2 className="detail-symbol">{holding.symbol}</h2>
           <p className="detail-subtitle">
-            {holding.name} · {holding.exchange} · {c}
+            {companyName(holding)} · {holding.exchange} · {c}
           </p>
         </div>
         <div className="spacer" />
@@ -109,7 +109,7 @@ function HoldingDetail({ holding, refreshKey }) {
       <AiSummaryCard
         title="AI summary"
         buttonLabel="Summarise"
-        description={`No summary yet. Get a short overview of what ${holding.name} does, recent news, and how the price has moved this month.`}
+        description={`No summary yet. Get a short overview of what ${companyName(holding)} does, recent news, and how the price has moved this month.`}
       />
     </div>
   )

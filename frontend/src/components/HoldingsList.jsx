@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { formatNumber, formatPercent, trendClass } from '../format.js'
+import { companyName, formatNumber, formatPercent, trendClass } from '../format.js'
 import { SearchIcon } from './icons.jsx'
 
 const MIN_WIDTH = 220
@@ -109,10 +109,12 @@ function HoldingsList({ holdings, selectedId, onSelect }) {
             >
               <div className="holding-names">
                 <div className="holding-symbol">{h.symbol}</div>
-                <div className="company">{h.name}</div>
+                <div className="company" title={h.name_truncated ? 'Name shortened by IB' : undefined}>
+                  {companyName(h)}
+                </div>
               </div>
               <div className="holding-price num">
-                {formatNumber(h.quote?.last ?? h.market_price)}
+                {formatNumber(h.last)}
                 <span className={`change-pill ${trendClass(pct)}`}>{formatPercent(pct)}</span>
               </div>
             </button>
