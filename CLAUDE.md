@@ -26,12 +26,15 @@ CORS allows http://localhost:5173 and http://127.0.0.1:5173, GET only for now.
 After installing any Python package, run pip freeze > requirements.txt from backend/ with the venv active.
 Current API
 GET /health returns {"connected": bool}
-GET /positions returns a list of {"symbol", "quantity", "avg_cost"}
-GET /account returns net_liquidation, cash, positions_value, buying_power, currency
+GET /positions returns a list of {"con_id", "symbol", "name", "sec_type", "currency", "exchange", "quantity", "avg_cost", "market_price", "market_value", "unrealized_pnl", "unrealized_pnl_pct"} (from ib.portfolio(); names from contract details, cached)
+GET /account returns net_liquidation, cash, positions_value, buying_power, currency, unrealized_pnl, fx_rates ({currency: rate to base})
+GET /quotes returns a list of {"con_id", "last", "prev_close", "day_change", "day_change_pct", "source"}. Tries delayed quotes (reqMarketDataType(3)); if IB sends none, source is "history" and day change comes from daily bars. Quote requests are skipped for 10 min after an empty answer.
+GET /history/{con_id}?range=1D|1W|1M|3M|1Y|All returns {"con_id", "range", "bars": [{"time", "close"}]} via reqHistoricalDataAsync, cached 60s
+IB limits: about 60 history requests per 10 minutes, so history is cached. Error 10197 ("competing live session") means the live account is logged in elsewhere (TWS, mobile, web), which blocks market data on the paper account; history still works.
 Design
 Source: Figma file e8rdacwgUA1ZtyNaw81Ry7 (Overview + Positions, light + dark, Components frame). Figma MCP calls are limited, so do not re-fetch it; use the values below.
 Style: macOS-like. Font Inter (400/500/600/700). Plain CSS with CSS variables in frontend/src/index.css; dark mode via prefers-color-scheme. No Tailwind, no chart library (charts are hand-drawn SVG).
-Icons: frontend/src/components/icons.jsx (from frontend/src/assets/icons/), drawn with currentColor.
+Icons: frontend/src/components/icons.jsx (paths copied from the Figma SVGs), drawn with currentColor.
 Colours (light / dark):
   bg #ffffff / #1e1e1e; sidebar panel #f2f2f6 / #262628; surface-2 (stat cards) #f5f5f7 / #2c2c2e
   text #1d1d1f / #f5f5f7; text-2 #6e6e73 / #98989d; text-3 #8e8e93 (both)
@@ -45,8 +48,8 @@ Screens: Overview (net liquidation, 3 stat cards, positions table, allocation do
 Milestones
 Connect to IB Gateway (done)
 Backend REST API (done)
-Minimal React UI: account summary and positions table (in progress)
-Polished UI
+Minimal React UI: account summary and positions table (done)
+Polished UI (in progress, issue #6)
 AI stock summaries via Claude API
 Trade placement
 Later: Tauri desktop wrapper
