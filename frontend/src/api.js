@@ -57,6 +57,19 @@ export function fetchSummary(conId) {
   return getJson(`/summary/${conId}`)
 }
 
+export function fetchSummaryHistory(conId) {
+  return getJson(`/summary/${conId}/history`)
+}
+
+export function fetchPastSummary(conId, summaryId) {
+  return getJson(`/summary/${conId}/history/${summaryId}`)
+}
+
+// Two saved summaries (older first) and the exact changes between their data
+export function fetchSummaryComparison(conId, a, b) {
+  return getJson(`/summary/${conId}/compare?a=${a}&b=${b}`)
+}
+
 // Start a new AI summary and call onEvent(name, data) for each Server-Sent Event the
 // backend streams: status, facts, section (one per finished section), done, error.
 // (EventSource can't send POST requests, so this reads the stream with fetch.)

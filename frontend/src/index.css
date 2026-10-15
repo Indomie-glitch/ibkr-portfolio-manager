@@ -1647,6 +1647,235 @@ button.ai-source:hover {
   padding: 4px 0;
 }
 
+/* Summary history: the History pill and its menu */
+.button.compact {
+  gap: 4px;
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+.history-menu {
+  position: relative;
+}
+
+.history-chevron {
+  display: flex;
+  transform: rotate(90deg);
+}
+
+.history-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  width: 270px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+
+.history-heading {
+  padding: 4px 8px 6px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.history-list {
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.history-item:hover {
+  background: var(--fill);
+}
+
+.history-item[aria-current='true'] {
+  background: var(--selected);
+}
+
+.history-item input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.history-tag {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--text-2);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.history-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 6px 8px 2px;
+  border-top: 1px solid var(--border);
+}
+
+.history-footer .link-button {
+  font-size: 12px;
+}
+
+/* "Viewing summary from ..." */
+.ai-banner.info {
+  background: var(--fill);
+  color: var(--text-2);
+}
+
+.ai-banner .link-button {
+  font-size: inherit;
+}
+
+/* Compare mode */
+.compare-data {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.compare-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.compare-data-grid > div {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.compare-data-grid dt {
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.compare-data-grid dd {
+  margin: 3px 0 0;
+  font-weight: 600;
+}
+
+.compare-data-grid .compare-change {
+  margin-top: 1px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.compare-change.gain {
+  color: var(--gain);
+}
+
+.compare-change.loss {
+  color: var(--loss);
+}
+
+.compare-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.compare-heading {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.compare-column {
+  min-width: 0;
+}
+
+/* Each column's own label is only needed once the columns stack */
+.compare-side {
+  display: none;
+  margin-bottom: 4px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Half-width columns are too narrow for bull and bear side by side */
+.compare .ai-bull-bear {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.ai-mark {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--fill);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.ai-mark.new {
+  color: var(--gain);
+}
+
+.ai-mark.changed {
+  background: var(--accent-skeleton);
+  color: var(--accent);
+}
+
+.ai-mark.removed {
+  color: var(--text-2);
+}
+
+.ai-point-removed {
+  color: var(--text-2);
+}
+
+@container (max-width: 680px) {
+  .compare-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .compare-headings {
+    display: none;
+  }
+
+  .compare-side {
+    display: block;
+  }
+}
+
 /* News */
 .news-list {
   margin: 0;
