@@ -1591,6 +1591,17 @@ button.ai-source:hover {
   color: #fff;
 }
 
+.ai-flag {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  cursor: help;
+}
+
 .ai-uncited {
   color: var(--warning-text);
   font-size: 10px;
@@ -1613,6 +1624,20 @@ button.ai-source:hover {
 .ai-facts dd {
   margin: 2px 0 0;
   font-weight: 600;
+}
+
+.ai-checks {
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.ai-checks summary {
+  cursor: pointer;
+}
+
+.ai-checks ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
 }
 
 .ai-skeleton {

@@ -99,6 +99,11 @@ function Points({ points, links }) {
       {points.map((point, i) => (
         <li key={i}>
           {point.text}{' '}
+          {point.flags && (
+            <span className="ai-flag" title={`Automatic check: possible ${point.flags.join(', ')}. Read this point critically.`}>
+              check
+            </span>
+          )}{' '}
           {point.uncited ? (
             <span className="ai-uncited" title="The model didn't cite a source for this point">
               no source
@@ -238,10 +243,17 @@ function AiSummaryBody({ view, generating, configured, name }) {
         </div>
       ))}
       {view?.warnings?.length > 0 && (
-        <p className="section-footnote">
-          {view.warnings.length} check{view.warnings.length === 1 ? '' : 's'} flagged (for example a citation that didn’t
-          match the data was removed).
-        </p>
+        <details className="ai-checks">
+          <summary>
+            {view.warnings.length} automatic check{view.warnings.length === 1 ? '' : 's'} flagged; points marked “check”
+            may break the summary rules, so read them critically
+          </summary>
+          <ul>
+            {view.warnings.map((warning, i) => (
+              <li key={i}>{warning}</li>
+            ))}
+          </ul>
+        </details>
       )}
       <p className="section-footnote">
         Not financial advice. Generated {view?.as_of_text ? `from data as of ${view.as_of_text}` : 'from the data on this page'}
