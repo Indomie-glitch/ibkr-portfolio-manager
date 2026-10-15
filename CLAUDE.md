@@ -18,10 +18,10 @@ IB Gateway must be running and logged in to the paper account
 Backend: cd backend && source venv/bin/activate && uvicorn main:app --reload (port 8000)
 Frontend: cd frontend && npm run dev (port 5173)
 Backend rules
-Connect to IB Gateway once at startup via FastAPI lifespan, using await ib.connectAsync(...). Never use ib.connect() inside the server (it conflicts with uvicorn's event loop).
+Connect to IB Gateway via a background task started in the FastAPI lifespan (keep_connected in main.py), using await ib.connectAsync(...); it retries every 5s so the server starts without Gateway and reconnects after drops. IB endpoints use Depends(require_ib) and return 503 while disconnected. Never use ib.connect() inside the server (it conflicts with uvicorn's event loop).
 Any endpoint that touches ib must be async def, and should use the async versions of ib_async methods where they exist (e.g. accountSummaryAsync).
 Connection is read only (readonly=True). Do not add order placement until milestone 6.
-Connection settings (IB_HOST, IB_PORT) come from .env via python-dotenv.
+Connection settings (IB_HOST, IB_PORT, IB_CLIENT_ID) come from .env via python-dotenv.
 CORS allows http://localhost:5173 and http://127.0.0.1:5173, GET only for now.
 After installing any Python package, run pip freeze > requirements.txt from backend/ with the venv active.
 Current API
@@ -33,7 +33,7 @@ GET /history/{con_id}?range=1D|1W|1M|3M|1Y|All returns {"con_id", "range", "bars
 IB limits: about 60 history requests per 10 minutes, so history is cached. Error 10197 ("competing live session") means the live account is logged in elsewhere (TWS, mobile, web), which blocks market data on the paper account; history still works.
 Design
 Source: Figma file e8rdacwgUA1ZtyNaw81Ry7 (Overview + Positions, light + dark, Components frame). Figma MCP calls are limited, so do not re-fetch it; use the values below.
-Style: macOS-like. Font Inter (400/500/600/700). Plain CSS with CSS variables in frontend/src/index.css; dark mode via prefers-color-scheme. No Tailwind, no chart library (charts are hand-drawn SVG).
+Style: macOS-like. Font Inter (400/500/600/700). Plain CSS with CSS variables in frontend/src/index.css; dark set is active when <html data-theme="dark">, set by useAppearance (frontend/src/appearance.js) from the toolbar's System/Light/Dark control, saved in localStorage. No Tailwind, no chart library (charts are hand-drawn SVG).
 Icons: frontend/src/components/icons.jsx (paths copied from the Figma SVGs), drawn with currentColor.
 Colours (light / dark):
   bg #ffffff / #1e1e1e; sidebar panel #f2f2f6 / #262628; surface-2 (stat cards) #f5f5f7 / #2c2c2e
@@ -49,7 +49,7 @@ Milestones
 Connect to IB Gateway (done)
 Backend REST API (done)
 Minimal React UI: account summary and positions table (done)
-Polished UI (in progress, issue #6)
+Polished UI (done, PR #7, issue #6)
 AI stock summaries via Claude API
 Trade placement
 Later: Tauri desktop wrapper
@@ -62,4 +62,4 @@ Use the gh CLI for issues and PRs
 Working with me
 I'm a CS student learning as I go. After making changes, briefly explain what you changed and why, and give a short plain explanation of any new technical term.
 Show me a plan before large changes.
-The README still mentions ib_insync and is not final; we'll update it at the end.
+README was updated at the end of milestone 4 (screenshots in docs/screenshots/); keep its roadmap and API table current.
