@@ -1,4 +1,5 @@
 import asyncio
+import json
 import math
 import os
 import time
@@ -6,9 +7,10 @@ from typing import Literal
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB, Contract
+import ai_summary
 import summary_facts
 import summary_store
 import yahoo
@@ -90,12 +92,22 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Let the Vite dev server call the API from the browser
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET"],
-)
+# Let the Vite dev server call the API from the browser. Everything is GET-only, except
+# POST /summary/{con_id} (generating a summary), which only these origins may call.
+ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+class PathCORS:
+    """Two CORS policies chosen by path: GET-only everywhere, GET + POST for /summary/."""
+
+    def __init__(self, app):
+        self.get_only = CORSMiddleware(app, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET"])
+        self.get_post = CORSMiddleware(app, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST"])
+
+    async def __call__(self, scope, receive, send):
+        summary_path = scope["type"] == "http" and scope["path"].startswith("/summary/")
+        await (self.get_post if summary_path else self.get_only)(scope, receive, send)
+
+app.add_middleware(PathCORS)
 
 NOT_CONNECTED = "IB Gateway is not connected"
 
@@ -392,3 +404,84 @@ async def summary_facts_preview(con_id: int):
     result = await summary_facts_for(con_id)
     return {"facts": summary_facts.model_facts(result["facts"]), "links": result["links"],
             "source_ids": summary_facts.source_ids(result["facts"])}
+
+def saved_summary_response(record):
+    facts = record["facts"]
+    return {
+        "created_at": record["created_at"],
+        "as_of_text": facts.get("as_of_text"),
+        "model": record["model"],
+        "summary": record["summary"],
+        "warnings": record["warnings"],
+        "links": facts.get("links", {}),
+        "missing": facts.get("D:missing", []),
+        "facts": summary_facts.model_facts(facts),
+    }
+
+@app.get("/summary/{con_id}")
+def latest_summary(con_id: int):
+    """The last saved summary for a holding (shown instantly), and whether an API key is set."""
+    record = summary_store.latest(con_id)
+    return {
+        "ai_configured": ai_summary.api_key_configured(),
+        "model": ai_summary.AI_MODEL,
+        "latest": saved_summary_response(record) if record else None,
+    }
+
+# One generation per holding at a time, so a double click doesn't pay twice
+summary_locks = {}
+
+def sse(event, data):
+    """One Server-Sent Event: a named event with a JSON payload."""
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+@app.post("/summary/{con_id}", dependencies=[Depends(require_ib)])
+async def generate_summary(con_id: int, request: Request):
+    """Generate a new summary and stream it as Server-Sent Events:
+    facts -> section (one per finished section) -> done, or error."""
+    # A cross-site form POST skips the CORS preflight, so check the origin here as well.
+    # Requests without an Origin header come from local tools like curl, not other websites.
+    origin = request.headers.get("origin")
+    if origin is not None and origin not in ALLOWED_ORIGINS:
+        raise HTTPException(status_code=403, detail="Origin not allowed")
+    if not ai_summary.api_key_configured():
+        raise HTTPException(status_code=503, detail="Add ANTHROPIC_API_KEY to .env and restart the backend.")
+    lock = summary_locks.setdefault(con_id, asyncio.Lock())
+    if lock.locked():
+        raise HTTPException(status_code=409, detail="A summary for this holding is already being written")
+
+    async def events():
+        async with lock:
+            yield sse("status", {"message": "Gathering data"})
+            try:
+                built = await summary_facts_for(con_id)
+            except Exception as exc:
+                print(f"Summary facts failed: {exc.__class__.__name__}: {exc}")
+                yield sse("error", {"code": "facts_failed", "message": "Couldn't gather the data for this holding."})
+                return
+            facts, links = built["facts"], built["links"]
+            ids = summary_facts.source_ids(facts)
+            yield sse("facts", {"as_of_text": facts["as_of_text"], "links": links,
+                                "missing": facts["D:missing"], "facts": summary_facts.model_facts(facts)})
+            try:
+                async for kind, *payload in ai_summary.stream_sections(summary_facts.model_facts(facts), ids):
+                    if kind == "section":
+                        name, section, warnings = payload
+                        yield sse("section", {"name": name, "section": section, "warnings": warnings})
+                    else:
+                        summary, warnings, usage = payload
+                        saved_facts = {**facts, "links": links}
+                        summary_store.save(con_id, facts["company"]["symbol"], facts["as_of"],
+                                           ai_summary.AI_MODEL, saved_facts, summary, warnings)
+                        print(f"Summary for {facts['company']['symbol']}: {usage['input_tokens']} in, "
+                              f"{usage['output_tokens']} out, {len(warnings)} warnings")
+                        yield sse("done", saved_summary_response(summary_store.latest(con_id)))
+            except ai_summary.SummaryError as exc:
+                yield sse("error", {"code": exc.code, "message": exc.message})
+            except Exception as exc:
+                print(f"Summary failed: {exc.__class__.__name__}: {exc}")
+                yield sse("error", {"code": "unexpected", "message": "Something went wrong while writing the summary."})
+
+    # no-cache and X-Accel-Buffering stop anything in between from holding events back
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
