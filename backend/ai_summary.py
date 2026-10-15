@@ -76,8 +76,9 @@ Fill every section, in this order:
    date is unknown). Restate the figures; give no advice.
 10. changes_since_last: why the price moved since the previous summary, using only D:since_last
     and the news ids in its news_between_summaries. 1-3 points. Say whether the stock rose or fell.
-    typical_move_pct is the stock's usual move over the whole window (trading_days_between), not
-    per day; daily_volatility_pct is the per-day figure. Don't mix them up.
+    typical_move_this_window_pct is the stock's usual move over the whole window
+    (trading_days_between); typical_daily_move_pct is its usual move in one day. Name whichever
+    you quote exactly that way.
     - If this is the first summary, say so in one point.
     - If trading_between_summaries is false, say in one point that the market didn't trade between
       the two summaries, and give any price difference with the note's explanation.
@@ -85,12 +86,12 @@ Fill every section, in this order:
       move and that the move was small. No beta, volatility, reasons or news.
     - If classification is "in line with the market", give the stock's move and the benchmark's,
       and say plainly the move was in line with the market: about what the stock's beta
-      (expected_move_pct) implies, within its usual range (typical_move_pct). Don't attribute the
-      move to company news.
+      (expected_move_pct) implies, within its usual range (typical_move_this_window_pct). Don't
+      attribute the move to company news.
     - If classification is "company specific", give the stock's move, the benchmark's, and the
-      part the market doesn't explain (residual_pct, compared with typical_move_pct). Link it only
-      to news ids in news_between_summaries, worded as "coincided with" or "followed", never as
-      the cause. If none of those headlines relate to the move, or there are none, say "no clear
+      part the market doesn't explain (residual_pct, compared with typical_move_this_window_pct).
+      Link it only to news ids in news_between_summaries, worded as "coincided with" or
+      "followed", never as the cause. If none of those headlines relate to the move, or there are none, say "no clear
       company specific reason in the news".
     - If D:since_last has relative_to_benchmark_pct_points instead of residual_pct, beta or
       volatility wasn't available; compare the stock's move with the benchmark's directly.

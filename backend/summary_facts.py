@@ -363,10 +363,11 @@ FALLBACK_POINTS = 1  # without beta or volatility: in line with the market withi
 BAR = timedelta(minutes=5)
 
 RULE = (f"expected_move_pct = beta_5y × benchmark_change_since_pct; residual_pct = price_change_since_pct − "
-        f"expected_move_pct; typical_move_pct = daily volatility of the stock over the last {VOLATILITY_DAYS} "
-        f"trading days × √(trading_days_between). Company specific if the residual is larger than "
-        f"{RESIDUAL_LIMIT} × typical_move_pct, otherwise in line with the market. small_move: the stock "
-        f"moved less than typical_move_pct.")
+        f"expected_move_pct; typical_daily_move_pct = the standard deviation of the stock's daily % changes over "
+        f"the last {VOLATILITY_DAYS} trading days; typical_move_this_window_pct = typical_daily_move_pct × "
+        f"√(trading_days_between). Company specific if the residual is larger than {RESIDUAL_LIMIT} × "
+        f"typical_move_this_window_pct, otherwise in line with the market. small_move: the stock moved less than "
+        f"typical_move_this_window_pct.")
 FALLBACK_RULE = (f"Beta or volatility not available: in line with the market if the stock moved within "
                  f"{FALLBACK_POINTS} percentage point of the benchmark, otherwise company specific. small_move: "
                  f"the stock moved less than 1%.")
@@ -433,7 +434,7 @@ def trading_days_between(then, now, intraday, daily, exchange_zone):
     return None
 
 
-def daily_volatility_pct(closes):
+def typical_daily_move_pct(closes):
     """Standard deviation of the stock's daily % changes over the last VOLATILITY_DAYS days."""
     returns = [change_pct(b, a) for a, b in zip(closes, closes[1:]) if a][-VOLATILITY_DAYS:]
     return statistics.stdev(returns) if len(returns) >= 20 else None
@@ -465,14 +466,14 @@ def since_last_move(*, then, now, price_then, price_now, benchmark_name, benchma
                            "from trading outside regular market hours")
         return result
 
-    volatility = daily_volatility_pct(stock_closes)
+    volatility = typical_daily_move_pct(stock_closes)
     if beta is not None and volatility is not None and benchmark is not None and days:
         expected = beta * benchmark
         residual = stock - expected
         typical = volatility * math.sqrt(days)
         result.update(
-            beta_5y=pct(beta), daily_volatility_pct=pct(volatility),
-            expected_move_pct=pct(expected), residual_pct=pct(residual), typical_move_pct=pct(typical),
+            beta_5y=pct(beta), typical_daily_move_pct=pct(volatility),
+            expected_move_pct=pct(expected), residual_pct=pct(residual), typical_move_this_window_pct=pct(typical),
             classification="company specific" if abs(residual) > RESIDUAL_LIMIT * typical else "in line with the market",
             small_move=abs(stock) < typical, rule=RULE,
         )
