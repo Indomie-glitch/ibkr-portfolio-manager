@@ -52,3 +52,43 @@ export function fetchNews(conId) {
 export function fetchPerformance(conId) {
   return getJson(`/performance/${conId}`)
 }
+
+export function fetchSummary(conId) {
+  return getJson(`/summary/${conId}`)
+}
+
+// Start a new AI summary and call onEvent(name, data) for each Server-Sent Event the
+// backend streams: status, facts, section (one per finished section), done, error.
+// (EventSource can't send POST requests, so this reads the stream with fetch.)
+export async function generateSummary(conId, onEvent) {
+  const response = await fetch(`${API_URL}/summary/${conId}`, { method: 'POST' })
+  if (!response.ok) {
+    let detail = `Summary request failed (${response.status})`
+    try {
+      const body = await response.json()
+      if (typeof body.detail === 'string') detail = body.detail
+    } catch {
+      // not JSON; keep the status message
+    }
+    const error = new Error(detail)
+    error.status = response.status
+    throw error
+  }
+
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += value
+    // Events are separated by a blank line: "event: name\ndata: {...}\n\n"
+    let end
+    while ((end = buffer.indexOf('\n\n')) >= 0) {
+      const raw = buffer.slice(0, end)
+      buffer = buffer.slice(end + 2)
+      const name = raw.match(/^event: (.*)$/m)?.[1]
+      const data = raw.match(/^data: (.*)$/m)?.[1]
+      if (name && data) onEvent(name, JSON.parse(data))
+    }
+  }
+}
