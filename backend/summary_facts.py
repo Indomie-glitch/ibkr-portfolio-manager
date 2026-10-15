@@ -3,8 +3,11 @@ number calculated here in Python. The model only explains these numbers; it neve
 
 Each block has an id ("D:key_stats", news "N1"...) that the model must cite.
 """
+import math
 import re
-from datetime import date, datetime, timedelta
+import statistics
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import yahoo
 from secrets_guard import mask_secrets
@@ -104,6 +107,8 @@ async def build_facts(inputs, loaders, previous=None, now=None):
     dividends = await safe(loaders["dividends"], "Dividend history", missing)
     performance = await safe(loaders["performance"], "Long-term performance", missing)
     index_closes = await safe(loaders["index_closes"], "Benchmark prices", missing)
+    # Only needed to compare with the previous summary
+    index_intraday = await safe(loaders["index_intraday"], "Intraday benchmark prices", missing) if previous else None
     news = await safe(loaders["news"], "News", missing)
 
     last = quote.get("last") or position["market_price"]
@@ -309,9 +314,6 @@ async def build_facts(inputs, loaders, previous=None, now=None):
     }
 
     # --- news with ids, and D:since_last ---
-    previous_urls = set()
-    if previous:
-        previous_urls = {link["url"] for link in previous["facts"].get("links", {}).values()}
     links, news_facts = {}, []
     for i, item in enumerate(news or [], start=1):
         news_id = f"N{i}"
@@ -319,33 +321,177 @@ async def build_facts(inputs, loaders, previous=None, now=None):
         links[news_id] = {"url": item["url"], "title": item["title"], "publisher": item["publisher"], "published": item.get("published")}
         entry = {"id": news_id, "date": long_date(published.date()) if published else None,
                  "publisher": item["publisher"], "title": item["title"]}
-        if previous:
-            entry["new_since_last"] = item["url"] not in previous_urls
+        if previous and published and datetime.fromisoformat(previous["created_at"]) < published <= now:
+            entry["published_between_summaries"] = True
         news_facts.append(entry)
     facts["news"] = news_facts
 
+    benchmark_now = intraday_or_daily_now(index_intraday, index_closes)
     if previous:
         then = datetime.fromisoformat(previous["created_at"]).astimezone()  # local zone name (AEDT)
         previous_price = previous["facts"].get("last_price_value")
         facts["D:since_last"] = {
             "previous_summary": as_of_text(then),
-            "price_then": money(previous_price, currency),
-            "price_now": money(last, currency),
-            "price_change_since_pct": pct(change_pct(last, previous_price)),
-            "new_news_ids": [n["id"] for n in news_facts if n.get("new_since_last")],
+            **prices_then_and_now(previous_price, last, currency),
+            **since_last_move(
+                then=then, now=now, price_then=previous_price, price_now=last,
+                benchmark_name="S&P/ASX 200" if is_asx else "S&P 500",
+                benchmark_then=saved_benchmark_level(previous, inputs.get("index_symbol")),
+                benchmark_now=benchmark_now, intraday=index_intraday, daily=index_closes,
+                exchange_zone=ZoneInfo("Australia/Sydney" if is_asx else "America/New_York"),
+                beta=(info or {}).get("beta"), stock_closes=[b.close for b in inputs["bars"]][:-1] + [last],
+            ),
+            "news_between_summaries": [n["id"] for n in news_facts if n.get("published_between_summaries")],
         }
     else:
         facts["D:since_last"] = {"previous_summary": None, "note": "This is the first summary of this stock"}
 
     facts["D:missing"] = missing
-    # Kept with the saved summary (not needed by the model): the raw price for the next comparison
+    # Kept with the saved summary (not needed by the model): the raw price and benchmark level
+    # for the next summary's comparison
     facts["last_price_value"] = last
+    if benchmark_now is not None:
+        facts["benchmark_level"] = {"symbol": inputs.get("index_symbol"), "value": benchmark_now, "time": now.isoformat()}
     return {"facts": facts, "links": links}
+
+
+# ---------- Why the price moved since the previous summary ----------
+
+VOLATILITY_DAYS = 60  # daily returns used for the stock's typical move
+RESIDUAL_LIMIT = 1.5  # company specific when the unexplained move is more than this many typical moves
+FALLBACK_POINTS = 1  # without beta or volatility: in line with the market within this many percentage points
+BAR = timedelta(minutes=5)
+
+RULE = (f"expected_move_pct = beta_5y × benchmark_change_since_pct; residual_pct = price_change_since_pct − "
+        f"expected_move_pct; typical_daily_move_pct = the standard deviation of the stock's daily % changes over "
+        f"the last {VOLATILITY_DAYS} trading days; typical_move_this_window_pct = typical_daily_move_pct × "
+        f"√(trading_days_between). Company specific if the residual is larger than {RESIDUAL_LIMIT} × "
+        f"typical_move_this_window_pct, otherwise in line with the market. small_move: the stock moved less than "
+        f"typical_move_this_window_pct.")
+FALLBACK_RULE = (f"Beta or volatility not available: in line with the market if the stock moved within "
+                 f"{FALLBACK_POINTS} percentage point of the benchmark, otherwise company specific. small_move: "
+                 f"the stock moved less than 1%.")
+
+
+def prices_then_and_now(then, now, currency):
+    """Both prices, with a third decimal when two different prices round to the same cents
+    (A$4.786 and A$4.790 would both show as A$4.79 next to a 0.08% change)."""
+    then_text, now_text = money(then, currency), money(now, currency)
+    if then is not None and now is not None and then_text == now_text and round(then, 3) != round(now, 3):
+        symbol = CURRENCY_SYMBOLS.get(currency, f"{currency} ")
+        then_text, now_text = f"{symbol}{then:,.3f}", f"{symbol}{now:,.3f}"
+    return {"price_then": then_text, "price_now": now_text}
+
+
+def intraday_or_daily_now(intraday, daily):
+    """The latest benchmark level: the last 5-minute bar, else the last daily close."""
+    if intraday:
+        return intraday[-1][1]
+    return daily[-1][1] if daily else None
+
+
+def saved_benchmark_level(previous, index_symbol):
+    level = previous["facts"].get("benchmark_level")
+    return level["value"] if level and level.get("symbol") == index_symbol else None
+
+
+def closed_by(day, moment, exchange_zone):
+    """Whether that day's session had closed at the moment (both exchanges close at 4pm, plus
+    time for the closing auction)."""
+    local = moment.astimezone(exchange_zone)
+    return day < local.date() or (day == local.date() and local.time() >= time(16, 30))
+
+
+def benchmark_level_at(moment, intraday, daily, exchange_zone):
+    """(level, basis) of the benchmark at a past moment, or (None, None)."""
+    if intraday:
+        ended = [v for start, v in intraday if start + BAR <= moment]
+        if ended and intraday[0][0] <= moment:
+            return ended[-1], "5-minute index prices"
+    if daily:
+        closed = [v for day, v in daily if closed_by(day, moment, exchange_zone)]
+        if closed:
+            return closed[-1], "daily closes (approximate)"
+    return None, None
+
+
+def trading_days_between(then, now, intraday, daily, exchange_zone):
+    """Trading time between two moments in sessions: 5-minute bars in the window divided by the
+    bars in a full session, so windows shorter than a session give a fraction of a day."""
+    if intraday and intraday[0][0] <= then:
+        per_day = {}
+        for start, _ in intraday:
+            day = start.astimezone(exchange_zone).date()
+            per_day[day] = per_day.get(day, 0) + 1
+        full_session = statistics.median(per_day.values())
+        # From the bar the "then" level was taken from (benchmark_level_at) up to now
+        in_window = sum(1 for start, _ in intraday if start + BAR > then and start < now)
+        return in_window / full_session
+    if daily:
+        # Sessions after the close the "then" level came from, up to now
+        now_day = now.astimezone(exchange_zone).date()
+        return float(sum(1 for day, _ in daily if not closed_by(day, then, exchange_zone) and day <= now_day))
+    return None
+
+
+def typical_daily_move_pct(closes):
+    """Standard deviation of the stock's daily % changes over the last VOLATILITY_DAYS days."""
+    returns = [change_pct(b, a) for a, b in zip(closes, closes[1:]) if a][-VOLATILITY_DAYS:]
+    return statistics.stdev(returns) if len(returns) >= 20 else None
+
+
+def since_last_move(*, then, now, price_then, price_now, benchmark_name, benchmark_then, benchmark_now,
+                    intraday, daily, exchange_zone, beta, stock_closes):
+    """How much the stock moved since the previous summary, compared with the benchmark, and
+    whether the move looks market-wide or company specific. Every number is calculated here."""
+    stock = change_pct(price_now, price_then)
+    basis = "saved with the previous summary" if benchmark_then is not None else None
+    if benchmark_then is None:
+        benchmark_then, basis = benchmark_level_at(then, intraday, daily, exchange_zone)
+    benchmark = change_pct(benchmark_now, benchmark_then)
+    days = trading_days_between(then, now, intraday, daily, exchange_zone)
+    result = {
+        "price_change_since_pct": pct(stock),
+        "benchmark": benchmark_name,
+        "benchmark_change_since_pct": pct(benchmark),
+        "benchmark_basis": basis,
+        "trading_between_summaries": None if days is None else days > 0,
+        "trading_days_between": None if days is None else round(days, 2),
+    }
+    if stock is None:
+        return result
+    if days == 0:
+        result.update(classification=None, small_move=abs(stock) < 1,
+                      note="The benchmark didn't trade between the two summaries; any price difference comes "
+                           "from trading outside regular market hours")
+        return result
+
+    volatility = typical_daily_move_pct(stock_closes)
+    if beta is not None and volatility is not None and benchmark is not None and days:
+        expected = beta * benchmark
+        residual = stock - expected
+        typical = volatility * math.sqrt(days)
+        result.update(
+            beta_5y=pct(beta), typical_daily_move_pct=pct(volatility),
+            expected_move_pct=pct(expected), residual_pct=pct(residual), typical_move_this_window_pct=pct(typical),
+            classification="company specific" if abs(residual) > RESIDUAL_LIMIT * typical else "in line with the market",
+            small_move=abs(stock) < typical, rule=RULE,
+        )
+    elif benchmark is not None:
+        result.update(
+            relative_to_benchmark_pct_points=pct(stock - benchmark),
+            classification="company specific" if abs(stock - benchmark) > FALLBACK_POINTS else "in line with the market",
+            small_move=abs(stock) < 1, rule=FALLBACK_RULE,
+        )
+    else:
+        result.update(classification=None, small_move=abs(stock) < 1,
+                      note="Benchmark prices not available, so the move can't be compared with the market")
+    return result
 
 
 def model_facts(facts):
     """The part of the facts sheet the model sees (drops bookkeeping fields)."""
-    return {k: v for k, v in facts.items() if k not in ("last_price_value", "links")}
+    return {k: v for k, v in facts.items() if k not in ("last_price_value", "benchmark_level", "links")}
 
 
 def source_ids(facts):

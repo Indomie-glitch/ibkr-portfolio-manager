@@ -386,6 +386,7 @@ async def summary_facts_for(con_id):
         "dividends": yahoo_loader(lambda: cached(("dividends", symbol), 24 * 60 * 60, lambda: yahoo.fetch_dividends(symbol))),
         "performance": yahoo_loader(lambda: performance_data(contract, symbol)),
         "index_closes": lambda: cached(("index", index_symbol), 60 * 60, lambda: yahoo.fetch_index_closes(index_symbol)),
+        "index_intraday": lambda: cached(("index_5m", index_symbol), 5 * 60, lambda: yahoo.fetch_index_intraday(index_symbol)),
         "news": yahoo_loader(lambda: news_items(contract, symbol)),
     }
     inputs = {
@@ -396,6 +397,7 @@ async def summary_facts_for(con_id):
         "fx_rate": fx_rates.get(position["currency"], 1),
         "total_market_value_base": sum(to_base(p) for p in all_positions),
         "is_asx": is_asx,
+        "index_symbol": index_symbol,
     }
     return await summary_facts.build_facts(inputs, loaders, previous=summary_store.latest(con_id))
 
@@ -412,7 +414,7 @@ def saved_summary_response(record):
     allowed = set(summary_facts.source_ids(facts))
     summary, warnings = {}, []
     for name in ai_summary.SECTIONS:
-        summary[name], section_warnings = ai_summary.validate_section(name, record["summary"][name], allowed)
+        summary[name], section_warnings = ai_summary.validate_section(name, record["summary"][name], allowed, facts)
         warnings += section_warnings
     return {
         "id": record["id"],
