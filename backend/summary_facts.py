@@ -362,27 +362,40 @@ def parse_money(text):
     return -value if text.lstrip().startswith((MINUS, "-")) else value
 
 
+# Changes smaller than this share of the old value are shown but marked minor (same rule as the
+# "Changed" tags in frontend/src/summaryDiff.js)
+MINOR_CHANGE_PCT = 1
+
+
 def compare_data(older, newer):
     """Exact changes between two saved facts sheets, for the top of compare mode.
 
-    Each row is {label, old, new, change, tone}; a value is None when that sheet lacks it.
+    Each row is {label, old, new, change, tone, minor}; a value is None when that sheet lacks it.
     """
     currency = newer.get("company", {}).get("currency")
     old_stats, new_stats = older.get("D:key_stats", {}), newer.get("D:key_stats", {})
     old_pos, new_pos = older.get("D:position", {}), newer.get("D:position", {})
     rows = []
 
-    def add(label, old, new, change, text=lambda c: f"{c:+.2f}".replace("-", MINUS), tone=False):
+    def add(label, old, new, values, text=lambda c: f"{c:+.2f}".replace("-", MINUS), tone=False, change=None):
+        """values: the raw (old, new) numbers; change defaults to new - old."""
+        old_value, new_value = values
+        if change is None and old_value is not None and new_value is not None:
+            change = new_value - old_value
         if change is not None:
             change = round(change, 2)
+        relative = change_pct(new_value, old_value)
+        minor = bool(change) and relative is not None and abs(relative) < MINOR_CHANGE_PCT
+        if change is None:
+            change_text = None
+        elif change == 0:
+            change_text = "No change"
+        else:
+            change_text = text(change) + (f" (under {MINOR_CHANGE_PCT}%)" if minor else "")
         rows.append({
-            "label": label, "old": old, "new": new,
-            "change": None if change is None else ("No change" if change == 0 else text(change)),
-            "tone": "gain" if tone and change and change > 0 else "loss" if tone and change and change < 0 else None,
+            "label": label, "old": old, "new": new, "change": change_text, "minor": minor,
+            "tone": None if minor or not tone or not change else "gain" if change > 0 else "loss",
         })
-
-    def diff(old, new):
-        return new - old if old is not None and new is not None else None
 
     def as_money(change):
         return money(change, currency, signed=True)
@@ -390,23 +403,23 @@ def compare_data(older, newer):
     def shown(value, suffix=""):
         return None if value is None else f"{value}{suffix}"
 
-    add("Price", old_stats.get("last_price"), new_stats.get("last_price"),
-        change_pct(newer.get("last_price_value"), older.get("last_price_value")),
-        text=lambda c: f"{c:+.2f}%".replace("-", MINUS), tone=True)
+    prices = (older.get("last_price_value"), newer.get("last_price_value"))
+    add("Price", old_stats.get("last_price"), new_stats.get("last_price"), prices,
+        text=lambda c: f"{c:+.2f}%".replace("-", MINUS), tone=True, change=change_pct(prices[1], prices[0]))
     add("P/E (trailing)", shown(old_stats.get("pe_ttm")), shown(new_stats.get("pe_ttm")),
-        diff(old_stats.get("pe_ttm"), new_stats.get("pe_ttm")))
+        (old_stats.get("pe_ttm"), new_stats.get("pe_ttm")))
     add("Analyst target", old_stats.get("analyst_target_price"), new_stats.get("analyst_target_price"),
-        diff(parse_money(old_stats.get("analyst_target_price")), parse_money(new_stats.get("analyst_target_price"))),
+        (parse_money(old_stats.get("analyst_target_price")), parse_money(new_stats.get("analyst_target_price"))),
         text=as_money)
     add("Dividend yield", shown(old_stats.get("dividend_yield_pct"), "%"), shown(new_stats.get("dividend_yield_pct"), "%"),
-        diff(old_stats.get("dividend_yield_pct"), new_stats.get("dividend_yield_pct")),
+        (old_stats.get("dividend_yield_pct"), new_stats.get("dividend_yield_pct")),
         text=lambda c: f"{c:+.2f} pts".replace("-", MINUS))
     add("Unrealised P&L", old_pos.get("unrealised_gain_or_loss"), new_pos.get("unrealised_gain_or_loss"),
-        diff(parse_money(old_pos.get("unrealised_gain_or_loss")), parse_money(new_pos.get("unrealised_gain_or_loss"))),
+        (parse_money(old_pos.get("unrealised_gain_or_loss")), parse_money(new_pos.get("unrealised_gain_or_loss"))),
         text=as_money, tone=True)
 
     old_urls = {link["url"] for link in older.get("links", {}).values()}
     new_news = [news_id for news_id, link in newer.get("links", {}).items() if link["url"] not in old_urls]
-    rows.append({"label": "New news items", "old": None, "new": str(len(new_news)), "change": None, "tone": None,
+    rows.append({"label": "New news items", "old": None, "new": str(len(new_news)), "change": None, "tone": None, "minor": False,
                  "note": "Headlines in the newer summary that the older one didn't have"})
     return rows

@@ -15,7 +15,7 @@ function DataChanges({ rows }) {
       <p className="ai-group-title">What changed in the data</p>
       <dl className="compare-data-grid">
         {rows.map((row) => (
-          <div key={row.label} title={row.note}>
+          <div key={row.label} title={row.note} className={row.minor ? 'minor' : undefined}>
             <dt>{row.label}</dt>
             <dd className="num">
               {row.old != null ? `${row.old} → ${row.new ?? '–'}` : (row.new ?? '–')}

@@ -4,6 +4,7 @@
 
 const SIMILAR = 0.4 // share of meaningful words (and numbers) two points need in common to be the same point
 const SAME_SENTENCE = 0.6 // closer still: only then can a different number mean the figure changed
+const MINOR_CHANGE_PCT = 1 // smaller moves aren't tagged (same rule as the data strip, summary_facts.py)
 
 // Money, percentages and plain numbers, e.g. A$4.79, −3.04%, 53.08B. A sign only counts at the
 // start of a word, so "2024-25" gives 2024 and 25, not −25
@@ -36,10 +37,11 @@ const unit = (n) => n.replace(/[−+\-\d,.]/g, '')
 const value = (n) => Math.abs(parseFloat(n.replace(/[^\d.]/g, '')))
 const decimals = (n) => (n.split('.')[1] ?? '').replace(/\D/g, '').length
 
-// 1.0% and 1.04% are the same figure rounded differently
+// 1.0% and 1.04% are the same figure rounded differently; 23.95 and 23.93 differ by under 1%
 function sameFigure(a, b) {
   const places = Math.min(decimals(a), decimals(b))
-  return value(a).toFixed(places) === value(b).toFixed(places)
+  if (value(a).toFixed(places) === value(b).toFixed(places)) return true
+  return value(a) !== 0 && (Math.abs(value(b) - value(a)) / value(a)) * 100 < MINOR_CHANGE_PCT
 }
 
 // Pairs of [old, new] figures with the same unit where the new one replaced the old one. Figures

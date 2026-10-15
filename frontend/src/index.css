@@ -1776,6 +1776,11 @@ button.ai-source:hover {
   background: var(--bg);
 }
 
+/* Moved by under 1%: still shown exactly, but quieter */
+.compare-data-grid > .minor {
+  opacity: 0.6;
+}
+
 .compare-data-grid dt {
   color: var(--text-2);
   font-size: 11px;
