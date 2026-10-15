@@ -10,7 +10,9 @@ async function getJson(path) {
     } catch {
       // body wasn't JSON; keep the status message
     }
-    throw new Error(detail)
+    const error = new Error(detail)
+    error.status = response.status
+    throw error
   }
   return response.json()
 }

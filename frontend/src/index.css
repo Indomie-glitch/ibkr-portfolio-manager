@@ -49,48 +49,53 @@
   -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1e1e1e;
-    --sidebar: #262628;
-    --sidebar-border: rgba(255, 255, 255, 0.07);
-    --surface-2: #2c2c2e;
-    --text: #f5f5f7;
-    --text-2: #98989d;
-    --text-3: #8e8e93;
-    --border: rgba(255, 255, 255, 0.11);
-    --row-border: rgba(255, 255, 255, 0.08);
-    --button-border: rgba(255, 255, 255, 0.17);
-    --button-bg: #3a3a3c;
-    --fill-active: rgba(255, 255, 255, 0.1);
-    --fill: rgba(255, 255, 255, 0.08);
-    --fill-subtle: rgba(255, 255, 255, 0.07);
-    --fill-header: rgba(255, 255, 255, 0.04);
-    --segment-selected: #636366;
-    --connection-card: rgba(255, 255, 255, 0.07);
-    --accent: #0a84ff;
-    --accent-tint: rgba(10, 132, 255, 0.06);
-    --accent-border: rgba(10, 132, 255, 0.18);
-    --selected: rgba(10, 132, 255, 0.2);
-    --gain: #30d158;
-    --loss: #ff453a;
-    --pill-gain: #30d158;
-    --pill-loss: #ff453a;
-    --status-ok: #30d158;
-    --warning-bg: rgba(255, 159, 10, 0.12);
-    --warning-text: #ff9f0a;
-    --warning-dot: #ff9f0a;
-    --chart-grid: rgba(255, 255, 255, 0.08);
-    --handle: rgba(255, 255, 255, 0.22);
-    --zero-line: rgba(255, 255, 255, 0.25);
-    --chart-1: #0a84ff;
-    --chart-2: #5e5ce6;
-    --chart-3: #40c8e0;
-    --chart-4: #ff9f0a;
-    --chart-5: #ff375f;
-    --error-bg: #3a1d1d;
-    --error-text: #ffb4b4;
-  }
+/* The active set is chosen by data-theme on <html>: System follows macOS, or Light/Dark
+   from the toolbar control (see useAppearance in appearance.js). */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #1e1e1e;
+  --sidebar: #262628;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --surface-2: #2c2c2e;
+  --text: #f5f5f7;
+  --text-2: #98989d;
+  --text-3: #8e8e93;
+  --border: rgba(255, 255, 255, 0.11);
+  --row-border: rgba(255, 255, 255, 0.08);
+  --button-border: rgba(255, 255, 255, 0.17);
+  --button-bg: #3a3a3c;
+  --fill-active: rgba(255, 255, 255, 0.1);
+  --fill: rgba(255, 255, 255, 0.08);
+  --fill-subtle: rgba(255, 255, 255, 0.07);
+  --fill-header: rgba(255, 255, 255, 0.04);
+  --segment-selected: #636366;
+  --connection-card: rgba(255, 255, 255, 0.07);
+  --accent: #0a84ff;
+  --accent-tint: rgba(10, 132, 255, 0.06);
+  --accent-border: rgba(10, 132, 255, 0.18);
+  --selected: rgba(10, 132, 255, 0.2);
+  --gain: #30d158;
+  --loss: #ff453a;
+  --pill-gain: #30d158;
+  --pill-loss: #ff453a;
+  --status-ok: #30d158;
+  --warning-bg: rgba(255, 159, 10, 0.12);
+  --warning-text: #ff9f0a;
+  --warning-dot: #ff9f0a;
+  --chart-grid: rgba(255, 255, 255, 0.08);
+  --handle: rgba(255, 255, 255, 0.22);
+  --zero-line: rgba(255, 255, 255, 0.25);
+  --chart-1: #0a84ff;
+  --chart-2: #5e5ce6;
+  --chart-3: #40c8e0;
+  --chart-4: #ff9f0a;
+  --chart-5: #ff375f;
+  --error-bg: #3a1d1d;
+  --error-text: #ffb4b4;
 }
 
 * {
@@ -390,6 +395,71 @@ p {
   margin-top: 4px;
   font-size: 12px;
   opacity: 0.8;
+}
+
+.connection-message {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+}
+
+.connection-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 440px;
+  padding: 32px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  text-align: center;
+}
+
+.connection-card .status-dot {
+  width: 12px;
+  height: 12px;
+}
+
+.connection-card h2 {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.connection-card p {
+  color: var(--text-2);
+  line-height: 1.45;
+}
+
+.connection-card code {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--fill);
+  font-size: 12px;
+}
+
+.connection-retry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+/* Gently pulsing dot to show the app is still trying */
+.pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
 }
 
 .empty {
@@ -909,6 +979,11 @@ p {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+
+.appearance-control button {
+  padding: 3px 9px;
+  font-size: 11px;
 }
 
 .segmented button[aria-pressed='true'] {

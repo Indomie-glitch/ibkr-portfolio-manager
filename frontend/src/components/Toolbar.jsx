@@ -1,6 +1,12 @@
 import { RefreshIcon } from './icons.jsx'
 
-function Toolbar({ title, subtitle, loading, onRefresh }) {
+const APPEARANCES = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+]
+
+function Toolbar({ title, subtitle, loading, onRefresh, appearance, onAppearanceChange }) {
   return (
     <header className="toolbar">
       <div>
@@ -10,6 +16,18 @@ function Toolbar({ title, subtitle, loading, onRefresh }) {
       <div className="spacer" />
       <div className="badge" title="IB prices are delayed about 15 minutes without a market data subscription">
         <span className="badge-dot" /> Delayed data
+      </div>
+      <div className="segmented appearance-control" role="group" aria-label="Appearance">
+        {APPEARANCES.map((a) => (
+          <button
+            key={a.value}
+            type="button"
+            aria-pressed={appearance === a.value}
+            onClick={() => onAppearanceChange(a.value)}
+          >
+            {a.label}
+          </button>
+        ))}
       </div>
       <button
         type="button"
