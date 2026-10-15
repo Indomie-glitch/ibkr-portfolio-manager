@@ -5,7 +5,8 @@ import time
 from typing import Literal
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB, Contract
 from names import display_name
@@ -14,6 +15,8 @@ load_dotenv()
 
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT = int(os.getenv("IB_PORT", "4002"))
+IB_CLIENT_ID = int(os.getenv("IB_CLIENT_ID", "1"))
+RECONNECT_SECONDS = 5
 
 ib = IB()
 
@@ -55,12 +58,30 @@ async def get_bars(con_id, duration, bar_size, max_age):
     history_cache[key] = (time.monotonic(), bars)
     return bars
 
+async def keep_connected():
+    """Connect to IB Gateway, and reconnect whenever the connection drops.
+
+    Runs for the server's whole life, so the API starts even if Gateway is closed
+    and recovers on its own when Gateway comes back.
+    """
+    while True:
+        if not ib.isConnected():
+            try:
+                await ib.connectAsync(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID, readonly=True)
+                # 3 = delayed data, which is free without a market data subscription
+                ib.reqMarketDataType(3)
+                print(f"Connected to IB Gateway on {IB_HOST}:{IB_PORT}")
+            except Exception as exc:
+                # Gateway closed, still starting up, or not logged in yet; try again shortly
+                ib.disconnect()
+                print(f"IB Gateway not available ({exc.__class__.__name__}); retrying in {RECONNECT_SECONDS}s")
+        await asyncio.sleep(RECONNECT_SECONDS)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await ib.connectAsync(IB_HOST, IB_PORT, clientId=1, readonly=True)
-    # 3 = delayed data, which is free without a market data subscription
-    ib.reqMarketDataType(3)
+    task = asyncio.create_task(keep_connected())
     yield
+    task.cancel()
     ib.disconnect()
 
 app = FastAPI(lifespan=lifespan)
@@ -72,11 +93,23 @@ app.add_middleware(
     allow_methods=["GET"],
 )
 
+NOT_CONNECTED = "IB Gateway is not connected"
+
+def require_ib():
+    """Endpoint dependency: answer 503 straight away instead of waiting on a dead connection."""
+    if not ib.isConnected():
+        raise HTTPException(status_code=503, detail=NOT_CONNECTED)
+
+# If Gateway drops in the middle of a request, ib_async raises ConnectionError
+@app.exception_handler(ConnectionError)
+async def connection_error(request: Request, exc: ConnectionError):
+    return JSONResponse(status_code=503, content={"detail": NOT_CONNECTED})
+
 @app.get("/health")
 def health():
     return {"connected": ib.isConnected()}
 
-@app.get("/positions")
+@app.get("/positions", dependencies=[Depends(require_ib)])
 async def positions():
     items = ib.portfolio()
     infos = await asyncio.gather(*(get_contract_info(i.contract.conId) for i in items))
@@ -103,7 +136,7 @@ async def positions():
         })
     return result
 
-@app.get("/account")
+@app.get("/account", dependencies=[Depends(require_ib)])
 async def account():
     summary = await ib.accountSummaryAsync()
 
@@ -144,7 +177,7 @@ async def fetch_tickers(contracts):
         return {}
     return {t.contract.conId: t for t in tickers}
 
-@app.get("/quotes")
+@app.get("/quotes", dependencies=[Depends(require_ib)])
 async def quotes():
     items = ib.portfolio()
     infos = await asyncio.gather(*(get_contract_info(i.contract.conId) for i in items))
@@ -190,7 +223,7 @@ RANGES = {
     "All": ("10 Y", "1 week"),
 }
 
-@app.get("/history/{con_id}")
+@app.get("/history/{con_id}", dependencies=[Depends(require_ib)])
 async def history(con_id: int, range: Literal["1D", "1W", "1M", "3M", "1Y", "All"] = "1M"):
     duration, bar_size = RANGES[range]
     bars = await get_bars(con_id, duration, bar_size, max_age=60)
