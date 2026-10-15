@@ -199,6 +199,16 @@ async def build_facts(inputs, loaders, previous=None, now=None):
         }
     missing.append("Comparison with similar companies (not available)")
 
+    # News ids and local dates first: price moves list the news dated near each move
+    news_dates = []
+    for i, item in enumerate(news or [], start=1):
+        published = datetime.fromisoformat(item["published"]).astimezone().date() if item.get("published") else None
+        news_dates.append((f"N{i}", published))
+
+    def news_near(day):
+        """News dated on the move's day or up to 3 days before (calculated here, not by the model)."""
+        return [news_id for news_id, published in news_dates if published and timedelta(0) <= day - published <= timedelta(days=3)]
+
     # --- D:price_moves (IB daily bars vs the benchmark price index on the same dates) ---
     bars = inputs["bars"]
     benchmark_name = "S&P/ASX 200" if is_asx else "S&P 500"
@@ -237,6 +247,7 @@ async def build_facts(inputs, loaders, previous=None, now=None):
                     "date": long_date(day),
                     "stock_pct": pct(move),
                     "benchmark_pct": pct(change_pct(index_on(day), index_on(prev_day))) if index else None,
+                    "news_on_or_up_to_3_days_before": news_near(day),
                 }
                 for day, move, prev_day in sorted(biggest, key=lambda d: d[0])
             ],
@@ -313,7 +324,7 @@ async def build_facts(inputs, loaders, previous=None, now=None):
     facts["news"] = news_facts
 
     if previous:
-        then = datetime.fromisoformat(previous["created_at"])
+        then = datetime.fromisoformat(previous["created_at"]).astimezone()  # local zone name (AEDT)
         previous_price = previous["facts"].get("last_price_value")
         facts["D:since_last"] = {
             "previous_summary": as_of_text(then),
