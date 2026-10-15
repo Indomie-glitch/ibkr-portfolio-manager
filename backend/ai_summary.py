@@ -74,8 +74,29 @@ Fill every section, in this order:
 9. your_position: explain the figures in D:position (gain or loss, portfolio weight, expected
    yearly dividends, the 12-month date for the capital gains tax discount, or that the purchase
    date is unknown). Restate the figures; give no advice.
-10. changes_since_last: only the price change and the news marked new_since_last in D:since_last.
-    If this is the first summary, say so in one point."""
+10. changes_since_last: why the price moved since the previous summary, using only D:since_last
+    and the news ids in its news_between_summaries. 1-3 points. Say whether the stock rose or fell.
+    typical_move_pct is the stock's usual move over the whole window (trading_days_between), not
+    per day; daily_volatility_pct is the per-day figure. Don't mix them up.
+    - If this is the first summary, say so in one point.
+    - If trading_between_summaries is false, say in one point that the market didn't trade between
+      the two summaries, and give any price difference with the note's explanation.
+    - If small_move is true, write one short sentence at most: the stock's move, the benchmark's
+      move and that the move was small. No beta, volatility, reasons or news.
+    - If classification is "in line with the market", give the stock's move and the benchmark's,
+      and say plainly the move was in line with the market: about what the stock's beta
+      (expected_move_pct) implies, within its usual range (typical_move_pct). Don't attribute the
+      move to company news.
+    - If classification is "company specific", give the stock's move, the benchmark's, and the
+      part the market doesn't explain (residual_pct, compared with typical_move_pct). Link it only
+      to news ids in news_between_summaries, worded as "coincided with" or "followed", never as
+      the cause. If none of those headlines relate to the move, or there are none, say "no clear
+      company specific reason in the news".
+    - If D:since_last has relative_to_benchmark_pct_points instead of residual_pct, beta or
+      volatility wasn't available; compare the stock's move with the benchmark's directly.
+    - If classification is null because benchmark prices are missing, give the stock's move and
+      say the comparison with the market isn't available.
+    - At most one more point on other news in news_between_summaries."""
 
 # Expected number of points per section (the schema can't limit array lengths; checked afterwards)
 POINT_RANGES = {
@@ -154,9 +175,28 @@ def section_points(name, section):
     return [section.get("points", [])]
 
 
-def validate_section(name, section, allowed_ids):
+# Section 10 may say news "coincided with" or "followed" a move, never that it caused it
+CAUSAL = re.compile(r"\b(because|due to|driven by|caused|causing|triggered|sparked|on the back of|as a result of|thanks to|led to|resulted in)\b", re.I)
+
+
+def since_last_flags(point, since_last):
+    """Rule checks for changes_since_last that need the facts (older summaries lack the fields)."""
+    flags = []
+    news = [s for s in point.get("sources", []) if not s.startswith("D:")]
+    if CAUSAL.search(point.get("text", "")):
+        flags.append("news stated as the cause")
+    if news and since_last.get("classification") == "in line with the market":
+        flags.append("news linked to a market-wide move")
+    window = since_last.get("news_between_summaries")
+    if window is not None and any(n not in window for n in news):
+        flags.append("news from outside the window")
+    return flags
+
+
+def validate_section(name, section, allowed_ids, facts=None):
     """Remove any cited id that isn't in the facts sheet and flag points left without a source.
-    Returns (cleaned section, warnings)."""
+    facts (optional) enables the section 10 checks. Returns (cleaned section, warnings)."""
+    since_last = (facts or {}).get("D:since_last") or {}
     cleaned = copy.deepcopy(section)
     warnings = []
     for point_list in section_points(name, cleaned):
@@ -171,6 +211,8 @@ def validate_section(name, section, allowed_ids):
             point.pop("flags", None)  # recompute from scratch
             flags = [label for label, pattern, sections in RULE_CHECKS
                      if (sections is None or name in sections) and pattern.search(point.get("text", ""))]
+            if name == "changes_since_last":
+                flags += since_last_flags(point, since_last)
             if flags:
                 point["flags"] = flags
                 warnings.append(f"{name}: a point may break the rules ({', '.join(flags)})")
@@ -227,7 +269,7 @@ async def stream_sections(facts, source_ids):
                 keys = list(partial)
                 for name in keys[:-1]:
                     if name in SECTIONS and name not in sent:
-                        cleaned, section_warnings = validate_section(name, partial[name], allowed)
+                        cleaned, section_warnings = validate_section(name, partial[name], allowed, facts)
                         sent[name] = cleaned
                         warnings += section_warnings
                         yield ("section", name, cleaned, section_warnings)
@@ -255,7 +297,7 @@ async def stream_sections(facts, source_ids):
     summary = json.loads(next(b.text for b in final.content if b.type == "text"))
     for name in SECTIONS:
         if name not in sent:
-            cleaned, section_warnings = validate_section(name, summary[name], allowed)
+            cleaned, section_warnings = validate_section(name, summary[name], allowed, facts)
             sent[name] = cleaned
             warnings += section_warnings
             yield ("section", name, cleaned, section_warnings)

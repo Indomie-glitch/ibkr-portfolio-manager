@@ -33,7 +33,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Light, dark or system appearance
 * Refreshes every 60 seconds, and recovers on its own if IB Gateway disconnects and comes back
 
-* AI stock summary (Claude): a 10-part briefing on any holding, covering the business, financial health, valuation, a news digest, why the price moved, upcoming events, bull and bear case, key risks, what it means for your position, and what changed since your last summary. It only uses data the app fetched, cites a source for every point, and never gives buy/sell advice
+* AI stock summary (Claude): a 10-part briefing on any holding, covering the business, financial health, valuation, a news digest, why the price moved, upcoming events, bull and bear case, key risks, what it means for your position, and why the price moved since your last summary (in line with the market given the stock's beta, or company specific, with any news from that window). It only uses data the app fetched, cites a source for every point, and never gives buy/sell advice
 * Summary history: reopen any of the last 20 summaries of a stock, or compare two side by side, with the exact changes in the data (price, P/E, analyst target, dividend yield, P&L, new news) and each point tagged as new, changed or no longer present
 
 ### Planned

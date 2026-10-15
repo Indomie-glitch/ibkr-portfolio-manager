@@ -321,3 +321,17 @@ def _fetch_index_closes(index_symbol):
 
 async def fetch_index_closes(index_symbol):
     return await _run(_fetch_index_closes, index_symbol)
+
+
+def _fetch_index_intraday(index_symbol):
+    # 5-minute bars reach back about 60 days; a month is enough for "since the last summary"
+    history = yf.Ticker(index_symbol).history(period="1mo", interval="5m", auto_adjust=False)
+    closes = history["Close"].dropna() if "Close" in history else None
+    if closes is None or closes.empty:
+        raise YahooUnavailable(f"Yahoo has no intraday prices for {index_symbol}")
+    return [(moment.to_pydatetime(), float(v)) for moment, v in closes.items()]
+
+
+async def fetch_index_intraday(index_symbol):
+    """[(bar start time with time zone, close)] in 5-minute bars, about the last month."""
+    return await _run(_fetch_index_intraday, index_symbol)

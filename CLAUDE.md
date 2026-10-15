@@ -39,6 +39,7 @@ AI summary (backend/summary_facts.py, ai_summary.py, summary_store.py):
   Compare tags (frontend/src/summaryDiff.js) match points by wording, so they are a guide only; data_changes are exact. Moves under 1% of the old value are not tagged "Changed" and are marked minor in the data strip (MINOR_CHANGE_PCT in both files).
   All numbers are calculated in summary_facts.py; the model only explains them. Every facts block has an id (D:..., news N1...) and the response schema limits citations to those ids; unknown ids are removed and uncited points flagged anyway.
   10 fixed sections via structured outputs (output_config.format json_schema); sections are streamed as soon as each completes (jiter partial parsing). Summaries are saved in data/summaries.sqlite (gitignored); section 10 compares with the previous one.
+  Section 10 (since_last_move in summary_facts.py): stock vs price index (^AXJO / ^GSPC) over exactly the window between summaries, using the index level saved with the previous summary (benchmark_level), else Yahoo 5-minute bars (about a month, cached 5 min), else daily closes. expected = beta x benchmark, residual = stock - expected, typical = 60-day daily volatility x sqrt(trading days, fractional); company specific if |residual| > 1.5 x typical; small_move if |stock| < typical; 1 percentage point rule only when beta or volatility is missing. Only news published between the summaries is offered; automatic checks flag causal wording, news cited for in-line moves and news outside the window.
   Purchase dates are unknown (IB's API has none); peers and sector performance are not available.
 IB limits: about 60 history requests per 10 minutes, so history is cached. Error 10197 ("competing live session") means the live account is logged in elsewhere (TWS, mobile, web), which blocks market data on the paper account; history still works.
 Design
@@ -63,7 +64,8 @@ Minimal React UI: account summary and positions table (done)
 Polished UI (done, PR #7, issue #6)
 Milestone 4.5: Expanded stock detail with yfinance (done, PR #9, issue #8)
 AI stock summaries via Claude API (done, PR #11, issue #10)
-Summary history and compare (in progress, issue #12, branch feature/summary-history)
+Summary history and compare (done, PR #46, issue #12)
+Explain price changes since the last summary (in progress, issue #45, branch feature/explain-price-changes)
 Next after milestone 5: IB Flex Query purchase dates per lot (each with its own 12-month CGT date), manual entry as fallback
 Trade placement
 Later: Tauri desktop wrapper
