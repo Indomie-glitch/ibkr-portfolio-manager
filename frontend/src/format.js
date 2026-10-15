@@ -54,3 +54,53 @@ export function trendClass(value) {
   if (value == null || value === 0) return ''
   return value > 0 ? 'gain' : 'loss'
 }
+
+// formatCompactNumber(5283000) -> "5.28M", formatCompactNumber(52520000000) -> "52.52B"
+export function formatCompactNumber(value) {
+  if (value == null) return '—'
+  const units = [
+    [1e12, 'T'],
+    [1e9, 'B'],
+    [1e6, 'M'],
+    [1e3, 'K'],
+  ]
+  for (const [size, suffix] of units) {
+    if (Math.abs(value) >= size) return `${formatNumber(value / size)}${suffix}`
+  }
+  return formatNumber(value, 0)
+}
+
+// "2026-08-12" -> "12 Aug 2026". Dates without a time are read as UTC so they don't shift a day.
+export function formatDate(isoDate) {
+  if (!isoDate) return '—'
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString('en-AU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+// "2026-06-30" -> "30 June"
+export function formatDayMonth(isoDate) {
+  if (!isoDate) return '—'
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString('en-AU', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  })
+}
+
+// How long ago something happened: "5m ago", "3h ago", "2d ago", "2mo ago", "1y ago"
+export function formatAge(isoDateTime, now = Date.now()) {
+  if (!isoDateTime) return ''
+  const minutes = Math.max(0, Math.round((now - new Date(isoDateTime).getTime()) / 60000))
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.round(hours / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.round(days / 30)
+  if (months < 12) return `${months}mo ago`
+  return `${Math.round(days / 365)}y ago`
+}

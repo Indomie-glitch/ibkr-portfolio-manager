@@ -120,3 +120,18 @@ export function SortArrowIcon({ direction, size = 8 }) {
     </Icon>
   )
 }
+
+// Disclosure arrow for collapsible sections; CSS rotates it to point right when closed
+export function DisclosureIcon({ size = 14 }) {
+  return (
+    <Icon size={size} viewBox="0 0 14 14">
+      <path
+        d="M3.0625 5.25L7 9.1875L10.9375 5.25"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Icon>
+  )
+}

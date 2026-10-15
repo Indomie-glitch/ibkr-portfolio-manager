@@ -36,3 +36,19 @@ export function fetchQuotes() {
 export function fetchHistory(conId, range) {
   return getJson(`/history/${conId}?range=${encodeURIComponent(range)}`)
 }
+
+export function fetchProfile(conId) {
+  return getJson(`/profile/${conId}`)
+}
+
+export function fetchStats(conId) {
+  return getJson(`/stats/${conId}`)
+}
+
+export function fetchNews(conId) {
+  return getJson(`/news/${conId}`)
+}
+
+export function fetchPerformance(conId) {
+  return getJson(`/performance/${conId}`)
+}

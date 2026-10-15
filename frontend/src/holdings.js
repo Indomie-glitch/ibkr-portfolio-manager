@@ -34,3 +34,9 @@ export function buildHoldings(positions, quotes, account) {
   holdings.sort((a, b) => (b.market_value_base ?? 0) - (a.market_value_base ?? 0))
   return { holdings }
 }
+
+// Benchmark name for a holding's Performance section header, shown before the data loads.
+// The backend picks the actual (total return) index in yahoo.benchmark_for.
+export function benchmarkName(holding) {
+  return holding.market === 'ASX' ? 'S&P/ASX 200' : 'S&P 500'
+}
