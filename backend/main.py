@@ -9,7 +9,9 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB, Contract
-from names import display_name
+import yahoo
+from cache import cached
+from names import display_name, short_company_name
 
 load_dotenv()
 
@@ -186,21 +188,30 @@ async def quotes():
     async def quote(item):
         con_id = item.contract.conId
         ticker = tickers.get(con_id)
-        last = clean(ticker.last) if ticker else None
-        prev_close = clean(ticker.close) if ticker else None
-        source = "delayed"
 
+        def from_ticker(field):
+            return clean(getattr(ticker, field)) if ticker else None
+
+        # About 3 months of daily bars: the fallback when there's no quote, and the average volume.
+        # The last bar is the current (or most recent) session.
+        bars = await get_bars(con_id, "3 M", "1 day", max_age=15 * 60)
+        session = bars[-1] if bars else None
+
+        last = from_ticker("last")
+        prev_close = from_ticker("close")
+        source = "delayed"
         if last is None or prev_close is None:
             # No quote (e.g. IB error 10197, a live session elsewhere blocks market data).
             # Fall back to IB's daily history: compare the latest price with the previous session's close.
-            bars = await get_bars(con_id, "5 D", "1 day", max_age=15 * 60)
             if len(bars) < 2:
                 return {"con_id": con_id, "last": clean(item.marketPrice), "prev_close": None,
                         "day_change": None, "day_change_pct": None, "source": None}
             prev_close = bars[-2].close
-            last = clean(item.marketPrice) or bars[-1].close
+            last = clean(item.marketPrice) or session.close
             source = "history"
 
+        # Volume always comes from the bars so it matches the average (same source and units)
+        earlier = bars[:-1][-63:]  # about 3 months of complete sessions
         change = last - prev_close
         return {
             "con_id": con_id,
@@ -208,6 +219,13 @@ async def quotes():
             "prev_close": prev_close,
             "day_change": change,
             "day_change_pct": change / prev_close * 100 if prev_close else None,
+            "open": from_ticker("open") or (session.open if session else None),
+            "day_high": from_ticker("high") or (session.high if session else None),
+            "day_low": from_ticker("low") or (session.low if session else None),
+            "bid": from_ticker("bid"),
+            "ask": from_ticker("ask"),
+            "volume": session.volume if session else None,
+            "avg_volume": sum(b.volume for b in earlier) / len(earlier) if earlier else None,
             "source": source,
         }
 
@@ -234,3 +252,81 @@ async def history(con_id: int, range: Literal["1D", "1W", "1M", "3M", "1Y", "All
         "range": range,
         "bars": [{"time": b.date.isoformat(), "close": b.close} for b in bars],
     }
+
+
+# ---------- Yahoo Finance: company info, slow key statistics, news, performance ----------
+
+YAHOO_UNAVAILABLE = "Yahoo Finance data is unavailable right now"
+
+async def yahoo_target(con_id):
+    """Return (contract, yahoo symbol) for a holding, or answer 404 if we can't map it."""
+    contract, _ = await get_contract_info(con_id)
+    symbol = yahoo.yahoo_symbol(contract) if contract else None
+    if symbol is None:
+        raise HTTPException(status_code=404, detail="This exchange isn't covered by Yahoo Finance here")
+    return contract, symbol
+
+async def yahoo_info(symbol):
+    return await cached(("info", symbol), 60 * 60, lambda: yahoo.fetch_info(symbol))
+
+async def call_yahoo(fetch):
+    """Run a Yahoo lookup; any failure becomes a 502 so only that section shows 'unavailable'."""
+    try:
+        return await fetch()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"Yahoo lookup failed: {exc.__class__.__name__}: {exc}")
+        raise HTTPException(status_code=502, detail=YAHOO_UNAVAILABLE)
+
+@app.get("/profile/{con_id}", dependencies=[Depends(require_ib)])
+async def profile(con_id: int):
+    """About section: description, sector, industry, employees, fiscal year end, website (cached 1 hour)."""
+    _, symbol = await yahoo_target(con_id)
+    info = await call_yahoo(lambda: yahoo_info(symbol))
+    result = yahoo.profile_from_info(info)
+    result["short_name"] = short_company_name(result["long_name"])
+    result["yahoo_symbol"] = symbol
+    return result
+
+@app.get("/stats/{con_id}", dependencies=[Depends(require_ib)])
+async def stats(con_id: int):
+    """Slower key statistics from Yahoo (cached 1 hour). Market fields come from /quotes."""
+    _, symbol = await yahoo_target(con_id)
+    info = await call_yahoo(lambda: yahoo_info(symbol))
+    return yahoo.stats_from_info(info)
+
+@app.get("/news/{con_id}", dependencies=[Depends(require_ib)])
+async def news(con_id: int):
+    """Recent headlines that mention the company, newest first (cached 15 minutes)."""
+    contract, symbol = await yahoo_target(con_id)
+
+    async def fetch():
+        info = await yahoo_info(symbol)
+        long_name = info.get("longName") or info.get("shortName")
+        is_asx = symbol.endswith(".AX")
+        bare_ticker_ok = True
+        if is_asx:
+            # A bare ticker in a headline ("APA") only counts if the US company with that
+            # ticker is the same company (BHP yes; APA Corporation and Telos no)
+            us_name = await cached(("us-name", contract.symbol), 24 * 60 * 60,
+                                   lambda: yahoo.fetch_us_name(contract.symbol))
+            bare_ticker_ok = us_name is None or (
+                yahoo.search_name(us_name).lower() == yahoo.search_name(long_name).lower()
+            )
+        return await yahoo.fetch_news(symbol, contract.symbol, long_name,
+                                      short_company_name(long_name), is_asx, bare_ticker_ok)
+
+    items = await call_yahoo(lambda: cached(("news", symbol), 15 * 60, fetch))
+    return {"items": items}
+
+@app.get("/performance/{con_id}", dependencies=[Depends(require_ib)])
+async def performance(con_id: int):
+    """Total return over YTD, 1Y, 3Y and 5Y for the stock and its benchmark (cached 1 day)."""
+    contract, symbol = await yahoo_target(con_id)
+    benchmark = yahoo.benchmark_for(contract)
+    periods = await call_yahoo(lambda: cached(
+        ("performance", symbol), 24 * 60 * 60,
+        lambda: yahoo.fetch_performance(symbol, benchmark["symbol"]),
+    ))
+    return {"benchmark": benchmark, "periods": periods}
