@@ -128,7 +128,7 @@ fn saved_credentials(app: &AppHandle) -> Option<session::Credentials> {
     if !settings.auto_reconnect {
         return None;
     }
-    Some(session::Credentials { username: settings.ibkr_username?, password: secrets::get("ibkr_password") })
+    Some(session::Credentials { username: secrets::get("ibkr_username")?, password: secrets::get("ibkr_password") })
 }
 
 fn start_session(app: &AppHandle, credentials: session::Credentials, mode: &str) -> Result<(), String> {
@@ -160,7 +160,7 @@ struct SavedLogin {
 fn saved_login(app: AppHandle) -> SavedLogin {
     let settings = settings::load(&app);
     SavedLogin {
-        username: settings.ibkr_username,
+        username: secrets::get("ibkr_username"),
         mode: settings.trading_mode,
         password_saved: secrets::get("ibkr_password").is_some(),
     }
@@ -175,9 +175,9 @@ fn sign_in(app: AppHandle, username: String, password: String, mode: String, rem
         return Err("Enter your IBKR username and password.".into());
     }
     let mut saved = settings::load(&app);
-    saved.ibkr_username = Some(username.clone());
     saved.trading_mode = mode.clone();
     settings::save(&app, &saved)?;
+    secrets::set("ibkr_username", &username)?;
     if remember {
         secrets::set("ibkr_password", &password)?;
     } else {
@@ -190,7 +190,7 @@ fn sign_in(app: AppHandle, username: String, password: String, mode: String, rem
 #[tauri::command]
 fn reconnect(app: AppHandle) -> Result<(), String> {
     let saved = settings::load(&app);
-    let username = saved.ibkr_username.ok_or("password_needed")?;
+    let username = secrets::get("ibkr_username").ok_or("password_needed")?;
     let password = secrets::get("ibkr_password").ok_or("password_needed")?;
     start_session(&app, session::Credentials { username, password: Some(password) }, &saved.trading_mode)
 }
@@ -209,20 +209,40 @@ fn sign_out(session: State<SharedSession>) -> Result<(), String> {
     secrets::delete("ibkr_password")
 }
 
-/// At launch: sign in by itself when the password is remembered and Gateway is installed.
-fn sign_in_at_launch(app: AppHandle) {
+/// Everything at launch that reads the Keychain, in one background thread after the window opens:
+/// macOS may ask permission to read the Keychain (for an unsigned app, after each update), and the
+/// app shouldn't sit there without a window while it waits. One thread, in order, means one read.
+fn after_window_opens(app: AppHandle) {
     std::thread::spawn(move || {
-        let settings = settings::load(&app);
-        if !settings.auto_reconnect || gateway::find_installed().is_none() {
-            return;
-        }
-        if let (Some(username), Some(password)) = (settings.ibkr_username, secrets::get("ibkr_password")) {
-            let credentials = session::Credentials { username, password: Some(password) };
-            if let Err(e) = start_session(&app, credentials, &settings.trading_mode) {
-                log::error!("couldn't sign in at launch: {e}");
-            }
-        }
+        move_username_to_keychain(&app);
+        send_secrets_to_backend(&app);
+        sign_in_at_launch(&app);
     });
+}
+
+/// Settings before version 3 kept the IBKR username in settings.json; it now lives in the
+/// Keychain item with the other secrets.
+fn move_username_to_keychain(app: &AppHandle) {
+    let mut saved = settings::load(app);
+    if let Some(username) = saved.ibkr_username.take() {
+        if secrets::set("ibkr_username", &username).is_ok() {
+            let _ = settings::save(app, &saved);
+        }
+    }
+}
+
+/// Signs in by itself when the password is remembered and Gateway is installed.
+fn sign_in_at_launch(app: &AppHandle) {
+    let settings = settings::load(app);
+    if !settings.auto_reconnect || gateway::find_installed().is_none() {
+        return;
+    }
+    if let (Some(username), Some(password)) = (secrets::get("ibkr_username"), secrets::get("ibkr_password")) {
+        let credentials = session::Credentials { username, password: Some(password) };
+        if let Err(e) = start_session(app, credentials, &settings.trading_mode) {
+            log::error!("couldn't sign in at launch: {e}");
+        }
+    }
 }
 
 #[tauri::command]
@@ -237,20 +257,16 @@ fn save_settings(app: AppHandle, backend: State<Backend>, settings: settings::Se
     send_settings_to_backend(&backend, &settings)
 }
 
-/// Hands the secrets the backend needs from the Keychain straight to its memory. Runs after the
-/// window opens: macOS may ask permission to read the Keychain (for an unsigned app, after each
-/// update), and the app shouldn't sit there without a window while it waits.
-fn send_secrets_to_backend(app: AppHandle) {
-    std::thread::spawn(move || {
-        let backend = app.state::<Backend>();
-        for name in secrets::FOR_BACKEND {
-            if let Some(value) = secrets::get(name) {
-                if let Err(e) = backend.send(json!({ "set_secret": name, "value": value })) {
-                    log::error!("couldn't send {name} to the backend: {e}");
-                }
+/// Hands the secrets the backend needs from the Keychain straight to its memory.
+fn send_secrets_to_backend(app: &AppHandle) {
+    let backend = app.state::<Backend>();
+    for name in secrets::FOR_BACKEND {
+        if let Some(value) = secrets::get(name) {
+            if let Err(e) = backend.send(json!({ "set_secret": name, "value": value })) {
+                log::error!("couldn't send {name} to the backend: {e}");
             }
         }
-    });
+    }
 }
 
 /// Gateway setup in progress (download, checking, installer open).
@@ -389,8 +405,7 @@ pub fn run() {
             app.manage(GatewaySetup(Mutex::new(gateway::Progress::default())));
             app.manage::<SharedSession>(Arc::new(session::Session::default()));
             open_main_window(app.handle(), connection.as_ref())?;
-            send_secrets_to_backend(app.handle().clone());
-            sign_in_at_launch(app.handle().clone());
+            after_window_opens(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

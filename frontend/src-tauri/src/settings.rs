@@ -16,7 +16,9 @@ pub struct Settings {
     /// The API port of the app's IB Gateway. 4012 rather than Gateway's usual 4001/4002, so it
     /// never clashes with another Gateway or TWS (or a development backend) on this Mac.
     pub gateway_port: u16,
-    /// The IBKR username last signed in with (the password is in the Keychain, if remembered)
+    /// Only in files from before the username moved to the Keychain (see
+    /// move_username_to_keychain in lib.rs); never written again
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ibkr_username: Option<String>,
     /// "paper" or "live"
     pub trading_mode: String,
