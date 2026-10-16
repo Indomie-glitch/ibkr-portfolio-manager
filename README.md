@@ -39,7 +39,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 ### Planned
 * AI summary of the whole portfolio
 * Place trades directly from the app
-* Optional desktop app version
+* Mac app that sets up and runs IB Gateway itself (Milestone 7, in progress)
 
 ## Roadmap
 
@@ -51,7 +51,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 5:** AI stock summaries via the Claude API
 * [x] **Milestone 5.1:** Summary history and compare
 * [ ] **Milestone 6:** Trade placement
-* [ ] **Later:** Desktop app wrapper (Tauri)
+* [ ] **Milestone 7:** Mac app (Tauri): bundled backend, Keychain, Gateway setup and login, DMG
 
 ## Tech Stack
 
@@ -62,6 +62,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 | Extra market data | [yfinance](https://github.com/ranaroussi/yfinance) (Yahoo Finance) for company info, fundamentals, news and long-term performance |
 | Frontend | [React](https://react.dev/) with [Vite](https://vite.dev/), plain CSS, hand-drawn SVG charts |
 | AI summaries | Claude API (Haiku) |
+| Mac app | [Tauri 2](https://tauri.app/) (Rust) wrapping the React frontend |
 
 ## Architecture
 
@@ -82,6 +83,7 @@ The React frontend talks only to the Python backend. The backend manages the con
 * [IB Gateway](https://www.interactivebrokers.com/en/trading/ibgateway-stable.php) installed, with API access enabled on port 4002
 * Python 3.11
 * Node.js 20.19+ or 22.12+ (for the frontend)
+* For the Mac app only: [Rust](https://rustup.rs/) (`rustup`)
 
 ### Setup
 
@@ -136,6 +138,18 @@ npm run dev
 
 Open http://localhost:5173. The backend starts even if IB Gateway isn't running yet, and connects as soon as it is.
 
+#### As a Mac app (development)
+
+With the backend running as above, open the frontend in a native window instead of the browser:
+
+```bash
+cd frontend
+npm run tauri dev      # window with hot reload
+npm run tauri build    # builds src-tauri/target/release/bundle/macos/Portfolio Manager.app
+```
+
+The Mac app doesn't start the backend or IB Gateway by itself yet; that comes in later Milestone 7 steps.
+
 ### API
 
 | Endpoint | Returns |
@@ -168,6 +182,7 @@ Open http://localhost:5173. The backend starts even if IB Gateway isn't running 
 ibkr-portfolio-manager/
 ├── backend/          FastAPI app (main.py), IB Gateway connection, REST API
 ├── frontend/         React app (Vite)
+│   └── src-tauri/    Mac app shell (Tauri, Rust)
 ├── docs/screenshots/ Screenshots used in this README
 ├── .env.example      Template for environment variables
 └── README.md

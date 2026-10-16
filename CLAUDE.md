@@ -9,7 +9,7 @@ Frontend: React with Vite, in frontend/
 AI summaries: Claude API, model set by AI_MODEL in .env (default claude-haiku-4-5, the single place to change it), key in .env as ANTHROPIC_API_KEY (backend only, never sent to the frontend)
 Project layout
 backend/         FastAPI app (main.py), ibkr_hello.py, requirements.txt, venv/
-frontend/        React app (Vite)
+frontend/        React app (Vite); frontend/src-tauri/ is the Mac app shell (Tauri 2, Rust)
 .env             real settings, gitignored, never commit
 .env.example     template for .env, committed
 README.md
@@ -17,12 +17,14 @@ Running locally
 IB Gateway must be running and logged in to the paper account
 Backend: cd backend && source venv/bin/activate && uvicorn main:app --reload (port 8000)
 Frontend: cd frontend && npm run dev (port 5173)
+Mac app: cd frontend && npm run tauri dev (or tauri build). Rust is in ~/.cargo/bin (rustup didn't edit the shell profile), so prefix PATH="$HOME/.cargo/bin:$PATH".
+Milestone 7 (Mac app for a friend, issues #34-#43): one branch and PR each; I merge #34, #35, #36, #38, #37 once the build passes, the user reviews #39, #40, #41, #43 before merging.
 Backend rules
 Connect to IB Gateway via a background task started in the FastAPI lifespan (keep_connected in main.py), using await ib.connectAsync(...); it retries every 5s so the server starts without Gateway and reconnects after drops. IB endpoints use Depends(require_ib) and return 503 while disconnected. Never use ib.connect() inside the server (it conflicts with uvicorn's event loop).
 Any endpoint that touches ib must be async def, and should use the async versions of ib_async methods where they exist (e.g. accountSummaryAsync).
 Connection is read only (readonly=True). Do not add order placement until milestone 6.
 Connection settings (IB_HOST, IB_PORT, IB_CLIENT_ID) come from .env via python-dotenv.
-CORS allows http://localhost:5173 and http://127.0.0.1:5173. GET only, except POST /summary/{con_id} (generating an AI summary), which PathCORS in main.py allows from those origins only; the endpoint also checks the Origin header, since simple cross-site POSTs skip the preflight.
+CORS allows http://localhost:5173, http://127.0.0.1:5173 and tauri://localhost (the Mac app window). GET only, except POST /summary/{con_id} (generating an AI summary), which PathCORS in main.py allows from those origins only; the endpoint also checks the Origin header, since simple cross-site POSTs skip the preflight.
 After installing any Python package, run pip freeze > requirements.txt from backend/ with the venv active.
 Current API
 GET /health returns {"connected": bool}
