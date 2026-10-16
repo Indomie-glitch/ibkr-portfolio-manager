@@ -93,9 +93,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Let the Vite dev server call the API from the browser. Everything is GET-only, except
-# POST /summary/{con_id} (generating a summary), which only these origins may call.
-ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+# Let the Vite dev server and the Mac app's window (Tauri serves the built frontend from
+# tauri://localhost) call the API. Everything is GET-only, except POST /summary/{con_id}
+# (generating a summary), which only these origins may call.
+ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "tauri://localhost"]
 
 class PathCORS:
     """Two CORS policies chosen by path: GET-only everywhere, GET + POST for /summary/."""
