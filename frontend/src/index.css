@@ -2156,7 +2156,9 @@ button.ai-source:hover {
   gap: 14px;
   height: 100vh;
   padding: 40px 32px 28px;
-  overflow: hidden;
+  /* The window has a fixed size; if content ever grows (an open tip, a long error), it scrolls
+     rather than pushing buttons out of reach */
+  overflow-y: auto;
   background: var(--bg);
   color: var(--text);
 }
@@ -2496,6 +2498,22 @@ button.ai-source:hover {
 .setup-tip svg {
   flex-shrink: 0;
   color: var(--accent);
+}
+
+.setup-tip-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.setup-tip-more {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 11px;
 }
 
 /* Approve on phone */
