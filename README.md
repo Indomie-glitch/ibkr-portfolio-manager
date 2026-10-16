@@ -152,8 +152,8 @@ npm run build:app      # packages the backend (PyInstaller) and builds
 The built app starts its own copy of the backend on a free port, with a random access token for that
 launch (so other programs on the Mac can't use its API), and stops it when it quits. Its data lives in
 `~/Library/Application Support/com.indomieglitch.portfoliomanager/` and the backend's log in
-`~/Library/Logs/com.indomieglitch.portfoliomanager/backend.log`. It doesn't start IB Gateway yet;
-that comes in later Milestone 7 steps.
+`~/Library/Logs/com.indomieglitch.portfoliomanager/backend.log`. It sets up and signs in to IB Gateway itself
+(see Milestone 7); you never open Gateway directly.
 
 ### API
 

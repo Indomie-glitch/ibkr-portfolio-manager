@@ -1,12 +1,14 @@
 mod gateway;
 mod secrets;
+mod session;
 mod settings;
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpListener;
+use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde_json::json;
@@ -81,7 +83,145 @@ fn start_backend(app: &AppHandle) -> Result<Option<(Backend, Connection)>, Box<d
 }
 
 fn send_settings_to_backend(backend: &Backend, settings: &settings::Settings) -> Result<(), String> {
-    backend.send(json!({ "set_setting": "ib_port", "value": settings.gateway_port }))
+    backend.send(json!({ "set_setting": "ib_port", "value": settings.gateway_port }))?;
+    backend.send(json!({ "set_setting": "ai_model", "value": settings.ai_model }))
+}
+
+// ---------- IBKR sign-in (IB Gateway through IBC, see session.rs) ----------
+
+type SharedSession = Arc<session::Session>;
+
+/// IBC and our launcher: Resources/ibc in the app; ibc/dist (from build-ibc.sh) in `tauri dev`.
+fn ibc_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let bundled = app.path().resource_dir().map_err(|e| e.to_string())?.join("ibc");
+    if bundled.join("IBC.jar").exists() {
+        return Ok(bundled);
+    }
+    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ibc/dist");
+    if dev.join("IBC.jar").exists() {
+        return Ok(dev);
+    }
+    Err("IBC is missing from the app.".into())
+}
+
+fn launch_for(app: &AppHandle, mode: &str) -> Result<session::Launch, String> {
+    let installed = gateway::find_installed().ok_or("IB Gateway isn't installed yet.")?;
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&log_dir).map_err(|e| e.to_string())?;
+    Ok(session::Launch {
+        installed,
+        ibc_dir: ibc_dir(app)?,
+        // Gateway's own settings, per account type, kept away from any Gateway you run yourself (~/Jts)
+        settings_dir: data_dir.join("gateway").join(mode),
+        log_path: log_dir.join("gateway.log"),
+        api_port: settings::load(app).gateway_port,
+        mode: mode.to_string(),
+    })
+}
+
+/// For relaunching Gateway after its daily restart: the saved username and, if remembered, the
+/// password. None when the user turned "Reconnect automatically" off.
+fn saved_credentials(app: &AppHandle) -> Option<session::Credentials> {
+    let settings = settings::load(app);
+    if !settings.auto_reconnect {
+        return None;
+    }
+    Some(session::Credentials { username: settings.ibkr_username?, password: secrets::get("ibkr_password") })
+}
+
+fn start_session(app: &AppHandle, credentials: session::Credentials, mode: &str) -> Result<(), String> {
+    let launch = launch_for(app, mode)?;
+    let handle = app.clone();
+    session::start(
+        app.state::<SharedSession>().inner().clone(),
+        launch,
+        credentials,
+        None,
+        Arc::new(move || saved_credentials(&handle)),
+    )
+}
+
+#[tauri::command]
+fn login_state(session: State<SharedSession>) -> session::LoginState {
+    session.state()
+}
+
+#[derive(serde::Serialize)]
+struct SavedLogin {
+    username: Option<String>,
+    mode: String,
+    password_saved: bool,
+}
+
+/// The username and account type to pre-fill the sign-in form with (never the password).
+#[tauri::command]
+fn saved_login(app: AppHandle) -> SavedLogin {
+    let settings = settings::load(&app);
+    SavedLogin {
+        username: settings.ibkr_username,
+        mode: settings.trading_mode,
+        password_saved: secrets::get("ibkr_password").is_some(),
+    }
+}
+
+/// Signs in to IBKR: saves the username and account type, keeps the password in the Keychain if
+/// asked to (or forgets it), and starts Gateway. Follow it with login_state.
+#[tauri::command]
+fn sign_in(app: AppHandle, username: String, password: String, mode: String, remember: bool) -> Result<(), String> {
+    let username = username.trim().to_string();
+    if username.is_empty() || password.is_empty() {
+        return Err("Enter your IBKR username and password.".into());
+    }
+    let mut saved = settings::load(&app);
+    saved.ibkr_username = Some(username.clone());
+    saved.trading_mode = mode.clone();
+    settings::save(&app, &saved)?;
+    if remember {
+        secrets::set("ibkr_password", &password)?;
+    } else {
+        secrets::delete("ibkr_password")?;
+    }
+    start_session(&app, session::Credentials { username, password: Some(password) }, &mode)
+}
+
+/// Signs in again with the saved username and remembered password (Reconnect, Try Again).
+#[tauri::command]
+fn reconnect(app: AppHandle) -> Result<(), String> {
+    let saved = settings::load(&app);
+    let username = saved.ibkr_username.ok_or("password_needed")?;
+    let password = secrets::get("ibkr_password").ok_or("password_needed")?;
+    start_session(&app, session::Credentials { username, password: Some(password) }, &saved.trading_mode)
+}
+
+/// Stops a sign-in in progress (Cancel); keeps the saved login.
+#[tauri::command]
+fn cancel_sign_in(session: State<SharedSession>) {
+    session.stop(session::LoginState::SignedOut);
+}
+
+/// Signs out: stops Gateway and forgets the remembered password, so the app doesn't sign in again
+/// by itself.
+#[tauri::command]
+fn sign_out(session: State<SharedSession>) -> Result<(), String> {
+    session.stop(session::LoginState::SignedOut);
+    secrets::delete("ibkr_password")
+}
+
+/// At launch: sign in by itself when the password is remembered and Gateway is installed.
+fn sign_in_at_launch(app: AppHandle) {
+    std::thread::spawn(move || {
+        let settings = settings::load(&app);
+        if !settings.auto_reconnect || gateway::find_installed().is_none() {
+            return;
+        }
+        if let (Some(username), Some(password)) = (settings.ibkr_username, secrets::get("ibkr_password")) {
+            let credentials = session::Credentials { username, password: Some(password) };
+            if let Err(e) = start_session(&app, credentials, &settings.trading_mode) {
+                log::error!("couldn't sign in at launch: {e}");
+            }
+        }
+    });
 }
 
 #[tauri::command]
@@ -193,6 +333,14 @@ fn open_main_window(app: &AppHandle, connection: Option<&Connection>) -> tauri::
         .min_inner_size(960.0, 640.0)
         .center();
     if let Some(c) = connection {
+        // Starts as the small startup window; the page sizes it for each screen (appWindow.js).
+        // No visible title bar, as in the Figma frames: the traffic lights sit over the content
+        window = window
+            .inner_size(360.0, 280.0)
+            .min_inner_size(360.0, 280.0)
+            .resizable(false)
+            .title_bar_style(tauri::TitleBarStyle::Overlay)
+            .hidden_title(true);
         window = window.initialization_script(&format!(
             "window.__PORTFOLIO_BACKEND__ = {{ url: 'http://127.0.0.1:{}', token: '{}' }};",
             c.port, c.token
@@ -235,8 +383,10 @@ pub fn run() {
             };
             app.manage(backend);
             app.manage(GatewaySetup(Mutex::new(gateway::Progress::default())));
+            app.manage::<SharedSession>(Arc::new(session::Session::default()));
             open_main_window(app.handle(), connection.as_ref())?;
             send_secrets_to_backend(app.handle().clone());
+            sign_in_at_launch(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -246,12 +396,19 @@ pub fn run() {
             get_settings,
             save_settings,
             gateway_status,
-            install_gateway
+            install_gateway,
+            login_state,
+            saved_login,
+            sign_in,
+            reconnect,
+            cancel_sign_in,
+            sign_out
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
             if let RunEvent::Exit = event {
+                app.state::<SharedSession>().stop(session::LoginState::SignedOut);
                 if let Ok(cache_dir) = app.path().app_cache_dir() {
                     gateway::unmount_installer(&cache_dir);
                 }

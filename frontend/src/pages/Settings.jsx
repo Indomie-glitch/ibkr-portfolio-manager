@@ -1,37 +1,211 @@
+// Settings, laid out like the Figma frame "M7 / 8 Settings" (macOS System Settings style groups)
 import { useEffect, useState } from 'react'
 import { IN_APP } from '../api.js'
 import { deleteSecret, saveSecret, secretStatus } from '../appSecrets.js'
 import { APPEARANCES } from '../appearance.js'
 import { gatewayStatus, installGateway } from '../appGateway.js'
+import { signOut } from '../appSession.js'
 import { getSettings, saveSettings } from '../appSettings.js'
+import { CheckCircleIcon, ChevronsIcon } from '../components/icons.jsx'
 
 // Written in two parts, like backend/secrets_guard.py, so the pre-commit check for keys doesn't flag it
 const KEY_PREFIX = 'sk' + '-ant-'
 
-function Row({ label, caption, children }) {
+// The models the backend accepts (config.AI_MODELS in backend/config.py)
+const AI_MODELS = [
+  ['claude-haiku-4-5', 'Claude Haiku 4.5'],
+  ['claude-haiku-5-5', 'Claude Haiku 5.5'],
+  ['claude-sonnet-5-5', 'Claude Sonnet 5.5'],
+]
+
+const MB = 1024 * 1024
+
+function Group({ title, children, footnote }) {
+  return (
+    <section className="settings-section">
+      <h2 className="settings-header">{title}</h2>
+      <div className="settings-group">{children}</div>
+      {footnote && <p className="settings-footnote">{footnote}</p>}
+    </section>
+  )
+}
+
+function Row({ label, children, note }) {
   return (
     <div className="settings-row">
-      <div className="settings-label">
-        <div>{label}</div>
-        {caption && <div className="settings-caption">{caption}</div>}
+      <div className="settings-row-main">
+        <span className="settings-row-label">{label}</span>
+        <span className="settings-row-spacer" />
+        {children}
       </div>
-      <div className="settings-control">{children}</div>
+      {note && (
+        <p className={`settings-row-note ${note.error ? 'error-text' : ''}`} role={note.error ? 'alert' : 'status'}>
+          {note.text}
+        </p>
+      )}
     </div>
   )
 }
 
-// Saved, success and error notes under a control
-function Note({ note }) {
-  if (!note) return null
+function Toggle({ checked, onChange, label }) {
   return (
-    <p className={`settings-note ${note.error ? 'error-text' : ''}`} role={note.error ? 'alert' : 'status'}>
-      {note.text}
-    </p>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      className="settings-toggle"
+      onClick={() => onChange(!checked)}
+    >
+      <span className="settings-toggle-knob" />
+    </button>
   )
 }
 
-function ApiKeySetting() {
-  const [saved, setSaved] = useState(null) // null while loading, then true / false
+function AccountGroup({ settings, login, connected, onSignedOut }) {
+  const [note, setNote] = useState(null)
+  const state = login?.state
+  const signedIn = state === 'signed_in' || state === 'session_ended'
+  const mode = settings?.trading_mode === 'live' ? 'Live' : 'Paper'
+
+  async function doSignOut() {
+    try {
+      await signOut()
+      onSignedOut()
+    } catch (err) {
+      setNote({ error: true, text: String(err) })
+    }
+  }
+
+  let connection = ['', 'Not signed in']
+  if (state === 'session_ended') connection = ['warn', 'Session ended']
+  else if (signedIn) connection = connected ? ['ok', 'Connected'] : ['', 'Connecting…']
+
+  return (
+    <Group title="Account">
+      <Row label="Signed in as" note={note}>
+        <span className="settings-value">
+          {signedIn && settings?.ibkr_username ? `${settings.ibkr_username} · ${mode}` : 'Not signed in'}
+        </span>
+        {signedIn && (
+          <button type="button" className="settings-button" onClick={doSignOut}>
+            Sign Out
+          </button>
+        )}
+      </Row>
+      <Row label="Connection">
+        <span className="settings-value with-dot">
+          <span className={`status-dot ${connection[0]}`} /> {connection[1]}
+        </span>
+      </Row>
+    </Group>
+  )
+}
+
+function GatewayGroup({ settings, onSave }) {
+  const [port, setPort] = useState(String(settings.gateway_port))
+  const [portNote, setPortNote] = useState(null)
+  const [gateway, setGateway] = useState(null)
+  const [installNote, setInstallNote] = useState(null)
+  const [watching, setWatching] = useState(0)
+
+  useEffect(() => {
+    let timer
+    async function check() {
+      try {
+        const next = await gatewayStatus()
+        setGateway(next)
+        if (!next.installed && ['downloading', 'checking', 'installer_open'].includes(next.setup.step)) {
+          timer = setTimeout(check, 1000)
+        }
+      } catch (err) {
+        setInstallNote({ error: true, text: String(err) })
+      }
+    }
+    check()
+    return () => clearTimeout(timer)
+  }, [watching])
+
+  async function savePort(event) {
+    event?.preventDefault()
+    const number = Number(port)
+    if (!Number.isInteger(number) || number < 1024 || number > 65535) {
+      setPortNote({ error: true, text: 'Use a port between 1024 and 65535.' })
+      return
+    }
+    if (number === settings.gateway_port) return
+    const error = await onSave({ gateway_port: number })
+    setPortNote(error ? { error: true, text: error } : { text: `Saved. Connecting on port ${number}…` })
+  }
+
+  async function install() {
+    setInstallNote(null)
+    try {
+      await installGateway()
+      setWatching((n) => n + 1)
+    } catch (err) {
+      setInstallNote({ error: true, text: String(err) })
+    }
+  }
+
+  const setup = gateway?.setup
+  let version = <span className="settings-value">Checking…</span>
+  if (gateway?.installed) {
+    version = <span className="settings-value">{gateway.installed.version} (stable)</span>
+  } else if (setup?.step === 'downloading') {
+    version = (
+      <span className="settings-value">
+        Downloading… {setup.total ? `${Math.floor(setup.received / MB)} of ${Math.floor(setup.total / MB)} MB` : ''}
+      </span>
+    )
+  } else if (setup?.step === 'checking') {
+    version = <span className="settings-value">Checking the installer…</span>
+  } else if (setup?.step === 'installer_open') {
+    version = <span className="settings-value">Finish IBKR’s installer…</span>
+  } else if (gateway) {
+    version = (
+      <>
+        <span className="settings-value">Not installed</span>
+        <button type="button" className="settings-button" onClick={install}>
+          {setup?.step === 'failed' ? 'Try Again' : 'Install…'}
+        </button>
+      </>
+    )
+  }
+
+  return (
+    <Group title="IB Gateway">
+      <Row label="Reconnect automatically">
+        <Toggle
+          label="Reconnect automatically"
+          checked={settings.auto_reconnect}
+          onChange={(value) => onSave({ auto_reconnect: value })}
+        />
+      </Row>
+      <Row label="API port" note={portNote}>
+        <form onSubmit={savePort}>
+          <input
+            className="settings-field port"
+            inputMode="numeric"
+            value={port}
+            onChange={(e) => {
+              setPort(e.target.value.replace(/\D/g, ''))
+              setPortNote(null)
+            }}
+            onBlur={savePort}
+            aria-label="IB Gateway API port"
+          />
+        </form>
+      </Row>
+      <Row label="Gateway version" note={installNote ?? (setup?.error ? { error: true, text: setup.error } : null)}>
+        {version}
+      </Row>
+    </Group>
+  )
+}
+
+function ApiKeyRow() {
+  const [saved, setSaved] = useState(null) // null while loading
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
   const [note, setNote] = useState(null)
@@ -70,30 +244,29 @@ function ApiKeySetting() {
     }
   }
 
-  const showForm = saved === false || editing
   return (
-    <Row
-      label="Anthropic API key"
-      caption="Turns on AI summaries. Create one at console.anthropic.com. It's kept in your Mac's Keychain and only sent to Anthropic."
-    >
-      {saved === null && !note && <span className="settings-caption">Checking…</span>}
+    <Row label="Anthropic API key" note={note}>
+      {saved === null && <span className="settings-value">Checking…</span>}
       {saved && !editing && (
-        <div className="settings-inline">
-          <span className="settings-status">
-            <span className="status-dot ok" /> Saved in Keychain
+        <>
+          <span className="settings-value with-dot">
+            <span className="settings-check">
+              <CheckCircleIcon size={14} />
+            </span>
+            Saved
           </span>
-          <button type="button" className="button compact" onClick={() => setEditing(true)}>
-            Change
+          <button type="button" className="settings-button" onClick={() => setEditing(true)}>
+            Replace…
           </button>
-          <button type="button" className="button compact" onClick={remove}>
+          <button type="button" className="settings-button" onClick={remove}>
             Remove
           </button>
-        </div>
+        </>
       )}
-      {showForm && saved !== null && (
+      {saved !== null && (!saved || editing) && (
         <form className="settings-inline" onSubmit={save}>
           <input
-            className="settings-input"
+            className="settings-field key"
             type="password"
             placeholder={`${KEY_PREFIX}…`}
             autoComplete="off"
@@ -102,178 +275,114 @@ function ApiKeySetting() {
             onChange={(e) => setValue(e.target.value)}
             aria-label="Anthropic API key"
           />
-          <button type="submit" className="button-primary compact" disabled={!value.trim()}>
+          <button type="submit" className="settings-button primary" disabled={!value.trim()}>
             Save
           </button>
           {editing && (
-            <button type="button" className="button compact" onClick={() => setEditing(false)}>
+            <button type="button" className="settings-button" onClick={() => setEditing(false)}>
               Cancel
             </button>
           )}
         </form>
       )}
-      <Note note={note} />
     </Row>
   )
 }
 
-const MB = 1024 * 1024
-const ACTIVE_STEPS = ['downloading', 'checking', 'installer_open']
-
-function GatewayInstallSetting() {
-  const [status, setStatus] = useState(null)
-  const [error, setError] = useState(null)
-  // Bumped by install() to start following progress again
-  const [watching, setWatching] = useState(0)
-
-  // Check once, then every second while a download or the installer is in progress
-  useEffect(() => {
-    let timer
-    async function check() {
-      try {
-        const next = await gatewayStatus()
-        setStatus(next)
-        if (ACTIVE_STEPS.includes(next.setup.step) && !next.installed) timer = setTimeout(check, 1000)
-      } catch (err) {
-        setError(String(err))
-      }
-    }
-    check()
-    return () => clearTimeout(timer)
-  }, [watching])
-
-  async function install() {
-    setError(null)
-    try {
-      await installGateway()
-      setWatching((n) => n + 1)
-    } catch (err) {
-      setError(String(err))
-    }
-  }
-
-  const { installed, setup } = status ?? {}
+function ModelRow({ settings, onSave }) {
   return (
-    <Row
-      label="IB Gateway"
-      caption="Interactive Brokers' connection app. Portfolio Manager runs it in the background, so you never need to open it."
-    >
-      {!status && !error && <span className="settings-caption">Checking…</span>}
-      {installed && (
-        <span className="settings-status" title={installed.path}>
-          <span className="status-dot ok" /> IB Gateway {installed.version} installed
-        </span>
-      )}
-      {status && !installed && (setup.step === 'idle' || setup.step === 'failed') && (
-        <button type="button" className="button-primary compact" onClick={install}>
-          {setup.step === 'failed' ? 'Try again' : 'Download and install (about 300 MB)'}
-        </button>
-      )}
-      {!installed && setup?.step === 'downloading' && (
-        <div className="gateway-progress">
-          <progress max={setup.total || 1} value={setup.received} />
-          <span className="settings-caption">
-            {setup.total ? `Downloading from Interactive Brokers… ${Math.floor(setup.received / MB)} of ${Math.floor(setup.total / MB)} MB` : 'Connecting to Interactive Brokers…'}
-          </span>
-        </div>
-      )}
-      {!installed && setup?.step === 'checking' && <span className="settings-caption">Checking the installer is genuine…</span>}
-      {!installed && setup?.step === 'installer_open' && (
-        <p className="settings-note">
-          IBKR's installer is open in another window: click Next through it and keep the suggested folder. This page
-          notices when it's done.
-        </p>
-      )}
-      {(error || setup?.error) && <Note note={{ error: true, text: error || setup.error }} />}
+    <Row label="Model">
+      <span className="settings-popup">
+        <select
+          value={settings?.ai_model ?? 'claude-haiku-4-5'}
+          onChange={(e) => onSave({ ai_model: e.target.value })}
+          aria-label="AI summary model"
+          disabled={!settings}
+        >
+          {AI_MODELS.map(([id, label]) => (
+            <option key={id} value={id}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <ChevronsIcon size={12} />
+      </span>
     </Row>
   )
 }
 
-function GatewayPortSetting() {
-  const [port, setPort] = useState('')
-  const [note, setNote] = useState(null)
+function AppearanceGroup({ appearance, onAppearanceChange }) {
+  return (
+    <Group title="Appearance">
+      <Row label="Theme">
+        <div className="segmented settings-segmented" role="group" aria-label="Appearance">
+          {APPEARANCES.map((a) => (
+            <button
+              key={a.value}
+              type="button"
+              aria-pressed={appearance === a.value}
+              onClick={() => onAppearanceChange(a.value)}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      </Row>
+    </Group>
+  )
+}
+
+function Settings({ appearance, onAppearanceChange, login, connected, onSignedOut }) {
+  const [settings, setSettings] = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (!IN_APP) return
     getSettings()
-      .then((settings) => setPort(String(settings.gateway_port)))
-      .catch((err) => setNote({ error: true, text: String(err) }))
+      .then(setSettings)
+      .catch((err) => setError(String(err)))
   }, [])
 
-  async function save(event) {
-    event.preventDefault()
-    const number = Number(port)
-    if (!Number.isInteger(number) || number < 1024 || number > 65535) {
-      setNote({ error: true, text: 'Use a port between 1024 and 65535.' })
-      return
-    }
+  // Saves a change to one or more settings; returns an error message, or null
+  async function save(change) {
+    const next = { ...settings, ...change }
     try {
-      await saveSettings({ gateway_port: number })
-      setNote({ text: `Saved. Connecting on port ${number}…` })
+      await saveSettings(next)
+      setSettings(next)
+      return null
     } catch (err) {
-      setNote({ error: true, text: String(err) })
+      return String(err)
     }
   }
 
-  return (
-    <Row label="IB Gateway API port" caption="Gateway's defaults are 4002 for paper accounts and 4001 for live.">
-      <form className="settings-inline" onSubmit={save}>
-        <input
-          className="settings-input port"
-          inputMode="numeric"
-          value={port}
-          onChange={(e) => setPort(e.target.value.replace(/\D/g, ''))}
-          aria-label="IB Gateway API port"
-        />
-        <button type="submit" className="button-primary compact" disabled={!port}>
-          Save
-        </button>
-      </form>
-      <Note note={note} />
-    </Row>
-  )
-}
+  if (!IN_APP) {
+    return (
+      <div className="page-body settings">
+        <div className="settings-column">
+          <p className="settings-footnote">
+            In development, the API key, Gateway port and model come from .env (ANTHROPIC_API_KEY, IB_PORT, AI_MODEL).
+          </p>
+          <AppearanceGroup appearance={appearance} onAppearanceChange={onAppearanceChange} />
+        </div>
+      </div>
+    )
+  }
 
-function Settings({ appearance, onAppearanceChange }) {
   return (
     <div className="page-body settings">
-      <section className="card settings-card">
-        <h2 className="settings-heading">AI summaries</h2>
-        {IN_APP ? (
-          <ApiKeySetting />
-        ) : (
-          <Row label="Anthropic API key" caption="In development, set ANTHROPIC_API_KEY in .env." />
-        )}
-      </section>
-
-      <section className="card settings-card">
-        <h2 className="settings-heading">IB Gateway</h2>
-        {IN_APP ? (
-          <>
-            <GatewayInstallSetting />
-            <GatewayPortSetting />
-          </>
-        ) : (
-          <Row label="IB Gateway API port" caption="In development, set IB_PORT in .env (default 4002)." />
-        )}
-      </section>
-
-      <section className="card settings-card">
-        <h2 className="settings-heading">Appearance</h2>
-        <Row label="Theme" caption="System follows your Mac's light or dark setting.">
-          <div className="segmented" role="group" aria-label="Appearance">
-            {APPEARANCES.map((a) => (
-              <button
-                key={a.value}
-                type="button"
-                aria-pressed={appearance === a.value}
-                onClick={() => onAppearanceChange(a.value)}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
-        </Row>
-      </section>
+      <div className="settings-column">
+        {error && <p className="settings-footnote error-text">{error}</p>}
+        <AccountGroup settings={settings} login={login} connected={connected} onSignedOut={onSignedOut} />
+        {settings && <GatewayGroup settings={settings} onSave={save} />}
+        <Group
+          title="AI summaries"
+          footnote="Your key is stored in your Mac’s Keychain. Summaries are billed to your own Anthropic account."
+        >
+          <ApiKeyRow />
+          <ModelRow settings={settings} onSave={save} />
+        </Group>
+        <AppearanceGroup appearance={appearance} onAppearanceChange={onAppearanceChange} />
+      </div>
     </div>
   )
 }

@@ -20,7 +20,7 @@ pub struct Installed {
 
 impl Installed {
     /// IBC's name for the version: "10.50" -> "1050"
-    #[allow(dead_code)] // used when the app starts Gateway (login, #40)
+    #[allow(dead_code)]
     pub fn major_version(&self) -> String {
         self.version.replace('.', "")
     }
@@ -72,7 +72,6 @@ pub fn find_installed() -> Option<Installed> {
 
 /// IBC's settings file. No credentials: the login sends those to IBC over stdin. IBC applies the
 /// API settings to Gateway when it starts, so nobody has to open Gateway's configuration dialog.
-#[allow(dead_code)] // used when the app starts Gateway (login, #40)
 pub fn ibc_config(trading_mode: &str, settings_dir: &Path, api_port: u16) -> String {
     format!(
         "\
@@ -80,6 +79,7 @@ TradingMode={trading_mode}
 IbDir={settings_dir}
 OverrideTwsApiPort={api_port}
 ReadOnlyApi=yes
+AutoRestartTime=11:45 PM
 AcceptIncomingConnectionAction=reject
 ExistingSessionDetectedAction=primaryoverride
 MinimizeMainWindow=yes

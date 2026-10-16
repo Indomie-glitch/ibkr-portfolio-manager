@@ -37,6 +37,21 @@ def anthropic_api_key():
     return os.getenv("ANTHROPIC_API_KEY")
 
 
+# Models the Settings screen offers (structured outputs + streaming work on all of them)
+AI_MODELS = {
+    "claude-haiku-4-5": "Claude Haiku 4.5",
+    "claude-haiku-5-5": "Claude Haiku 5.5",
+    "claude-sonnet-5-5": "Claude Sonnet 5.5",
+}
+
+
+def ai_model():
+    """The model for AI summaries: the Settings screen in the Mac app, AI_MODEL in .env in development
+    (default claude-haiku-4-5, the single place to change it)."""
+    chosen = SETTINGS.get("ai_model")
+    return chosen if chosen in AI_MODELS else os.getenv("AI_MODEL", "claude-haiku-4-5")
+
+
 # What to tell the user when there's no key
 MISSING_KEY_MESSAGE = ("Add your Anthropic API key in Settings to turn on AI summaries." if IN_APP else
                        "Add ANTHROPIC_API_KEY to .env and restart the backend to turn on AI summaries.")

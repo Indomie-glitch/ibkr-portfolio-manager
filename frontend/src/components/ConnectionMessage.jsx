@@ -1,3 +1,4 @@
+import { IN_APP } from '../api.js'
 import { formatTime } from '../format.js'
 
 const MESSAGES = {
@@ -16,6 +17,12 @@ const MESSAGES = {
     body: 'This takes a few seconds, a little longer the first time after installing.',
     neutral: true,
   },
+  // The Mac app after signing in, while the backend connects to Gateway
+  connecting: {
+    title: 'Connecting to Interactive Brokers…',
+    body: 'Signed in. Your account appears in a few seconds.',
+    neutral: true,
+  },
   stopped: {
     title: 'Portfolio Manager’s background service isn’t running',
     body: 'Quit and reopen the app. If this keeps happening, the log is in ~/Library/Logs/com.indomieglitch.portfoliomanager/backend.log',
@@ -23,7 +30,7 @@ const MESSAGES = {
 }
 
 function ConnectionMessage({ state, lastUpdated }) {
-  const message = MESSAGES[state]
+  const message = MESSAGES[IN_APP && state === 'disconnected' ? 'connecting' : state]
   return (
     <div className="connection-message" role="alert">
       <div className="connection-card">

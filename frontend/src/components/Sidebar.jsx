@@ -19,6 +19,7 @@ function Sidebar({ page, onNavigate, health }) {
   return (
     <aside className="sidebar">
       <nav className="sidebar-panel" aria-label="Main">
+        <div className="sidebar-drag" data-tauri-drag-region />
         <div className="sidebar-section">Portfolio</div>
         <button
           type="button"
