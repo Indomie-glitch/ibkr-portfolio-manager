@@ -4,12 +4,12 @@ import math
 import os
 import time
 from typing import Literal
-from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB, Contract
+import config  # first: loads .env before other modules read settings
 import ai_summary
 from secrets_guard import mask_secrets
 import summary_facts
@@ -17,8 +17,6 @@ import summary_store
 import yahoo
 from cache import cached
 from names import display_name, short_company_name
-
-load_dotenv()
 
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT = int(os.getenv("IB_PORT", "4002"))

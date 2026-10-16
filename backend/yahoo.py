@@ -11,6 +11,12 @@ from zoneinfo import ZoneInfo
 
 import yfinance as yf
 
+import config
+
+if config.IN_APP:
+    # Keep yfinance's cache with the app's data instead of the user's shared ~/Library/Caches
+    yf.set_tz_cache_location(str(config.DATA_DIR / "yfinance"))
+
 US_EXCHANGES = {"NASDAQ", "NYSE", "ARCA", "AMEX", "BATS", "IEX", "NYSE MKT", "NYSEARCA"}
 
 # Total return indexes (dividends reinvested), so they compare like for like with

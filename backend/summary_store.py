@@ -6,16 +6,16 @@ say what changed since then, and lets the history view show and compare older on
 import json
 import sqlite3
 
+from config import DATA_DIR
 from secrets_guard import mask_secrets
-from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "summaries.sqlite"
+DB_PATH = DATA_DIR / "summaries.sqlite"
 # Older summaries of a stock are deleted when a new one is saved, so the file doesn't grow forever
 KEEP_PER_STOCK = 20
 
 
 def _connect():
-    DB_PATH.parent.mkdir(exist_ok=True)
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("""
