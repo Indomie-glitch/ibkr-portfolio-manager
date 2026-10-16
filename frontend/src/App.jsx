@@ -231,7 +231,7 @@ function App() {
         )}
 
         {page !== 'settings' && !sessionEnded && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
-          <ConnectionMessage state={connection} lastUpdated={updatedAt} />
+          <ConnectionMessage state={connection} health={health} lastUpdated={updatedAt} />
         )}
 
         {page !== 'settings' && connected && error && (

@@ -17,13 +17,16 @@ import summary_facts
 import summary_store
 import yahoo
 from cache import cached
+from ib_connection import ConnectionStatus
 from names import display_name, short_company_name
 
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
-IB_CLIENT_ID = int(os.getenv("IB_CLIENT_ID", "1"))
 RECONNECT_SECONDS = 5
 
 ib = IB()
+# Why we aren't connected (shown to the user after a while) and which client ID to use
+connection = ConnectionStatus(config.ib_client_id())
+ib.errorEvent += lambda req_id, code, *rest: connection.on_ib_error(code)
 
 # Contract details rarely change, so look each one up once and keep it
 contract_cache = {}
@@ -78,15 +81,18 @@ async def keep_connected():
             ib.disconnect()
         if not ib.isConnected():
             try:
-                await ib.connectAsync(IB_HOST, port, clientId=IB_CLIENT_ID, readonly=True)
+                await ib.connectAsync(IB_HOST, port, clientId=connection.client_id, readonly=True)
                 connected_port = port
+                connection.connected()
                 # 3 = delayed data, which is free without a market data subscription
                 ib.reqMarketDataType(3)
-                print(f"Connected to IB Gateway on {IB_HOST}:{port}")
+                print(f"Connected to IB Gateway on {IB_HOST}:{port} as client {connection.client_id}")
             except Exception as exc:
                 # Gateway closed, still starting up, or not logged in yet; try again shortly
                 ib.disconnect()
-                print(f"IB Gateway not available ({exc.__class__.__name__}); retrying in {RECONNECT_SECONDS}s")
+                connection.failed(exc)
+                print(f"IB Gateway not available ({exc.__class__.__name__}, {connection.problem}); "
+                      f"retrying in {RECONNECT_SECONDS}s as client {connection.client_id}")
         await asyncio.sleep(RECONNECT_SECONDS)
 
 @asynccontextmanager
@@ -142,7 +148,10 @@ async def connection_error(request: Request, exc: ConnectionError):
 
 @app.get("/health")
 def health():
-    return {"connected": ib.isConnected()}
+    """Whether IB Gateway is connected; if not, why (see ib_connection.py) and on which port."""
+    if ib.isConnected():
+        return {"connected": True}
+    return {"connected": False, "port": config.ib_port(), **connection.as_dict()}
 
 @app.get("/positions", dependencies=[Depends(require_ib)])
 async def positions():

@@ -2,6 +2,7 @@ mod gateway;
 mod secrets;
 mod session;
 mod settings;
+mod traffic_lights;
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -346,7 +347,10 @@ fn open_main_window(app: &AppHandle, connection: Option<&Connection>) -> tauri::
             c.port, c.token
         ));
     }
-    window.build()?;
+    let window = window.build()?;
+    if connection.is_some() {
+        traffic_lights::inset(&window);
+    }
     Ok(())
 }
 

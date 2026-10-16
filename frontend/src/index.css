@@ -1958,6 +1958,15 @@ button.ai-source:hover {
   flex: 1;
 }
 
+.settings-row-caption {
+  display: block;
+  max-width: 330px;
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .settings-value {
   display: flex;
   align-items: center;
@@ -2129,11 +2138,12 @@ button.ai-source:hover {
   display: none;
 }
 
-/* Dashboard: room for the traffic lights at the top of the sidebar, which can be dragged */
+/* Dashboard: room for the traffic lights (centred 22px from the window's top, see lib.rs) at the
+   top of the sidebar, which can be dragged */
 .in-app .sidebar-drag {
   display: block;
   flex-shrink: 0;
-  height: 26px;
+  height: 30px;
 }
 
 /* ---------- Mac app setup screens (Figma "Desktop app (M7)") ---------- */

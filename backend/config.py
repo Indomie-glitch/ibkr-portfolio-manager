@@ -25,6 +25,12 @@ SECRETS = {}
 SETTINGS = {}
 
 
+def ib_client_id():
+    """The first client ID to use: 17 in the Mac app, IB_CLIENT_ID (default 1) in development, so a
+    dev backend and the app can both be connected at the same time."""
+    return 17 if IN_APP else int(os.getenv("IB_CLIENT_ID", "1"))
+
+
 def ib_port():
     """IB Gateway's API port: the Settings screen in the Mac app, IB_PORT in .env in development."""
     return int(SETTINGS.get("ib_port") or os.getenv("IB_PORT", "4002"))
