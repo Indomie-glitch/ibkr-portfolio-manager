@@ -40,8 +40,21 @@
   --chart-5: #ff2d55;
   --error-bg: #fdecec;
   --error-text: #9b1c1c;
+  /* Mac app screens (Figma M7) */
+  --settings-bg: #f2f2f7;
+  --settings-group: #ffffff;
+  --group-border: rgba(0, 0, 0, 0.06);
+  --group-divider: rgba(0, 0, 0, 0.07);
+  --field-border: rgba(0, 0, 0, 0.15);
+  --focus-ring: rgba(0, 122, 255, 0.25);
+  --error-ring: rgba(255, 59, 48, 0.2);
+  --toggle-off: rgba(0, 0, 0, 0.12);
+  --track: rgba(0, 0, 0, 0.08);
+  --warning-bg-strong: rgba(255, 149, 0, 0.14);
+  --warning-border: rgba(255, 149, 0, 0.35);
 
-  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+  /* The macOS system font (San Francisco), like a native Mac app */
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', sans-serif;
   font-size: 13px;
   line-height: normal;
   color-scheme: light dark;
@@ -98,6 +111,17 @@
   --chart-5: #ff375f;
   --error-bg: #3a1d1d;
   --error-text: #ffb4b4;
+  --settings-bg: #1e1e1e;
+  --settings-group: #2c2c2e;
+  --group-border: rgba(255, 255, 255, 0.08);
+  --group-divider: rgba(255, 255, 255, 0.08);
+  --field-border: rgba(255, 255, 255, 0.18);
+  --focus-ring: rgba(10, 132, 255, 0.35);
+  --error-ring: rgba(255, 69, 58, 0.3);
+  --toggle-off: rgba(255, 255, 255, 0.16);
+  --track: rgba(255, 255, 255, 0.12);
+  --warning-bg-strong: rgba(255, 159, 10, 0.18);
+  --warning-border: rgba(255, 159, 10, 0.4);
 }
 
 * {
@@ -1881,47 +1905,93 @@ button.ai-source:hover {
   }
 }
 
-/* Settings: grouped cards of label / control rows, like macOS System Settings */
+/* Settings (Figma "M7 / 8 Settings"): grouped rows on a light grey page, like System Settings */
 .page-body.settings {
   overflow-y: auto;
+  background: var(--settings-bg);
 }
 
-.settings-card {
-  max-width: 760px;
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 556px;
+  margin: 0 auto;
 }
 
-.settings-heading {
-  padding: 14px 20px 10px;
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-header {
+  padding: 10px 0 0 4px;
   font-size: 13px;
   font-weight: 600;
 }
 
+.settings-group {
+  overflow: hidden;
+  border: 1px solid var(--group-border);
+  border-radius: 10px;
+  background: var(--settings-group);
+}
+
 .settings-row {
+  padding: 10px 14px;
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid var(--group-divider);
+}
+
+.settings-row-main {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 12px 24px;
-  padding: 14px 20px;
-  border-top: 1px solid var(--row-border);
+  gap: 8px;
+  min-height: 22px;
 }
 
-.settings-label {
-  flex: 1 1 260px;
-  min-width: 0;
+.settings-row-spacer {
+  flex: 1;
 }
 
-.settings-caption {
-  margin-top: 3px;
+.settings-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.settings-check {
+  display: flex;
+  color: var(--status-ok);
+}
+
+.status-dot.warn {
+  background: var(--warning-dot);
+}
+
+.settings-row-note {
+  margin-top: 6px;
   color: var(--text-2);
   font-size: 11px;
-  line-height: 1.45;
+  text-align: right;
 }
 
-.settings-control {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+.settings-footnote {
+  padding: 0 4px;
+  color: var(--text-2);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.error-text,
+.settings-row-note.error-text {
+  color: var(--loss);
 }
 
 .settings-inline {
@@ -1930,71 +2000,574 @@ button.ai-source:hover {
   gap: 8px;
 }
 
-.settings-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-2);
-  font-size: 12px;
-}
-
-.settings-input {
-  width: 240px;
-  padding: 6px 10px;
-  border: 1px solid var(--button-border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  font-size: 12px;
-  outline: none;
-}
-
-.settings-input.port {
-  width: 80px;
-  font-variant-numeric: tabular-nums;
-}
-
-.settings-input:focus {
-  box-shadow: 0 0 0 2px var(--accent-border);
-}
-
-/* Gateway download */
-.gateway-progress {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.gateway-progress progress {
-  width: 240px;
-  height: 6px;
-  overflow: hidden;
+.settings-button {
+  padding: 4px 12px;
   border: 0;
   border-radius: 999px;
   background: var(--fill);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.settings-button.primary {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.settings-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.settings-field {
+  height: 26px;
+  padding: 4px 8px;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.settings-field.port {
+  width: 72px;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-field.key {
+  width: 200px;
+}
+
+.settings-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* Switch, like macOS: green when on */
+.settings-toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--toggle-off);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.settings-toggle[aria-checked='true'] {
+  background: var(--status-ok);
+}
+
+.settings-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s;
+}
+
+.settings-toggle[aria-checked='true'] .settings-toggle-knob {
+  transform: translateX(16px);
+}
+
+/* Pop-up button: a native select with the chevrons on top */
+.settings-popup {
+  position: relative;
+  display: flex;
+  align-items: center;
+  color: var(--text-2);
+}
+
+.settings-popup select {
+  padding: 4px 28px 4px 10px;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.settings-popup svg {
+  position: absolute;
+  right: 9px;
+  pointer-events: none;
+}
+
+.settings-segmented button {
+  padding: 3px 12px;
+}
+
+/* ---------- Mac app window: hidden title bar ---------- */
+
+/* Setup screens: drag the window from the top 28px (the content starts 40px down) */
+.drag-strip {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 10;
+  height: 28px;
+}
+
+.sidebar-drag {
+  display: none;
+}
+
+/* Dashboard: room for the traffic lights at the top of the sidebar, which can be dragged */
+.in-app .sidebar-drag {
+  display: block;
+  flex-shrink: 0;
+  height: 26px;
+}
+
+/* ---------- Mac app setup screens (Figma "Desktop app (M7)") ---------- */
+
+/* The whole window is the screen: the app resizes it to the frame's size (appWindow.js) */
+.setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  height: 100vh;
+  padding: 40px 32px 28px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.setup.welcome {
+  padding-top: 48px;
+}
+
+.setup.approve {
+  gap: 16px;
+  padding-top: 96px;
+}
+
+.setup.startup {
+  justify-content: center;
+  gap: 12px;
+  padding-bottom: 28px;
+}
+
+.startup-name {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.startup-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.app-icon {
+  display: flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: linear-gradient(90deg, #0a85ff, #5e5ce5);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+}
+
+.app-icon.size-56 {
+  border-radius: 13px;
+}
+
+.app-icon.size-72 {
+  border-radius: 17px;
+}
+
+.app-icon.size-80 {
+  border-radius: 18px;
+}
+
+.icon-circle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 40px;
+  background: var(--accent-skeleton);
+  color: var(--accent);
+}
+
+.icon-circle.warning {
+  background: var(--warning-bg-strong);
+  color: var(--warning-dot);
+}
+
+.setup-step-of {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.setup-title {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.setup-title.small {
+  font-size: 20px;
+}
+
+.setup-text {
+  width: 340px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.setup-text.wide {
+  width: 440px;
+}
+
+.setup-text.small {
+  width: 360px;
+  font-size: 12px;
+}
+
+.setup-text.faint {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.setup-spacer {
+  flex: 1;
+}
+
+.setup-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.setup-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.setup-button.primary {
+  background: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  color: #fff;
+  font-weight: 600;
+}
+
+.setup-button.primary .spinner {
+  color: #fff;
+}
+
+.setup-button.full {
+  width: 100%;
+}
+
+.setup-button.small {
+  align-self: flex-start;
+  padding: 5px 14px;
+  font-size: 12px;
+}
+
+.setup-button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+/* Welcome: the three setup steps */
+.setup-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  list-style: none;
+}
+
+.setup-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.setup-step-number {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--accent-skeleton);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.setup-step-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.setup-step-caption {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Install: download progress */
+.setup-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.setup-progress-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.setup-progress-amount {
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.setup-installed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+
+.setup-installed svg {
+  color: var(--status-ok);
+}
+
+.setup-progress-track {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 3px;
+  background: var(--track);
   appearance: none;
 }
 
-.gateway-progress progress::-webkit-progress-bar {
-  background: var(--fill);
+.setup-progress-track::-webkit-progress-bar {
+  background: var(--track);
 }
 
-.gateway-progress progress::-webkit-progress-value {
-  border-radius: 999px;
+.setup-progress-track::-webkit-progress-value {
+  border-radius: 3px;
   background: var(--accent);
 }
 
-.settings-note {
-  max-width: 320px;
+.setup-box-note {
   color: var(--text-2);
-  font-size: 11px;
-  text-align: right;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
-.settings-note.error-text {
+/* Sign in form */
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.setup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.setup-label {
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.setup-segmented button {
+  padding: 4px 12px;
+}
+
+.setup-input {
+  padding: 7px 10px;
+  border: 1px solid var(--field-border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.setup-input:focus {
+  margin: -1px;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.setup-input.invalid {
+  margin: -1px;
+  border: 2px solid var(--loss);
+  box-shadow: 0 0 0 3px var(--error-ring);
+}
+
+.setup-input:disabled {
+  opacity: 0.6;
+}
+
+.setup-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--loss);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.setup-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.setup-checkbox input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.setup-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--accent-tint);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.setup-tip svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+/* Approve on phone */
+.setup-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Spinner: eight spokes turned in steps, like the macOS activity indicator */
+.spinner {
+  flex-shrink: 0;
+  color: var(--text-3);
+  animation: spinner-steps 0.8s steps(8) infinite;
+}
+
+@keyframes spinner-steps {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Session ended (Figma "M7 / 9 Session ended"): banner above the last figures, dimmed */
+.session-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--warning-border);
+  border-radius: 12px;
+  background: var(--warning-bg);
+}
+
+.session-banner > svg {
+  flex-shrink: 0;
+  color: var(--warning-dot);
+}
+
+.session-banner-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-banner-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.session-banner-detail {
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.stale {
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 /* News */

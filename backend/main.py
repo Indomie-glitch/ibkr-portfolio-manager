@@ -453,7 +453,7 @@ def latest_summary(con_id: int):
     return {
         "ai_configured": ai_summary.api_key_configured(),
         "missing_key_message": config.MISSING_KEY_MESSAGE,
-        "model": ai_summary.AI_MODEL,
+        "model": config.ai_model(),
         "latest": saved_summary_response(record) if record else None,
     }
 
@@ -527,7 +527,7 @@ async def generate_summary(con_id: int, request: Request):
                         summary, warnings, usage = payload
                         saved_facts = {**facts, "links": links}
                         summary_store.save(con_id, facts["company"]["symbol"], facts["as_of"],
-                                           ai_summary.AI_MODEL, saved_facts, summary, warnings)
+                                           config.ai_model(), saved_facts, summary, warnings)
                         print(f"Summary for {facts['company']['symbol']}: {usage['input_tokens']} in, "
                               f"{usage['output_tokens']} out, {len(warnings)} warnings")
                         yield sse("done", saved_summary_response(summary_store.latest(con_id)))

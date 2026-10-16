@@ -3,12 +3,17 @@ import { IN_APP, fetchAccount, fetchHealth, fetchPositions, fetchQuotes } from '
 import { formatTime } from './format.js'
 import { buildHoldings } from './holdings.js'
 import { useAppearance } from './appearance.js'
+import { reconnect } from './appSession.js'
+import { sizeWindowFor } from './appWindow.js'
 import ConnectionMessage from './components/ConnectionMessage.jsx'
+import SessionBanner from './components/SessionBanner.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import Overview from './pages/Overview.jsx'
 import Positions from './pages/Positions.jsx'
 import Settings from './pages/Settings.jsx'
+import Setup, { Startup } from './pages/Setup.jsx'
+import { useLogin } from './useLogin.js'
 
 const AUTO_REFRESH_MS = 60_000
 const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', settings: 'Settings' }
@@ -56,6 +61,10 @@ function App() {
   // Only the newest request may update state, in case an older one finishes later
   const latestRequest = useRef(0)
   const [appearance, setAppearance] = useAppearance()
+  // The Mac app's IBKR sign-in (null outside the app)
+  const [login, refreshLogin] = useLogin()
+  // Set when Reconnect needs a password the app doesn't have: show the sign-in form
+  const [needSignIn, setNeedSignIn] = useState(false)
 
   // Checks the connection, then fetches everything and swaps in the new numbers.
   // Used by the first load, the timers below, and the Refresh button (which also shows a spinner).
@@ -129,6 +138,34 @@ function App() {
     setPage('positions')
   }
 
+  // In the Mac app: the startup screen while the backend starts, the setup flow until signed in to
+  // IBKR, then the dashboard (with a banner and the last figures if the session ends)
+  const signedIn = login?.state === 'signed_in'
+  const sessionEnded = login?.state === 'session_ended'
+  let appScreen = 'dashboard'
+  if (IN_APP) {
+    if (connection === 'starting' || login === null) appScreen = 'startup'
+    else if (!signedIn && (!sessionEnded || needSignIn)) appScreen = 'setup'
+  }
+
+  useEffect(() => {
+    if (appScreen === 'dashboard') sizeWindowFor('dashboard')
+  }, [appScreen])
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
+    if (signedIn) setNeedSignIn(false)
+  }, [signedIn])
+
+  async function reconnectSession() {
+    try {
+      await reconnect()
+      refreshLogin()
+    } catch (err) {
+      if (String(err).includes('password_needed')) setNeedSignIn(true)
+    }
+  }
+
   const { holdings } = buildHoldings(positions, quotes, account)
   const updated = updatedAt ? `Updated ${formatTime(updatedAt)}` : 'Loading…'
   let subtitle =
@@ -138,8 +175,28 @@ function App() {
   if (connection === 'starting') subtitle = 'Starting…'
   if (connection === 'stopped') subtitle = 'Not running'
   if (page === 'settings') subtitle = IN_APP ? 'Saved on this Mac' : 'Development: most settings come from .env'
-  // Only show the cards when the data is current; never stale numbers while disconnected
-  const showData = connected && account
+  // Only show the cards when the data is current; never stale numbers while disconnected, except
+  // dimmed under the "session ended" banner, which says how old they are
+  const showData = account && (connected || sessionEnded)
+
+  // No title bar in the app: this strip is where the window can be dragged from
+  const dragStrip = <div className="drag-strip" data-tauri-drag-region />
+  if (appScreen === 'startup') {
+    return (
+      <>
+        {dragStrip}
+        <Startup />
+      </>
+    )
+  }
+  if (appScreen === 'setup') {
+    return (
+      <>
+        {dragStrip}
+        <Setup login={login} onChange={refreshLogin} />
+      </>
+    )
+  }
 
   return (
     <div className="app">
@@ -159,9 +216,21 @@ function App() {
         />
 
         {/* Settings works without a connection: it's where you'd fix one */}
-        {page === 'settings' && <Settings appearance={appearance} onAppearanceChange={setAppearance} />}
+        {page === 'settings' && (
+          <Settings
+            appearance={appearance}
+            onAppearanceChange={setAppearance}
+            login={login}
+            connected={connected}
+            onSignedOut={refreshLogin}
+          />
+        )}
 
-        {page !== 'settings' && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
+        {page !== 'settings' && sessionEnded && (
+          <SessionBanner reason={login.reason} lastUpdated={updatedAt} onReconnect={reconnectSession} />
+        )}
+
+        {page !== 'settings' && !sessionEnded && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
           <ConnectionMessage state={connection} lastUpdated={updatedAt} />
         )}
 
@@ -176,13 +245,14 @@ function App() {
         )}
 
         {showData && page === 'overview' && (
-          <div className="page-body">
+          <div className={`page-body ${sessionEnded ? 'stale' : ''}`}>
             <Overview account={account} holdings={holdings} onOpenHolding={openHolding} />
           </div>
         )}
 
         {showData && page === 'positions' && (
           <Positions
+            stale={sessionEnded}
             holdings={holdings}
             selectedId={selectedId}
             onSelect={setSelectedId}

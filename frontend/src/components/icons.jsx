@@ -145,3 +145,132 @@ export function GearIcon({ size = 16 }) {
     </Icon>
   )
 }
+
+// ---------- Mac app setup screens (paths copied from the Figma M7 frames) ----------
+
+// The app icon's chart glyph (white on the icon's gradient)
+export function AppGlyph({ size = 56 }) {
+  return (
+    <Icon size={size} viewBox="0 0 56 56">
+      <path
+        d="M10.5 38.5L21.875 27.125L30.625 32.375L45.5 16.625"
+        stroke="white"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M45.5 20.5625C47.6746 20.5625 49.4375 18.7996 49.4375 16.625C49.4375 14.4504 47.6746 12.6875 45.5 12.6875C43.3254 12.6875 41.5625 14.4504 41.5625 16.625C41.5625 18.7996 43.3254 20.5625 45.5 20.5625Z"
+        fill="white"
+      />
+    </Icon>
+  )
+}
+
+export function PhoneIcon({ size = 36 }) {
+  return (
+    <Icon size={size} viewBox="0 0 36 36">
+      <path
+        d="M21.75 3.75H14.25C12.1789 3.75 10.5 5.42893 10.5 7.5V28.5C10.5 30.5711 12.1789 32.25 14.25 32.25H21.75C23.8211 32.25 25.5 30.5711 25.5 28.5V7.5C25.5 5.42893 23.8211 3.75 21.75 3.75Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path d="M15.75 27.75H20.25" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </Icon>
+  )
+}
+
+export function DownloadIcon({ size = 36 }) {
+  return (
+    <Icon size={size} viewBox="0 0 36 36">
+      <path
+        d="M18 6V22.5M24.75 15.75L18 22.5L11.25 15.75M7.5 29.25H28.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Icon>
+  )
+}
+
+// Drawn on the 36px grid; strokes are scaled so they stay as thick as in Figma at 20 and 14px
+export function WarningIcon({ size = 36 }) {
+  const k = 36 / size
+  return (
+    <Icon size={size} viewBox="0 0 36 36">
+      <path d="M18 5.25L32.25 30H3.75L18 5.25Z" stroke="currentColor" strokeWidth={1.6 * k} strokeLinejoin="round" />
+      <path d="M18 14.25V21.75" stroke="currentColor" strokeWidth={1.8 * k} strokeLinecap="round" />
+      <path
+        d="M18 27.45C18.8284 27.45 19.5 26.7784 19.5 25.95C19.5 25.1216 18.8284 24.45 18 24.45C17.1716 24.45 16.5 25.1216 16.5 25.95C16.5 26.7784 17.1716 27.45 18 27.45Z"
+        fill="currentColor"
+      />
+    </Icon>
+  )
+}
+
+export function InfoIcon({ size = 16 }) {
+  return (
+    <Icon size={size} viewBox="0 0 16 16">
+      <path
+        d="M8 14.5C11.5899 14.5 14.5 11.5899 14.5 8C14.5 4.41015 11.5899 1.5 8 1.5C4.41015 1.5 1.5 4.41015 1.5 8C1.5 11.5899 4.41015 14.5 8 14.5Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path d="M8 7.2V11.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path
+        d="M8 5.8C8.49706 5.8 8.9 5.39706 8.9 4.9C8.9 4.40294 8.49706 4 8 4C7.50294 4 7.1 4.40294 7.1 4.9C7.1 5.39706 7.50294 5.8 8 5.8Z"
+        fill="currentColor"
+      />
+    </Icon>
+  )
+}
+
+// Filled circle in currentColor (green in Settings) with a white tick
+export function CheckCircleIcon({ size = 14 }) {
+  return (
+    <Icon size={size} viewBox="0 0 14 14">
+      <path
+        d="M7 13.125C10.3827 13.125 13.125 10.3827 13.125 7C13.125 3.61726 10.3827 0.875 7 0.875C3.61726 0.875 0.875 3.61726 0.875 7C0.875 10.3827 3.61726 13.125 7 13.125Z"
+        fill="currentColor"
+      />
+      <path d="M4.2 7.175L6.125 9.1L9.8 5.075" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </Icon>
+  )
+}
+
+export function ChevronsIcon({ size = 12 }) {
+  return (
+    <Icon size={size} viewBox="0 0 12 12">
+      <path
+        d="M3.75 4.5L6 2.25L8.25 4.5M3.75 7.5L6 9.75L8.25 7.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Icon>
+  )
+}
+
+// macOS-style activity spinner: eight spokes fading out, turned in steps by CSS (.spinner)
+const SPOKES = [
+  ['M7 3.85V1.05', 0.25],
+  ['M9.23125 4.76875L11.2088 2.79125', 0.35],
+  ['M10.15 7H12.95', 0.45],
+  ['M9.23125 9.23125L11.2088 11.2088', 0.55],
+  ['M7 10.15V12.95', 0.65],
+  ['M4.76875 9.23125L2.79125 11.2088', 0.75],
+  ['M3.85 7H1.05', 0.85],
+  ['M4.76875 4.76875L2.79125 2.79125', 0.95],
+]
+
+export function SpinnerIcon({ size = 14 }) {
+  return (
+    <Icon size={size} viewBox="0 0 14 14" className="spinner">
+      {SPOKES.map(([d, opacity]) => (
+        <path key={d} d={d} stroke="currentColor" strokeOpacity={opacity} strokeWidth="1.8" strokeLinecap="round" />
+      ))}
+    </Icon>
+  )
+}

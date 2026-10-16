@@ -3,7 +3,7 @@ import { RefreshIcon } from './icons.jsx'
 
 function Toolbar({ title, subtitle, loading, onRefresh, appearance, onAppearanceChange }) {
   return (
-    <header className="toolbar">
+    <header className="toolbar" data-tauri-drag-region>
       <div>
         <h1 className="toolbar-title">{title}</h1>
         <p className="toolbar-subtitle">{subtitle}</p>

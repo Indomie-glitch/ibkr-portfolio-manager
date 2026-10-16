@@ -6,7 +6,6 @@ soon as each one is complete.
 """
 import copy
 import json
-import os
 import re
 
 import anthropic
@@ -14,9 +13,9 @@ import jiter
 
 import config
 
-# One place to change the model (or set AI_MODEL in .env)
-AI_MODEL = os.getenv("AI_MODEL", "claude-haiku-4-5")
-MAX_TOKENS = 8000
+# The model comes from config.ai_model(): the Settings screen in the Mac app, AI_MODEL in .env in development
+# Room for the 5.5 models' thinking as well as the summary (only what is used is billed)
+MAX_TOKENS = 32000
 
 SECTIONS = [
     "business_snapshot", "financial_health", "valuation", "news_digest", "price_moves",
@@ -254,7 +253,7 @@ async def stream_sections(facts, source_ids):
 
     try:
         async with client.messages.stream(
-            model=AI_MODEL,
+            model=config.ai_model(),
             max_tokens=MAX_TOKENS,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message(facts)}],
@@ -283,7 +282,7 @@ async def stream_sections(facts, source_ids):
     except anthropic.PermissionDeniedError:
         raise SummaryError("permission_denied", "This API key isn't allowed to use the model.")
     except anthropic.NotFoundError:
-        raise SummaryError("model_not_found", f"The model {AI_MODEL} wasn't found. Check AI_MODEL.")
+        raise SummaryError("model_not_found", f"The model {config.ai_model()} wasn't found. Check AI_MODEL.")
     except anthropic.RateLimitError:
         raise SummaryError("rate_limited", "Too many requests to the Anthropic API. Try again in a minute.")
     except anthropic.APIStatusError as exc:
