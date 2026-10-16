@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { gatewayStatus, installGateway } from '../appGateway.js'
 import { cancelSignIn, savedLogin, signIn } from '../appSession.js'
 import { sizeWindowFor } from '../appWindow.js'
+import appIcon from '../assets/app-icon.png'
 import {
-  AppGlyph,
   CheckCircleIcon,
   DownloadIcon,
   InfoIcon,
@@ -17,12 +17,11 @@ import {
 const MB = 1024 * 1024
 const APPROVAL_SECONDS = 180 // IBKR's limit for approving in IBKR Mobile
 
+// The app icon (src-tauri/icon-source.png). The image has macOS's margin and shadow built in, so
+// it's drawn 25% larger with the extra as negative margin: the visible square is `size` points.
 function AppIcon({ size }) {
-  return (
-    <div className={`app-icon size-${size}`}>
-      <AppGlyph size={size} />
-    </div>
-  )
+  const drawn = Math.round(size * 1.25)
+  return <img className="app-icon" src={appIcon} width={drawn} height={drawn} alt="" style={{ margin: (size - drawn) / 2 }} />
 }
 
 function IconCircle({ tone = 'accent', children }) {

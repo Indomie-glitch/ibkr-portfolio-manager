@@ -148,25 +148,6 @@ export function GearIcon({ size = 16 }) {
 
 // ---------- Mac app setup screens (paths copied from the Figma M7 frames) ----------
 
-// The app icon's chart glyph (white on the icon's gradient)
-export function AppGlyph({ size = 56 }) {
-  return (
-    <Icon size={size} viewBox="0 0 56 56">
-      <path
-        d="M10.5 38.5L21.875 27.125L30.625 32.375L45.5 16.625"
-        stroke="white"
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M45.5 20.5625C47.6746 20.5625 49.4375 18.7996 49.4375 16.625C49.4375 14.4504 47.6746 12.6875 45.5 12.6875C43.3254 12.6875 41.5625 14.4504 41.5625 16.625C41.5625 18.7996 43.3254 20.5625 45.5 20.5625Z"
-        fill="white"
-      />
-    </Icon>
-  )
-}
-
 export function PhoneIcon({ size = 36 }) {
   return (
     <Icon size={size} viewBox="0 0 36 36">
