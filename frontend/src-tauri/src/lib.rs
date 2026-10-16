@@ -1,20 +1,39 @@
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager, RunEvent};
+use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 
 /// The bundled Python backend (PyInstaller build in Resources/backend), while it runs.
 struct Backend(Mutex<Option<Child>>);
 
-const BACKEND_PORT: &str = "8000";
+/// Where the frontend finds the backend, and the access token every request must carry.
+struct Connection {
+    port: u16,
+    token: String,
+}
+
+/// A port nothing is using right now (the OS picks one), so the app never clashes with another
+/// program or a backend you run yourself on 8000.
+fn free_port() -> std::io::Result<u16> {
+    Ok(TcpListener::bind("127.0.0.1:0")?.local_addr()?.port())
+}
+
+/// 32 random bytes as hex, new at every launch.
+fn random_token() -> std::io::Result<String> {
+    let mut bytes = [0u8; 32];
+    std::fs::File::open("/dev/urandom")?.read_exact(&mut bytes)?;
+    Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
+}
 
 /// Starts the bundled backend. Returns None when there is none, as in `tauri dev`, where you run
-/// the backend yourself (uvicorn main:app).
-fn start_backend(app: &AppHandle) -> Result<Option<Child>, Box<dyn std::error::Error>> {
+/// the backend yourself (uvicorn main:app on port 8000, no token).
+fn start_backend(app: &AppHandle) -> Result<Option<(Child, Connection)>, Box<dyn std::error::Error>> {
     let exe = app.path().resource_dir()?.join("backend").join("portfolio-backend");
     if !exe.exists() {
-        log::info!("no bundled backend at {}; expecting one on port {BACKEND_PORT}", exe.display());
+        log::info!("no bundled backend at {}; expecting one on port 8000", exe.display());
         return Ok(None);
     }
     let data_dir = app.path().app_data_dir()?;
@@ -23,16 +42,39 @@ fn start_backend(app: &AppHandle) -> Result<Option<Child>, Box<dyn std::error::E
     std::fs::create_dir_all(&log_dir)?;
     let log_file = std::fs::File::create(log_dir.join("backend.log"))?;
 
-    let child = Command::new(exe)
-        .args(["--port", BACKEND_PORT])
+    let connection = Connection { port: free_port()?, token: random_token()? };
+    let mut child = Command::new(exe)
+        .args(["--port", &connection.port.to_string(), "--token-stdin"])
         .env("PORTFOLIO_DATA_DIR", &data_dir)
-        // Kept open while the app runs: the backend exits as soon as it closes, so it can't
-        // outlive the app even if the app crashes
+        // The token goes over stdin, never on the command line where other programs can see it.
+        // stdin then stays open while the app runs: the backend exits as soon as it closes, so it
+        // can't outlive the app even if the app crashes
         .stdin(Stdio::piped())
         .stdout(log_file.try_clone()?)
         .stderr(log_file)
         .spawn()?;
-    Ok(Some(child))
+    let stdin = child.stdin.as_mut().ok_or("backend stdin unavailable")?;
+    writeln!(stdin, "{}", connection.token)?;
+    stdin.flush()?;
+    Ok(Some((child, connection)))
+}
+
+/// The main window. With a bundled backend, a script run before the page tells the frontend
+/// where the backend is and which token to send (api.js reads window.__PORTFOLIO_BACKEND__).
+fn open_main_window(app: &AppHandle, connection: Option<&Connection>) -> tauri::Result<()> {
+    let mut window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+        .title("Portfolio Manager")
+        .inner_size(1320.0, 860.0)
+        .min_inner_size(960.0, 640.0)
+        .center();
+    if let Some(c) = connection {
+        window = window.initialization_script(&format!(
+            "window.__PORTFOLIO_BACKEND__ = {{ url: 'http://127.0.0.1:{}', token: '{}' }};",
+            c.port, c.token
+        ));
+    }
+    window.build()?;
+    Ok(())
 }
 
 /// Asks the backend to shut down cleanly (uvicorn closes the IB connection on SIGTERM), and
@@ -62,8 +104,12 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            let backend = start_backend(app.handle())?;
-            app.manage(Backend(Mutex::new(backend)));
+            let (child, connection) = match start_backend(app.handle())? {
+                Some((child, connection)) => (Some(child), Some(connection)),
+                None => (None, None),
+            };
+            app.manage(Backend(Mutex::new(child)));
+            open_main_window(app.handle(), connection.as_ref())?;
             Ok(())
         })
         .build(tauri::generate_context!())

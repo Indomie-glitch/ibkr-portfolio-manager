@@ -2,6 +2,7 @@ import asyncio
 import json
 import math
 import os
+import secrets
 import time
 from typing import Literal
 from contextlib import asynccontextmanager
@@ -100,12 +101,24 @@ class PathCORS:
     """Two CORS policies chosen by path: GET-only everywhere, GET + POST for /summary/."""
 
     def __init__(self, app):
-        self.get_only = CORSMiddleware(app, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET"])
-        self.get_post = CORSMiddleware(app, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST"])
+        self.get_only = CORSMiddleware(app, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET"],
+                                       allow_headers=["X-App-Token"])
+        self.get_post = CORSMiddleware(app, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST"],
+                                       allow_headers=["X-App-Token"])
 
     async def __call__(self, scope, receive, send):
         summary_path = scope["type"] == "http" and scope["path"].startswith("/summary/")
         await (self.get_post if summary_path else self.get_only)(scope, receive, send)
+
+# In the Mac app, every request must carry the token the app created at launch, so other programs
+# on the computer can't use this API. Added before PathCORS so PathCORS wraps it and a 401 still
+# carries CORS headers the page can read. Development (no token) is unchanged.
+@app.middleware("http")
+async def require_app_token(request: Request, call_next):
+    if config.API_TOKEN and request.method != "OPTIONS":
+        if not secrets.compare_digest(request.headers.get("x-app-token", ""), config.API_TOKEN):
+            return JSONResponse({"detail": "Missing or wrong app token"}, status_code=401)
+    return await call_next(request)
 
 app.add_middleware(PathCORS)
 

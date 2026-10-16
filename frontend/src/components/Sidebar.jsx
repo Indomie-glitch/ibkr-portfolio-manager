@@ -1,8 +1,14 @@
 import { GridIcon, ListIcon, SparklesIcon, TradeIcon } from './icons.jsx'
+import { IN_APP } from '../api.js'
 
 function connectionText(health) {
   if (health === null) return { dot: '', title: 'Checking…', detail: 'Contacting the backend' }
-  if (health === 'offline') return { dot: 'bad', title: 'Backend offline', detail: 'Start uvicorn on port 8000' }
+  if (health === 'starting') return { dot: '', title: 'Starting…', detail: 'Starting the background service' }
+  if (health === 'offline') {
+    return IN_APP
+      ? { dot: 'bad', title: 'Not running', detail: 'Quit and reopen the app' }
+      : { dot: 'bad', title: 'Backend offline', detail: 'Start uvicorn on port 8000' }
+  }
   if (!health.connected) return { dot: 'bad', title: 'Disconnected', detail: 'IB Gateway is not connected' }
   return { dot: 'ok', title: 'Connected', detail: 'IB Gateway · Paper account' }
 }
