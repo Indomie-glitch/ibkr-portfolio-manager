@@ -2190,23 +2190,7 @@ button.ai-source:hover {
 }
 
 .app-icon {
-  display: flex;
   flex-shrink: 0;
-  overflow: hidden;
-  background: linear-gradient(90deg, #0a85ff, #5e5ce5);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
-}
-
-.app-icon.size-56 {
-  border-radius: 13px;
-}
-
-.app-icon.size-72 {
-  border-radius: 17px;
-}
-
-.app-icon.size-80 {
-  border-radius: 18px;
 }
 
 .icon-circle {
