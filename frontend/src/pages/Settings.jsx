@@ -4,7 +4,7 @@ import { IN_APP } from '../api.js'
 import { deleteSecret, saveSecret, secretStatus } from '../appSecrets.js'
 import { APPEARANCES } from '../appearance.js'
 import { gatewayStatus, installGateway } from '../appGateway.js'
-import { signOut } from '../appSession.js'
+import { savedLogin, signOut } from '../appSession.js'
 import { getSettings, saveSettings } from '../appSettings.js'
 import { CheckCircleIcon, ChevronsIcon } from '../components/icons.jsx'
 
@@ -30,11 +30,14 @@ function Group({ title, children, footnote }) {
   )
 }
 
-function Row({ label, children, note }) {
+function Row({ label, caption, children, note }) {
   return (
     <div className="settings-row">
       <div className="settings-row-main">
-        <span className="settings-row-label">{label}</span>
+        <span className="settings-row-label">
+          {label}
+          {caption && <span className="settings-row-caption">{caption}</span>}
+        </span>
         <span className="settings-row-spacer" />
         {children}
       </div>
@@ -62,7 +65,7 @@ function Toggle({ checked, onChange, label }) {
   )
 }
 
-function AccountGroup({ settings, login, connected, onSignedOut }) {
+function AccountGroup({ settings, username, login, connected, onSignedOut }) {
   const [note, setNote] = useState(null)
   const state = login?.state
   const signedIn = state === 'signed_in' || state === 'session_ended'
@@ -85,7 +88,7 @@ function AccountGroup({ settings, login, connected, onSignedOut }) {
     <Group title="Account">
       <Row label="Signed in as" note={note}>
         <span className="settings-value">
-          {signedIn && settings?.ibkr_username ? `${settings.ibkr_username} · ${mode}` : 'Not signed in'}
+          {signedIn && username ? `${username} · ${mode}` : 'Not signed in'}
         </span>
         {signedIn && (
           <button type="button" className="settings-button" onClick={doSignOut}>
@@ -175,14 +178,21 @@ function GatewayGroup({ settings, onSave }) {
 
   return (
     <Group title="IB Gateway">
-      <Row label="Reconnect automatically">
+      <Row
+        label="Reconnect automatically"
+        caption="After IB Gateway’s daily restart. When the app opens, and when IBKR asks once a week, you sign in yourself."
+      >
         <Toggle
           label="Reconnect automatically"
           checked={settings.auto_reconnect}
           onChange={(value) => onSave({ auto_reconnect: value })}
         />
       </Row>
-      <Row label="API port" note={portNote}>
+      <Row
+        label="API port"
+        caption="The port Portfolio Manager’s IB Gateway uses. The default is 4012, so it doesn’t clash with another Gateway or TWS on 4001 or 4002."
+        note={portNote}
+      >
         <form onSubmit={savePort}>
           <input
             className="settings-field port"
@@ -334,6 +344,8 @@ function AppearanceGroup({ appearance, onAppearanceChange }) {
 
 function Settings({ appearance, onAppearanceChange, login, connected, onSignedOut }) {
   const [settings, setSettings] = useState(null)
+  // The IBKR username is kept in the Keychain with the password
+  const [username, setUsername] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -341,6 +353,9 @@ function Settings({ appearance, onAppearanceChange, login, connected, onSignedOu
     getSettings()
       .then(setSettings)
       .catch((err) => setError(String(err)))
+    savedLogin()
+      .then((saved) => setUsername(saved.username))
+      .catch(() => {})
   }, [])
 
   // Saves a change to one or more settings; returns an error message, or null
@@ -372,7 +387,13 @@ function Settings({ appearance, onAppearanceChange, login, connected, onSignedOu
     <div className="page-body settings">
       <div className="settings-column">
         {error && <p className="settings-footnote error-text">{error}</p>}
-        <AccountGroup settings={settings} login={login} connected={connected} onSignedOut={onSignedOut} />
+        <AccountGroup
+          settings={settings}
+          username={username}
+          login={login}
+          connected={connected}
+          onSignedOut={onSignedOut}
+        />
         {settings && <GatewayGroup settings={settings} onSave={save} />}
         <Group
           title="AI summaries"

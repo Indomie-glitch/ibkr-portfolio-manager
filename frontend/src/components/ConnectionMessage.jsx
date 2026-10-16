@@ -29,8 +29,41 @@ const MESSAGES = {
   },
 }
 
-function ConnectionMessage({ state, lastUpdated }) {
-  const message = MESSAGES[IN_APP && state === 'disconnected' ? 'connecting' : state]
+// In the app, after this long "Connecting…" turns into an explanation of what's wrong
+const EXPLAIN_AFTER_S = 20
+const LOG = '~/Library/Logs/com.indomieglitch.portfoliomanager/backend.log'
+
+// Why the app's backend can't reach IB Gateway (the problem /health reports, see ib_connection.py)
+function problemMessage({ problem, port, client_id: clientId }) {
+  switch (problem) {
+    case 'client_id_in_use':
+      return {
+        title: 'Another program is using IB Gateway’s connection',
+        body: `Something else on this Mac is connected to IB Gateway with the same client ID. Portfolio Manager is trying other IDs (now ${clientId}). If this doesn’t clear, quit the other program or reopen Portfolio Manager.`,
+      }
+    case 'refused':
+      return {
+        title: 'IB Gateway isn’t accepting connections',
+        body: `Nothing answered on port ${port}. Check the API port in Settings, or sign out and sign in again.`,
+      }
+    case 'timeout':
+      return {
+        title: 'IB Gateway isn’t answering',
+        body: `Port ${port} answered, but IB Gateway didn’t respond. If it’s still starting it will connect by itself; otherwise quit and reopen Portfolio Manager.`,
+      }
+    default:
+      return {
+        title: 'Couldn’t connect to IB Gateway',
+        body: `Quit and reopen Portfolio Manager. If it keeps happening, the log is in ${LOG}`,
+      }
+  }
+}
+
+function ConnectionMessage({ state, health, lastUpdated }) {
+  let message = MESSAGES[IN_APP && state === 'disconnected' ? 'connecting' : state]
+  if (IN_APP && state === 'disconnected' && health?.problem && health.problem_for_s >= EXPLAIN_AFTER_S) {
+    message = problemMessage(health)
+  }
   return (
     <div className="connection-message" role="alert">
       <div className="connection-card">

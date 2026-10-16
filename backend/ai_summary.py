@@ -236,7 +236,9 @@ class SummaryError(Exception):
 
 
 def api_key_configured():
-    return bool(config.anthropic_api_key())
+    """Whether AI summaries are on. In the Mac app the key is read from the Keychain only when a
+    summary is requested, so "a key is saved" counts too."""
+    return bool(config.anthropic_api_key()) or (config.IN_APP and bool(config.SETTINGS.get("ai_key_saved")))
 
 
 async def stream_sections(facts, source_ids):
@@ -244,6 +246,9 @@ async def stream_sections(facts, source_ids):
     then ("final", summary, warnings, usage). Raises SummaryError on failure."""
     if not api_key_configured():
         raise SummaryError("missing_api_key", config.MISSING_KEY_MESSAGE)
+    if not config.anthropic_api_key():
+        # The app reads the key from the Keychain just before asking for a summary (load_api_key)
+        raise SummaryError("key_not_loaded", "The API key couldn't be read from the Keychain. Try again, or add it again in Settings.")
 
     allowed = set(source_ids)
     client = anthropic.AsyncAnthropic(api_key=config.anthropic_api_key())  # the key never leaves the backend

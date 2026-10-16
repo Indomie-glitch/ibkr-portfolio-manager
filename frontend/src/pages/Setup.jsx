@@ -216,7 +216,7 @@ function SignInForm({ form, setForm, busy, login, onSubmit }) {
       <p className="setup-step-of">Step 2 of 2</p>
       <AppIcon size={56} />
       <h1 className="setup-title small">Sign in to Interactive Brokers</h1>
-      <p className="setup-text small">Your password is saved in your Mac’s Keychain and never leaves this Mac.</p>
+      <p className="setup-text small">Your password goes straight to IB Gateway and isn’t saved.</p>
 
       <div className="setup-form">
         <div className="setup-field">
@@ -271,15 +271,6 @@ function SignInForm({ form, setForm, busy, login, onSubmit }) {
             <WarningIcon size={14} /> {error}
           </p>
         )}
-        <label className="setup-checkbox">
-          <input
-            type="checkbox"
-            checked={form.remember}
-            onChange={(e) => update({ remember: e.target.checked })}
-            disabled={busy}
-          />
-          Remember password in Keychain
-        </label>
         <div className="setup-tip">
           <InfoIcon size={16} />
           <p>Tip: use a second IBKR username for this app, so you stay signed in to IBKR Mobile on your phone.</p>
@@ -363,7 +354,8 @@ function LoginNotApproved({ onBack, onTryAgain }) {
 function Setup({ login, onChange }) {
   // null while loading; then 'welcome' (first run), 'install' or 'signin'
   const [step, setStep] = useState(null)
-  const [form, setForm] = useState({ mode: 'paper', username: '', password: '', remember: true, error: null })
+  // The password stays in this form only until signing in works; it's never stored
+  const [form, setForm] = useState({ mode: 'paper', username: '', password: '', error: null })
   // True once this screen started a sign-in, so its progress shows on the form (an automatic
   // sign-in at launch shows the startup screen instead)
   const [submitted, setSubmitted] = useState(false)

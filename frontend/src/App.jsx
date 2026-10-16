@@ -3,7 +3,6 @@ import { IN_APP, fetchAccount, fetchHealth, fetchPositions, fetchQuotes } from '
 import { formatTime } from './format.js'
 import { buildHoldings } from './holdings.js'
 import { useAppearance } from './appearance.js'
-import { reconnect } from './appSession.js'
 import { sizeWindowFor } from './appWindow.js'
 import ConnectionMessage from './components/ConnectionMessage.jsx'
 import SessionBanner from './components/SessionBanner.jsx'
@@ -63,7 +62,7 @@ function App() {
   const [appearance, setAppearance] = useAppearance()
   // The Mac app's IBKR sign-in (null outside the app)
   const [login, refreshLogin] = useLogin()
-  // Set when Reconnect needs a password the app doesn't have: show the sign-in form
+  // Set by Reconnect on the "session ended" banner: show the sign-in form
   const [needSignIn, setNeedSignIn] = useState(false)
 
   // Checks the connection, then fetches everything and swaps in the new numbers.
@@ -157,13 +156,9 @@ function App() {
     if (signedIn) setNeedSignIn(false)
   }, [signedIn])
 
-  async function reconnectSession() {
-    try {
-      await reconnect()
-      refreshLogin()
-    } catch (err) {
-      if (String(err).includes('password_needed')) setNeedSignIn(true)
-    }
+  // The password isn't stored, so reconnecting means signing in again
+  function reconnectSession() {
+    setNeedSignIn(true)
   }
 
   const { holdings } = buildHoldings(positions, quotes, account)
@@ -231,7 +226,7 @@ function App() {
         )}
 
         {page !== 'settings' && !sessionEnded && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
-          <ConnectionMessage state={connection} lastUpdated={updatedAt} />
+          <ConnectionMessage state={connection} health={health} lastUpdated={updatedAt} />
         )}
 
         {page !== 'settings' && connected && error && (

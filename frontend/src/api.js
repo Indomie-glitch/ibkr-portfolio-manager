@@ -79,6 +79,14 @@ export function fetchSummaryComparison(conId, a, b) {
 // backend streams: status, facts, section (one per finished section), done, error.
 // (EventSource can't send POST requests, so this reads the stream with fetch.)
 export async function generateSummary(conId, onEvent) {
+  if (IN_APP) {
+    // The Mac app reads the key from the Keychain only now, so nobody sees a Keychain prompt
+    // unless they use AI summaries
+    const { loadApiKey } = await import('./appSecrets.js')
+    await loadApiKey().catch((err) => {
+      throw new Error(String(err))
+    })
+  }
   const response = await fetch(`${API_URL}/summary/${conId}`, { method: 'POST', headers: HEADERS })
   if (!response.ok) {
     let detail = `Summary request failed (${response.status})`

@@ -7,19 +7,14 @@ export function loginState() {
   return invoke('login_state')
 }
 
-// { username, mode, password_saved } (never the password itself)
+// { username, mode } to pre-fill the sign-in form (the password is never stored)
 export function savedLogin() {
   return invoke('saved_login')
 }
 
-export function signIn({ username, password, mode, remember }) {
-  return invoke('sign_in', { username, password, mode, remember })
-}
-
-// Signs in again with the saved username and remembered password; rejects with
-// 'password_needed' when the password isn't remembered
-export function reconnect() {
-  return invoke('reconnect')
+// The password goes to IB Gateway once and isn't kept
+export function signIn({ username, password, mode }) {
+  return invoke('sign_in', { username, password, mode })
 }
 
 export function cancelSignIn() {

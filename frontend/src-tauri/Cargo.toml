@@ -25,3 +25,9 @@ tauri = { version = "2.12.4", features = [] }
 tauri-plugin-log = "2"
 libc = "0.2"
 keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Moving the window buttons (traffic_lights.rs); the same versions Tauri already uses
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["std", "objc2-core-foundation", "NSButton", "NSControl", "NSResponder", "NSView", "NSWindow"] }
+objc2-core-foundation = { version = "0.3", features = ["CFCGTypes"] }
