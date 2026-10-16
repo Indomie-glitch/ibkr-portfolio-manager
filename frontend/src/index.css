@@ -1881,6 +1881,95 @@ button.ai-source:hover {
   }
 }
 
+/* Settings: grouped cards of label / control rows, like macOS System Settings */
+.page-body.settings {
+  overflow-y: auto;
+}
+
+.settings-card {
+  max-width: 760px;
+}
+
+.settings-heading {
+  padding: 14px 20px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--row-border);
+}
+
+.settings-label {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.settings-caption {
+  margin-top: 3px;
+  color: var(--text-2);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.settings-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.settings-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.settings-input {
+  width: 240px;
+  padding: 6px 10px;
+  border: 1px solid var(--button-border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.settings-input.port {
+  width: 80px;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-input:focus {
+  box-shadow: 0 0 0 2px var(--accent-border);
+}
+
+.settings-note {
+  max-width: 320px;
+  color: var(--text-2);
+  font-size: 11px;
+  text-align: right;
+}
+
+.settings-note.error-text {
+  color: var(--loss);
+}
+
 /* News */
 .news-list {
   margin: 0;

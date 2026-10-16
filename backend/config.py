@@ -21,6 +21,14 @@ API_TOKEN = None
 # Secrets the Mac app sends over stdin from the macOS Keychain, held only in memory
 SECRETS = {}
 
+# Settings the Mac app sends over stdin from its Settings screen (development uses .env)
+SETTINGS = {}
+
+
+def ib_port():
+    """IB Gateway's API port: the Settings screen in the Mac app, IB_PORT in .env in development."""
+    return int(SETTINGS.get("ib_port") or os.getenv("IB_PORT", "4002"))
+
 
 def anthropic_api_key():
     """The Anthropic key: from the Keychain in the Mac app, from .env in development."""

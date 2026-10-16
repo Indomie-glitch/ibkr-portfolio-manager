@@ -14,6 +14,13 @@ function loadAppearance() {
   }
 }
 
+// The choices in the toolbar and on the Settings page
+export const APPEARANCES = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+]
+
 export function useAppearance() {
   const [appearance, setAppearance] = useState(loadAppearance)
 
