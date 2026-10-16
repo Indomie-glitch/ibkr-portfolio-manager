@@ -446,6 +446,7 @@ def latest_summary(con_id: int):
     record = summary_store.latest(con_id)
     return {
         "ai_configured": ai_summary.api_key_configured(),
+        "missing_key_message": config.MISSING_KEY_MESSAGE,
         "model": ai_summary.AI_MODEL,
         "latest": saved_summary_response(record) if record else None,
     }
@@ -493,7 +494,7 @@ async def generate_summary(con_id: int, request: Request):
     if origin is not None and origin not in ALLOWED_ORIGINS:
         raise HTTPException(status_code=403, detail="Origin not allowed")
     if not ai_summary.api_key_configured():
-        raise HTTPException(status_code=503, detail="Add ANTHROPIC_API_KEY to .env and restart the backend.")
+        raise HTTPException(status_code=503, detail=config.MISSING_KEY_MESSAGE)
     lock = summary_locks.setdefault(con_id, asyncio.Lock())
     if lock.locked():
         raise HTTPException(status_code=409, detail="A summary for this holding is already being written")

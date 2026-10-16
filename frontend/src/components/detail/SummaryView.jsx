@@ -172,10 +172,10 @@ function yahooGaps(missing) {
   return (missing ?? []).filter((m) => m.includes('Yahoo Finance unavailable')).map((m) => m.replace(/ \(.*\)$/, ''))
 }
 
-export function AiSummaryBody({ view, generating, configured, name }) {
+export function AiSummaryBody({ view, generating, configured, missingKeyMessage, name }) {
   if (!view) {
     if (!configured) {
-      return <p className="section-unavailable">Add ANTHROPIC_API_KEY to .env and restart the backend to turn on AI summaries.</p>
+      return <p className="section-unavailable">{missingKeyMessage ?? 'AI summaries are turned off.'}</p>
     }
     if (!generating) {
       return (

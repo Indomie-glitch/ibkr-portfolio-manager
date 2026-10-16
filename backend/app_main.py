@@ -5,6 +5,7 @@ When stdin closes (the app quit or crashed), the backend stops too, so it never 
 its own.
 """
 import argparse
+import json
 import os
 import sys
 import threading
@@ -13,8 +14,18 @@ import uvicorn
 
 
 def watch_parent():
-    for _line in sys.stdin:
-        pass  # later steps send messages here
+    """Messages from the app, one JSON object per line, until stdin closes:
+    {"set_secret": name, "value": ...} or {"clear_secret": name} (secrets from the Keychain)."""
+    import config
+    for line in sys.stdin:
+        try:
+            message = json.loads(line)
+        except ValueError:
+            continue  # never echo the line: it may hold a secret
+        if "set_secret" in message:
+            config.SECRETS[message["set_secret"]] = message.get("value")
+        elif "clear_secret" in message:
+            config.SECRETS.pop(message["clear_secret"], None)
     os._exit(0)
 
 

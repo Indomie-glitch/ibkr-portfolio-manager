@@ -60,6 +60,7 @@ function AiSummarySection({ holding, name }) {
   const runForThis = run?.conId === holding.con_id ? run : null
   const generating = runForThis?.status === 'running'
   const configured = saved.data?.ai_configured ?? false
+  const missingKeyMessage = saved.data?.missing_key_message
   const latest = saved.data?.latest
   // While writing, show the new sections; otherwise the newest finished summary
   const view = runForThis?.view ?? latest
@@ -116,7 +117,7 @@ function AiSummarySection({ holding, name }) {
         className="button-primary compact"
         onClick={start}
         disabled={!configured || generating || saved.loading}
-        title={configured ? undefined : 'Add ANTHROPIC_API_KEY to .env to turn on AI summaries'}
+        title={configured ? undefined : missingKeyMessage}
       >
         <SparklesIcon size={13} /> {view || latest ? 'Regenerate' : 'Summarise'}
       </button>
@@ -139,7 +140,13 @@ function AiSummarySection({ holding, name }) {
         ) : saved.error && !view ? (
           <p className="section-unavailable">Couldn’t load the saved summary · {saved.error}</p>
         ) : (
-          <AiSummaryBody view={view} generating={generating} configured={configured} name={name} />
+          <AiSummaryBody
+            view={view}
+            generating={generating}
+            configured={configured}
+            missingKeyMessage={missingKeyMessage}
+            name={name}
+          />
         )}
       </div>
     </DisclosureSection>
