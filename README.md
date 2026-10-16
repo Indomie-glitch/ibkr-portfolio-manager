@@ -144,11 +144,15 @@ With the backend running as above, open the frontend in a native window instead 
 
 ```bash
 cd frontend
-npm run tauri dev      # window with hot reload
-npm run tauri build    # builds src-tauri/target/release/bundle/macos/Portfolio Manager.app
+npm run tauri dev      # window with hot reload, using the backend you started yourself
+npm run build:app      # packages the backend (PyInstaller) and builds
+                       # src-tauri/target/release/bundle/macos/Portfolio Manager.app
 ```
 
-The Mac app doesn't start the backend or IB Gateway by itself yet; that comes in later Milestone 7 steps.
+The built app starts its own copy of the backend and stops it when it quits. Its data lives in
+`~/Library/Application Support/com.indomieglitch.portfoliomanager/` and the backend's log in
+`~/Library/Logs/com.indomieglitch.portfoliomanager/backend.log`. It doesn't start IB Gateway yet;
+that comes in later Milestone 7 steps.
 
 ### API
 

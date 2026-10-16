@@ -8,7 +8,7 @@ Backend: Python 3.11, FastAPI, uvicorn, ib_async (the maintained fork of ib_insy
 Frontend: React with Vite, in frontend/
 AI summaries: Claude API, model set by AI_MODEL in .env (default claude-haiku-4-5, the single place to change it), key in .env as ANTHROPIC_API_KEY (backend only, never sent to the frontend)
 Project layout
-backend/         FastAPI app (main.py), ibkr_hello.py, requirements.txt, venv/
+backend/         FastAPI app (main.py), config.py (loads .env, DATA_DIR), app_main.py + portfolio-backend.spec (PyInstaller entry for the Mac app), ibkr_hello.py, requirements.txt, venv/
 frontend/        React app (Vite); frontend/src-tauri/ is the Mac app shell (Tauri 2, Rust)
 .env             real settings, gitignored, never commit
 .env.example     template for .env, committed
@@ -17,7 +17,7 @@ Running locally
 IB Gateway must be running and logged in to the paper account
 Backend: cd backend && source venv/bin/activate && uvicorn main:app --reload (port 8000)
 Frontend: cd frontend && npm run dev (port 5173)
-Mac app: cd frontend && npm run tauri dev (or tauri build). Rust is in ~/.cargo/bin (rustup didn't edit the shell profile), so prefix PATH="$HOME/.cargo/bin:$PATH".
+Mac app: cd frontend && npm run tauri dev (uses your own backend on 8000) or npm run build:app (PyInstaller backend bundled as a resource via src-tauri/tauri.release.conf.json; Rust starts it with PORTFOLIO_DATA_DIR = Application Support, keeps its stdin open so it exits with the app, SIGTERM on quit). Rust is in ~/.cargo/bin (rustup didn't edit the shell profile), so prefix PATH="$HOME/.cargo/bin:$PATH".
 Milestone 7 (Mac app for a friend, issues #34-#43): one branch and PR each; I merge #34, #35, #36, #38, #37 once the build passes, the user reviews #39, #40, #41, #43 before merging.
 Backend rules
 Connect to IB Gateway via a background task started in the FastAPI lifespan (keep_connected in main.py), using await ib.connectAsync(...); it retries every 5s so the server starts without Gateway and reconnects after drops. IB endpoints use Depends(require_ib) and return 503 while disconnected. Never use ib.connect() inside the server (it conflicts with uvicorn's event loop).
