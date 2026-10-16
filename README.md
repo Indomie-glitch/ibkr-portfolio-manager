@@ -170,7 +170,12 @@ cd frontend
 npm run tauri dev      # window with hot reload, using the backend you started yourself
 npm run build:app      # packages the backend (PyInstaller) and builds
                        # src-tauri/target/release/bundle/macos/Portfolio Manager.app
+npm run build:dmg      # the same, plus an unsigned Apple Silicon DMG to send:
+                       # src-tauri/target/release/bundle/dmg/Portfolio Manager_0.1.0_aarch64.dmg
 ```
+
+The app is ad-hoc signed (no Apple Developer ID), so on another Mac it opens only after
+**Open Anyway** (see [Install the Mac app](#install-the-mac-app)); it isn't notarised.
 
 The built app starts its own copy of the backend on a free port, with a random access token for that
 launch (so other programs on the Mac can't use its API), and stops it when it quits. Its data lives in

@@ -9,9 +9,10 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "tauri": "tauri",
-    "build:backend": "cd ../backend && venv/bin/pyinstaller --noconfirm --log-level WARN portfolio-backend.spec",
+    "build:backend": "cd ../backend && venv/bin/pyinstaller --noconfirm --log-level WARN portfolio-backend.spec && find dist/portfolio-backend -path '*/Python.framework/Versions/*/Python' -type f -exec codesign --force --sign - {} \\;",
     "build:app": "npm run build:backend && npm run build:ibc && tauri build --bundles app --config src-tauri/tauri.release.conf.json",
-    "build:ibc": "src-tauri/ibc/build-ibc.sh"
+    "build:ibc": "src-tauri/ibc/build-ibc.sh",
+    "build:dmg": "npm run build:backend && npm run build:ibc && tauri build --bundles app,dmg --config src-tauri/tauri.release.conf.json"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",
