@@ -20,6 +20,8 @@ use tauri::{AppHandle, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilde
 struct Backend {
     child: Mutex<Option<Child>>,
     stdin: Mutex<Option<ChildStdin>>,
+    /// The API key has been read from the Keychain and sent (see load_api_key)
+    api_key_loaded: std::sync::atomic::AtomicBool,
 }
 
 impl Backend {
@@ -78,14 +80,16 @@ fn start_backend(app: &AppHandle) -> Result<Option<(Backend, Connection)>, Box<d
     let mut stdin = child.stdin.take().ok_or("backend stdin unavailable")?;
     writeln!(stdin, "{}", connection.token)?;
     stdin.flush()?;
-    let backend = Backend { child: Mutex::new(Some(child)), stdin: Mutex::new(Some(stdin)) };
+    let backend = Backend { child: Mutex::new(Some(child)), stdin: Mutex::new(Some(stdin)), api_key_loaded: Default::default() };
     send_settings_to_backend(&backend, &settings::load(app))?;
     Ok(Some((backend, connection)))
 }
 
 fn send_settings_to_backend(backend: &Backend, settings: &settings::Settings) -> Result<(), String> {
     backend.send(json!({ "set_setting": "ib_port", "value": settings.gateway_port }))?;
-    backend.send(json!({ "set_setting": "ai_model", "value": settings.ai_model }))
+    backend.send(json!({ "set_setting": "ai_model", "value": settings.ai_model }))?;
+    // Only whether a key is saved; the key itself is read when a summary is requested (load_api_key)
+    backend.send(json!({ "set_setting": "ai_key_saved", "value": settings.ai_key_saved }))
 }
 
 // ---------- IBKR sign-in (IB Gateway through IBC, see session.rs) ----------
@@ -121,14 +125,14 @@ fn launch_for(app: &AppHandle, mode: &str) -> Result<session::Launch, String> {
     })
 }
 
-/// For relaunching Gateway after its daily restart: the saved username and, if remembered, the
-/// password. None when the user turned "Reconnect automatically" off.
+/// For relaunching Gateway after its daily restart, which needs no password: the saved username.
+/// None when the user turned "Reconnect automatically" off.
 fn saved_credentials(app: &AppHandle) -> Option<session::Credentials> {
     let settings = settings::load(app);
     if !settings.auto_reconnect {
         return None;
     }
-    Some(session::Credentials { username: secrets::get("ibkr_username")?, password: secrets::get("ibkr_password") })
+    Some(session::Credentials { username: settings.ibkr_username?, password: None })
 }
 
 fn start_session(app: &AppHandle, credentials: session::Credentials, mode: &str) -> Result<(), String> {
@@ -152,97 +156,58 @@ fn login_state(session: State<SharedSession>) -> session::LoginState {
 struct SavedLogin {
     username: Option<String>,
     mode: String,
-    password_saved: bool,
 }
 
-/// The username and account type to pre-fill the sign-in form with (never the password).
+/// The username and account type to pre-fill the sign-in form with (from settings.json; the
+/// password is never stored).
 #[tauri::command]
 fn saved_login(app: AppHandle) -> SavedLogin {
     let settings = settings::load(&app);
-    SavedLogin {
-        username: secrets::get("ibkr_username"),
-        mode: settings.trading_mode,
-        password_saved: secrets::get("ibkr_password").is_some(),
-    }
+    SavedLogin { username: settings.ibkr_username, mode: settings.trading_mode }
 }
 
-/// Signs in to IBKR: saves the username and account type, keeps the password in the Keychain if
-/// asked to (or forgets it), and starts Gateway. Follow it with login_state.
+/// Signs in to IBKR: saves the username and account type for next time and starts Gateway. The
+/// password goes to Gateway once and isn't kept. Follow it with login_state.
 #[tauri::command]
-fn sign_in(app: AppHandle, username: String, password: String, mode: String, remember: bool) -> Result<(), String> {
+fn sign_in(app: AppHandle, username: String, password: String, mode: String) -> Result<(), String> {
     let username = username.trim().to_string();
     if username.is_empty() || password.is_empty() {
         return Err("Enter your IBKR username and password.".into());
     }
     let mut saved = settings::load(&app);
+    saved.ibkr_username = Some(username.clone());
     saved.trading_mode = mode.clone();
     settings::save(&app, &saved)?;
-    secrets::set("ibkr_username", &username)?;
-    if remember {
-        secrets::set("ibkr_password", &password)?;
-    } else {
-        secrets::delete("ibkr_password")?;
-    }
     start_session(&app, session::Credentials { username, password: Some(password) }, &mode)
 }
 
-/// Signs in again with the saved username and remembered password (Reconnect, Try Again).
-#[tauri::command]
-fn reconnect(app: AppHandle) -> Result<(), String> {
-    let saved = settings::load(&app);
-    let username = secrets::get("ibkr_username").ok_or("password_needed")?;
-    let password = secrets::get("ibkr_password").ok_or("password_needed")?;
-    start_session(&app, session::Credentials { username, password: Some(password) }, &saved.trading_mode)
-}
-
-/// Stops a sign-in in progress (Cancel); keeps the saved login.
+/// Stops a sign-in in progress (Cancel).
 #[tauri::command]
 fn cancel_sign_in(session: State<SharedSession>) {
     session.stop(session::LoginState::SignedOut);
 }
 
-/// Signs out: stops Gateway and forgets the remembered password, so the app doesn't sign in again
-/// by itself.
+/// Signs out: stops Gateway.
 #[tauri::command]
-fn sign_out(session: State<SharedSession>) -> Result<(), String> {
+fn sign_out(session: State<SharedSession>) {
     session.stop(session::LoginState::SignedOut);
-    secrets::delete("ibkr_password")
 }
 
-/// Everything at launch that reads the Keychain, in one background thread after the window opens:
-/// macOS may ask permission to read the Keychain (for an unsigned app, after each update), and the
-/// app shouldn't sit there without a window while it waits. One thread, in order, means one read.
-fn after_window_opens(app: AppHandle) {
+/// Once, on the first launch of a build that keeps only the API key: deletes the Keychain items of
+/// earlier builds without reading them (reading is what makes macOS ask for permission). Runs after
+/// the window opens.
+fn clean_up_old_keychain_items(app: AppHandle) {
     std::thread::spawn(move || {
-        move_username_to_keychain(&app);
-        send_secrets_to_backend(&app);
-        sign_in_at_launch(&app);
+        let mut saved = settings::load(&app);
+        if saved.keychain_cleaned {
+            return;
+        }
+        secrets::delete_old_items();
+        saved.keychain_cleaned = true;
+        saved.ai_key_saved = false; // the old key went with them; it's entered again in Settings
+        let _ = settings::save(&app, &saved);
+        let _ = app.state::<Backend>().send(json!({ "set_setting": "ai_key_saved", "value": false }));
     });
-}
-
-/// Settings before version 3 kept the IBKR username in settings.json; it now lives in the
-/// Keychain item with the other secrets.
-fn move_username_to_keychain(app: &AppHandle) {
-    let mut saved = settings::load(app);
-    if let Some(username) = saved.ibkr_username.take() {
-        if secrets::set("ibkr_username", &username).is_ok() {
-            let _ = settings::save(app, &saved);
-        }
-    }
-}
-
-/// Signs in by itself when the password is remembered and Gateway is installed.
-fn sign_in_at_launch(app: &AppHandle) {
-    let settings = settings::load(app);
-    if !settings.auto_reconnect || gateway::find_installed().is_none() {
-        return;
-    }
-    if let (Some(username), Some(password)) = (secrets::get("ibkr_username"), secrets::get("ibkr_password")) {
-        let credentials = session::Credentials { username, password: Some(password) };
-        if let Err(e) = start_session(app, credentials, &settings.trading_mode) {
-            log::error!("couldn't sign in at launch: {e}");
-        }
-    }
 }
 
 #[tauri::command]
@@ -255,18 +220,6 @@ fn get_settings(app: AppHandle) -> settings::Settings {
 fn save_settings(app: AppHandle, backend: State<Backend>, settings: settings::Settings) -> Result<(), String> {
     settings::save(&app, &settings)?;
     send_settings_to_backend(&backend, &settings)
-}
-
-/// Hands the secrets the backend needs from the Keychain straight to its memory.
-fn send_secrets_to_backend(app: &AppHandle) {
-    let backend = app.state::<Backend>();
-    for name in secrets::FOR_BACKEND {
-        if let Some(value) = secrets::get(name) {
-            if let Err(e) = backend.send(json!({ "set_secret": name, "value": value })) {
-                log::error!("couldn't send {name} to the backend: {e}");
-            }
-        }
-    }
 }
 
 /// Gateway setup in progress (download, checking, installer open).
@@ -312,32 +265,56 @@ fn install_gateway(app: AppHandle, setup: State<GatewaySetup>) -> Result<(), Str
     Ok(())
 }
 
-/// Which secrets are saved (never their values).
+/// Whether an API key is saved (from settings.json: no Keychain read, so no prompt).
 #[tauri::command]
-fn secret_status() -> HashMap<&'static str, bool> {
-    secrets::NAMES.iter().map(|name| (*name, secrets::get(name).is_some())).collect()
+fn secret_status(app: AppHandle) -> HashMap<&'static str, bool> {
+    HashMap::from([("anthropic_api_key", settings::load(&app).ai_key_saved)])
 }
 
-/// Saves a secret in the Keychain and, if the backend uses it, hands it over right away.
+fn set_key_saved(app: &AppHandle, saved: bool) -> Result<(), String> {
+    let mut settings = settings::load(app);
+    settings.ai_key_saved = saved;
+    settings::save(app, &settings)
+}
+
+/// Saves the Anthropic key in the Keychain and hands it to the backend right away.
 #[tauri::command]
-fn save_secret(backend: State<Backend>, name: String, value: String) -> Result<(), String> {
+fn save_secret(app: AppHandle, backend: State<Backend>, name: String, value: String) -> Result<(), String> {
     let value = value.trim();
-    if value.is_empty() || value.len() > 1000 {
+    if name != "anthropic_api_key" || value.is_empty() || value.len() > 1000 {
         return Err("That doesn't look right: it's empty or too long.".into());
     }
-    secrets::set(&name, value)?;
-    if secrets::FOR_BACKEND.contains(&name.as_str()) {
-        backend.send(json!({ "set_secret": name, "value": value }))?;
-    }
-    Ok(())
+    secrets::save_api_key(value)?;
+    set_key_saved(&app, true)?;
+    backend.send(json!({ "set_setting": "ai_key_saved", "value": true }))?;
+    backend.send(json!({ "set_secret": "anthropic_api_key", "value": value }))
 }
 
 #[tauri::command]
-fn delete_secret(backend: State<Backend>, name: String) -> Result<(), String> {
-    secrets::delete(&name)?;
-    if secrets::FOR_BACKEND.contains(&name.as_str()) {
-        backend.send(json!({ "clear_secret": name }))?;
+fn delete_secret(app: AppHandle, backend: State<Backend>, name: String) -> Result<(), String> {
+    if name != "anthropic_api_key" {
+        return Err(format!("unknown secret {name}"));
     }
+    secrets::delete_api_key()?;
+    set_key_saved(&app, false)?;
+    backend.send(json!({ "set_setting": "ai_key_saved", "value": false }))?;
+    backend.send(json!({ "clear_secret": "anthropic_api_key" }))
+}
+
+/// Called just before an AI summary: reads the key from the Keychain (macOS may ask for
+/// permission) and hands it to the backend, once per launch.
+#[tauri::command]
+fn load_api_key(app: AppHandle, backend: State<Backend>) -> Result<(), String> {
+    if backend.api_key_loaded.load(std::sync::atomic::Ordering::SeqCst) {
+        return Ok(());
+    }
+    let Some(key) = secrets::api_key() else {
+        set_key_saved(&app, false)?;
+        backend.send(json!({ "set_setting": "ai_key_saved", "value": false }))?;
+        return Err("The API key couldn't be read from the Keychain. Add it again in Settings.".into());
+    };
+    backend.send(json!({ "set_secret": "anthropic_api_key", "value": key }))?;
+    backend.api_key_loaded.store(true, std::sync::atomic::Ordering::SeqCst);
     Ok(())
 }
 
@@ -399,19 +376,20 @@ pub fn run() {
             }
             let (backend, connection) = match start_backend(app.handle())? {
                 Some((backend, connection)) => (backend, Some(connection)),
-                None => (Backend { child: Mutex::new(None), stdin: Mutex::new(None) }, None),
+                None => (Backend { child: Mutex::new(None), stdin: Mutex::new(None), api_key_loaded: Default::default() }, None),
             };
             app.manage(backend);
             app.manage(GatewaySetup(Mutex::new(gateway::Progress::default())));
             app.manage::<SharedSession>(Arc::new(session::Session::default()));
             open_main_window(app.handle(), connection.as_ref())?;
-            after_window_opens(app.handle().clone());
+            clean_up_old_keychain_items(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             secret_status,
             save_secret,
             delete_secret,
+            load_api_key,
             get_settings,
             save_settings,
             gateway_status,
@@ -419,7 +397,6 @@ pub fn run() {
             login_state,
             saved_login,
             sign_in,
-            reconnect,
             cancel_sign_in,
             sign_out
         ])

@@ -178,7 +178,10 @@ function GatewayGroup({ settings, onSave }) {
 
   return (
     <Group title="IB Gateway">
-      <Row label="Reconnect automatically">
+      <Row
+        label="Reconnect automatically"
+        caption="After IB Gateway’s daily restart. When the app opens, and when IBKR asks once a week, you sign in yourself."
+      >
         <Toggle
           label="Reconnect automatically"
           checked={settings.auto_reconnect}

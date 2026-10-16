@@ -16,16 +16,20 @@ pub struct Settings {
     /// The API port of the app's IB Gateway. 4012 rather than Gateway's usual 4001/4002, so it
     /// never clashes with another Gateway or TWS (or a development backend) on this Mac.
     pub gateway_port: u16,
-    /// Only in files from before the username moved to the Keychain (see
-    /// move_username_to_keychain in lib.rs); never written again
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// The IBKR username last signed in with, to pre-fill the sign-in form (not a secret; the
+    /// password is never stored)
     pub ibkr_username: Option<String>,
     /// "paper" or "live"
     pub trading_mode: String,
-    /// Sign in at launch and bring Gateway back after its daily restart, when the password is remembered
+    /// Bring Gateway back by itself after its daily restart (no password needed). At launch and
+    /// after IBKR's weekly re-login the user signs in.
     pub auto_reconnect: bool,
     /// The Claude model for AI summaries (the backend only accepts the ones it knows)
     pub ai_model: String,
+    /// Whether an Anthropic key is in the Keychain, so the app knows AI is on without reading it
+    pub ai_key_saved: bool,
+    /// The Keychain items of earlier builds have been deleted (once, without reading them)
+    pub keychain_cleaned: bool,
 }
 
 impl Default for Settings {
@@ -37,6 +41,8 @@ impl Default for Settings {
             trading_mode: "paper".into(),
             auto_reconnect: true,
             ai_model: "claude-haiku-4-5".into(),
+            ai_key_saved: false,
+            keychain_cleaned: false,
         }
     }
 }
