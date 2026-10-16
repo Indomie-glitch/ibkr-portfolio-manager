@@ -135,3 +135,13 @@ export function DisclosureIcon({ size = 14 }) {
     </Icon>
   )
 }
+
+// Not in the Figma file: an 8-tooth gear drawn to match the other icons
+export function GearIcon({ size = 16 }) {
+  return (
+    <Icon size={size} viewBox="0 0 16 16">
+      <path d="M13.07 6.83 L14.63 7.07 L14.63 8.93 L13.07 9.17 L12.41 10.76 L13.35 12.03 L12.03 13.35 L10.76 12.41 L9.17 13.07 L8.93 14.63 L7.07 14.63 L6.83 13.07 L5.24 12.41 L3.97 13.35 L2.65 12.03 L3.59 10.76 L2.93 9.17 L1.37 8.93 L1.37 7.07 L2.93 6.83 L3.59 5.24 L2.65 3.97 L3.97 2.65 L5.24 3.59 L6.83 2.93 L7.07 1.37 L8.93 1.37 L9.17 2.93 L10.76 3.59 L12.03 2.65 L13.35 3.97 L12.41 5.24 Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="2.1" stroke="currentColor" strokeWidth="1.3" />
+    </Icon>
+  )
+}

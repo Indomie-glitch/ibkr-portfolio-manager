@@ -20,7 +20,6 @@ from cache import cached
 from names import display_name, short_company_name
 
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
-IB_PORT = int(os.getenv("IB_PORT", "4002"))
 IB_CLIENT_ID = int(os.getenv("IB_CLIENT_ID", "1"))
 RECONNECT_SECONDS = 5
 
@@ -70,13 +69,20 @@ async def keep_connected():
     Runs for the server's whole life, so the API starts even if Gateway is closed
     and recovers on its own when Gateway comes back.
     """
+    connected_port = None
     while True:
+        port = config.ib_port()
+        if ib.isConnected() and port != connected_port:
+            # The port was changed in Settings: connect again on the new one
+            print(f"Gateway port changed to {port}; reconnecting")
+            ib.disconnect()
         if not ib.isConnected():
             try:
-                await ib.connectAsync(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID, readonly=True)
+                await ib.connectAsync(IB_HOST, port, clientId=IB_CLIENT_ID, readonly=True)
+                connected_port = port
                 # 3 = delayed data, which is free without a market data subscription
                 ib.reqMarketDataType(3)
-                print(f"Connected to IB Gateway on {IB_HOST}:{IB_PORT}")
+                print(f"Connected to IB Gateway on {IB_HOST}:{port}")
             except Exception as exc:
                 # Gateway closed, still starting up, or not logged in yet; try again shortly
                 ib.disconnect()

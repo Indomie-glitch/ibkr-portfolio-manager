@@ -1,10 +1,5 @@
+import { APPEARANCES } from '../appearance.js'
 import { RefreshIcon } from './icons.jsx'
-
-const APPEARANCES = [
-  { value: 'system', label: 'System' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-]
 
 function Toolbar({ title, subtitle, loading, onRefresh, appearance, onAppearanceChange }) {
   return (

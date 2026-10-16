@@ -15,7 +15,8 @@ import uvicorn
 
 def watch_parent():
     """Messages from the app, one JSON object per line, until stdin closes:
-    {"set_secret": name, "value": ...} or {"clear_secret": name} (secrets from the Keychain)."""
+    {"set_secret": name, "value": ...} or {"clear_secret": name} (secrets from the Keychain),
+    {"set_setting": name, "value": ...} (from the Settings screen)."""
     import config
     for line in sys.stdin:
         try:
@@ -26,6 +27,8 @@ def watch_parent():
             config.SECRETS[message["set_secret"]] = message.get("value")
         elif "clear_secret" in message:
             config.SECRETS.pop(message["clear_secret"], None)
+        elif "set_setting" in message:
+            config.SETTINGS[message["set_setting"]] = message.get("value")
     os._exit(0)
 
 

@@ -1,4 +1,5 @@
 mod secrets;
+mod settings;
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -74,7 +75,24 @@ fn start_backend(app: &AppHandle) -> Result<Option<(Backend, Connection)>, Box<d
     writeln!(stdin, "{}", connection.token)?;
     stdin.flush()?;
     let backend = Backend { child: Mutex::new(Some(child)), stdin: Mutex::new(Some(stdin)) };
+    send_settings_to_backend(&backend, &settings::load(app))?;
     Ok(Some((backend, connection)))
+}
+
+fn send_settings_to_backend(backend: &Backend, settings: &settings::Settings) -> Result<(), String> {
+    backend.send(json!({ "set_setting": "ib_port", "value": settings.gateway_port }))
+}
+
+#[tauri::command]
+fn get_settings(app: AppHandle) -> settings::Settings {
+    settings::load(&app)
+}
+
+/// Saves the settings and applies them to the running backend right away.
+#[tauri::command]
+fn save_settings(app: AppHandle, backend: State<Backend>, settings: settings::Settings) -> Result<(), String> {
+    settings::save(&app, &settings)?;
+    send_settings_to_backend(&backend, &settings)
 }
 
 /// Hands the secrets the backend needs from the Keychain straight to its memory. Runs after the
@@ -176,7 +194,13 @@ pub fn run() {
             send_secrets_to_backend(app.handle().clone());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![secret_status, save_secret, delete_secret])
+        .invoke_handler(tauri::generate_handler![
+            secret_status,
+            save_secret,
+            delete_secret,
+            get_settings,
+            save_settings
+        ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {

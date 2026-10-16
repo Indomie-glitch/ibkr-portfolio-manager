@@ -8,8 +8,10 @@ import Sidebar from './components/Sidebar.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import Overview from './pages/Overview.jsx'
 import Positions from './pages/Positions.jsx'
+import Settings from './pages/Settings.jsx'
 
 const AUTO_REFRESH_MS = 60_000
+const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', settings: 'Settings' }
 // /health is a cheap local request, so check it often to notice drops and recoveries quickly
 const HEALTH_CHECK_MS = 5_000
 
@@ -135,6 +137,7 @@ function App() {
   if (connection === 'offline') subtitle = 'Waiting for the backend…'
   if (connection === 'starting') subtitle = 'Starting…'
   if (connection === 'stopped') subtitle = 'Not running'
+  if (page === 'settings') subtitle = IN_APP ? 'Saved on this Mac' : 'Development: most settings come from .env'
   // Only show the cards when the data is current; never stale numbers while disconnected
   const showData = connected && account
 
@@ -144,7 +147,7 @@ function App() {
 
       <main className="content">
         <Toolbar
-          title={page === 'overview' ? 'Overview' : 'Positions'}
+          title={PAGE_TITLES[page]}
           subtitle={subtitle}
           loading={loading}
           onRefresh={() => {
@@ -155,11 +158,14 @@ function App() {
           onAppearanceChange={setAppearance}
         />
 
-        {['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
+        {/* Settings works without a connection: it's where you'd fix one */}
+        {page === 'settings' && <Settings appearance={appearance} onAppearanceChange={setAppearance} />}
+
+        {page !== 'settings' && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
           <ConnectionMessage state={connection} lastUpdated={updatedAt} />
         )}
 
-        {connected && error && (
+        {page !== 'settings' && connected && error && (
           <div className="page-message">
             <div className="error" role="alert">
               <strong>Could not load data.</strong> Make sure the backend is running on port 8000 and IB
