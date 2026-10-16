@@ -4,7 +4,7 @@ A cleaner, more intuitive portfolio dashboard for Interactive Brokers, with AI g
 
 Interactive Brokers is a powerful broker, but its native interface is dense and hard to navigate. This project connects directly to IBKR through IB Gateway and presents your portfolio in a simpler, modern web interface.
 
-> **Status:** Dashboard and expanded stock detail working. AI summaries are next.
+> **Status:** Dashboard, stock detail and AI summaries work, in the browser and as a Mac app for Apple Silicon.
 
 ## Screenshots
 
@@ -74,6 +74,29 @@ React frontend  <-->  Python REST API  <-->  IB Gateway (localhost:4002)  <-->  
 ```
 
 The React frontend talks only to the Python backend. The backend manages the connection to IB Gateway running locally, and calls the Claude API to generate stock summaries.
+
+## Install the Mac app
+
+For a Mac with Apple Silicon (M1 or later) and macOS 13 or later. You won't need the terminal or to open IB Gateway yourself.
+
+1. Open the `Portfolio Manager` DMG you were sent and drag **Portfolio Manager** into **Applications**.
+2. Open it from Applications. The first time, macOS stops it, because the app isn't from the App Store and isn't signed by a registered developer. Click **Done**.
+3. Open **System Settings → Privacy & Security** and scroll down to **Security**. Next to "Portfolio Manager was blocked to protect your Mac", click **Open Anyway**, enter your Mac password, then click **Open Anyway** again. You only do this once.
+
+   ![The Open Anyway button in System Settings, Privacy & Security](docs/screenshots/open-anyway.png)
+
+4. In the app, click **Get Started**, then **Download IB Gateway**. When IBKR's installer opens, click Continue through it and keep the suggested folder, then click **Continue** in the app.
+5. Sign in with your IBKR username and password and choose **Live** or **Paper**. With a live account, approve the login in IBKR Mobile on your phone.
+6. Optional: to turn on AI summaries, open **Settings → AI summaries** and paste an Anthropic API key.
+
+The app never saves your IBKR password or your API key. You type the password each time you open the app, and the API key once per session.
+
+### Using a second IBKR username
+
+Each IBKR username can be signed in in only one place at a time. If the app uses the same username as IBKR Mobile, TWS or the website, signing in to the app signs you out there, and the other way round. A second username for the same account avoids that.
+
+- **Live accounts:** in IBKR's Client Portal, go to **Settings → Users & Access Rights** and add a user, then sign in to the app with that username. Market data subscriptions belong to a username, so the new one starts with free delayed prices, which is what this app uses anyway.
+- **Paper accounts** already have their own username, separate from your live one, so you don't need a second one.
 
 ## Getting Started
 

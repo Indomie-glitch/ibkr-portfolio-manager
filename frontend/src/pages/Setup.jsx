@@ -192,6 +192,31 @@ const ERROR_TEXT = {
   too_many_attempts: 'Too many attempts. Wait a few minutes, then try again.',
 }
 
+// Why a second IBKR username helps (README "Using a second IBKR username" says the same)
+function SecondUsernameTip() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="setup-tip">
+      <InfoIcon size={16} />
+      <div>
+        <p>
+          Tip: use a second IBKR username for this app, so you stay signed in to IBKR Mobile on your phone.{' '}
+          <button type="button" className="setup-tip-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+            {open ? 'Hide' : 'Why?'}
+          </button>
+        </p>
+        {open && (
+          <p className="setup-tip-more">
+            Each IBKR username can be signed in in only one place, so using the same one here signs you out of IBKR
+            Mobile. Add a second username in Client Portal under Settings › Users &amp; Access Rights. Paper accounts
+            already have their own username.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SignInForm({ form, setForm, busy, login, onSubmit }) {
   let error = null
   if (login?.state === 'wrong_password') {
@@ -270,10 +295,7 @@ function SignInForm({ form, setForm, busy, login, onSubmit }) {
             <WarningIcon size={14} /> {error}
           </p>
         )}
-        <div className="setup-tip">
-          <InfoIcon size={16} />
-          <p>Tip: use a second IBKR username for this app, so you stay signed in to IBKR Mobile on your phone.</p>
-        </div>
+        <SecondUsernameTip />
       </div>
 
       <div className="setup-spacer" />
