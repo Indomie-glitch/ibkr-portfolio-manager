@@ -1,13 +1,30 @@
+mod secrets;
+
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use serde_json::json;
+use tauri::{AppHandle, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder};
 
-/// The bundled Python backend (PyInstaller build in Resources/backend), while it runs.
-struct Backend(Mutex<Option<Child>>);
+/// The bundled Python backend (PyInstaller build in Resources/backend), while it runs, and the
+/// pipe to its stdin: one JSON message per line (see watch_parent in backend/app_main.py).
+struct Backend {
+    child: Mutex<Option<Child>>,
+    stdin: Mutex<Option<ChildStdin>>,
+}
+
+impl Backend {
+    fn send(&self, message: serde_json::Value) -> Result<(), String> {
+        if let Some(stdin) = self.stdin.lock().unwrap().as_mut() {
+            writeln!(stdin, "{message}").and_then(|_| stdin.flush()).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+}
 
 /// Where the frontend finds the backend, and the access token every request must carry.
 struct Connection {
@@ -30,7 +47,7 @@ fn random_token() -> std::io::Result<String> {
 
 /// Starts the bundled backend. Returns None when there is none, as in `tauri dev`, where you run
 /// the backend yourself (uvicorn main:app on port 8000, no token).
-fn start_backend(app: &AppHandle) -> Result<Option<(Child, Connection)>, Box<dyn std::error::Error>> {
+fn start_backend(app: &AppHandle) -> Result<Option<(Backend, Connection)>, Box<dyn std::error::Error>> {
     let exe = app.path().resource_dir()?.join("backend").join("portfolio-backend");
     if !exe.exists() {
         log::info!("no bundled backend at {}; expecting one on port 8000", exe.display());
@@ -53,10 +70,56 @@ fn start_backend(app: &AppHandle) -> Result<Option<(Child, Connection)>, Box<dyn
         .stdout(log_file.try_clone()?)
         .stderr(log_file)
         .spawn()?;
-    let stdin = child.stdin.as_mut().ok_or("backend stdin unavailable")?;
+    let mut stdin = child.stdin.take().ok_or("backend stdin unavailable")?;
     writeln!(stdin, "{}", connection.token)?;
     stdin.flush()?;
-    Ok(Some((child, connection)))
+    let backend = Backend { child: Mutex::new(Some(child)), stdin: Mutex::new(Some(stdin)) };
+    Ok(Some((backend, connection)))
+}
+
+/// Hands the secrets the backend needs from the Keychain straight to its memory. Runs after the
+/// window opens: macOS may ask permission to read the Keychain (for an unsigned app, after each
+/// update), and the app shouldn't sit there without a window while it waits.
+fn send_secrets_to_backend(app: AppHandle) {
+    std::thread::spawn(move || {
+        let backend = app.state::<Backend>();
+        for name in secrets::FOR_BACKEND {
+            if let Some(value) = secrets::get(name) {
+                if let Err(e) = backend.send(json!({ "set_secret": name, "value": value })) {
+                    log::error!("couldn't send {name} to the backend: {e}");
+                }
+            }
+        }
+    });
+}
+
+/// Which secrets are saved (never their values).
+#[tauri::command]
+fn secret_status() -> HashMap<&'static str, bool> {
+    secrets::NAMES.iter().map(|name| (*name, secrets::get(name).is_some())).collect()
+}
+
+/// Saves a secret in the Keychain and, if the backend uses it, hands it over right away.
+#[tauri::command]
+fn save_secret(backend: State<Backend>, name: String, value: String) -> Result<(), String> {
+    let value = value.trim();
+    if value.is_empty() || value.len() > 1000 {
+        return Err("That doesn't look right: it's empty or too long.".into());
+    }
+    secrets::set(&name, value)?;
+    if secrets::FOR_BACKEND.contains(&name.as_str()) {
+        backend.send(json!({ "set_secret": name, "value": value }))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn delete_secret(backend: State<Backend>, name: String) -> Result<(), String> {
+    secrets::delete(&name)?;
+    if secrets::FOR_BACKEND.contains(&name.as_str()) {
+        backend.send(json!({ "clear_secret": name }))?;
+    }
+    Ok(())
 }
 
 /// The main window. With a bundled backend, a script run before the page tells the frontend
@@ -104,19 +167,21 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            let (child, connection) = match start_backend(app.handle())? {
-                Some((child, connection)) => (Some(child), Some(connection)),
-                None => (None, None),
+            let (backend, connection) = match start_backend(app.handle())? {
+                Some((backend, connection)) => (backend, Some(connection)),
+                None => (Backend { child: Mutex::new(None), stdin: Mutex::new(None) }, None),
             };
-            app.manage(Backend(Mutex::new(child)));
+            app.manage(backend);
             open_main_window(app.handle(), connection.as_ref())?;
+            send_secrets_to_backend(app.handle().clone());
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![secret_status, save_secret, delete_secret])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
             if let RunEvent::Exit = event {
-                if let Some(mut child) = app.state::<Backend>().0.lock().unwrap().take() {
+                if let Some(mut child) = app.state::<Backend>().child.lock().unwrap().take() {
                     stop_backend(&mut child);
                 }
             }

@@ -12,6 +12,8 @@ import re
 import anthropic
 import jiter
 
+import config
+
 # One place to change the model (or set AI_MODEL in .env)
 AI_MODEL = os.getenv("AI_MODEL", "claude-haiku-4-5")
 MAX_TOKENS = 8000
@@ -235,17 +237,17 @@ class SummaryError(Exception):
 
 
 def api_key_configured():
-    return bool(os.getenv("ANTHROPIC_API_KEY"))
+    return bool(config.anthropic_api_key())
 
 
 async def stream_sections(facts, source_ids):
     """Call Claude and yield ("section", name, cleaned_section, warnings) as each section completes,
     then ("final", summary, warnings, usage). Raises SummaryError on failure."""
     if not api_key_configured():
-        raise SummaryError("missing_api_key", "Add ANTHROPIC_API_KEY to .env and restart the backend.")
+        raise SummaryError("missing_api_key", config.MISSING_KEY_MESSAGE)
 
     allowed = set(source_ids)
-    client = anthropic.AsyncAnthropic()  # reads ANTHROPIC_API_KEY; the key never leaves the backend
+    client = anthropic.AsyncAnthropic(api_key=config.anthropic_api_key())  # the key never leaves the backend
     sent = {}
     warnings = []
     text = ""
@@ -276,7 +278,8 @@ async def stream_sections(facts, source_ids):
                         yield ("section", name, cleaned, section_warnings)
             final = await stream.get_final_message()
     except anthropic.AuthenticationError:
-        raise SummaryError("invalid_api_key", "The Anthropic API key was rejected. Check ANTHROPIC_API_KEY in .env.")
+        raise SummaryError("invalid_api_key", "The Anthropic API key was rejected. Check it in Settings." if config.IN_APP else
+                           "The Anthropic API key was rejected. Check ANTHROPIC_API_KEY in .env.")
     except anthropic.PermissionDeniedError:
         raise SummaryError("permission_denied", "This API key isn't allowed to use the model.")
     except anthropic.NotFoundError:
