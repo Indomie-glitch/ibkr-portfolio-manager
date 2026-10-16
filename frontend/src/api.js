@@ -1,7 +1,12 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+// In the Mac app, Rust injects the backend's address and a per-launch access token before the page
+// loads (open_main_window in src-tauri/src/lib.rs); in development the backend runs on port 8000
+const APP_BACKEND = window.__PORTFOLIO_BACKEND__
+export const IN_APP = Boolean(APP_BACKEND)
+const API_URL = APP_BACKEND?.url ?? import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+const HEADERS = APP_BACKEND ? { 'X-App-Token': APP_BACKEND.token } : {}
 
 async function getJson(path) {
-  const response = await fetch(`${API_URL}${path}`)
+  const response = await fetch(`${API_URL}${path}`, { headers: HEADERS })
   if (!response.ok) {
     let detail = `${path} returned ${response.status}`
     try {
@@ -74,7 +79,7 @@ export function fetchSummaryComparison(conId, a, b) {
 // backend streams: status, facts, section (one per finished section), done, error.
 // (EventSource can't send POST requests, so this reads the stream with fetch.)
 export async function generateSummary(conId, onEvent) {
-  const response = await fetch(`${API_URL}/summary/${conId}`, { method: 'POST' })
+  const response = await fetch(`${API_URL}/summary/${conId}`, { method: 'POST', headers: HEADERS })
   if (!response.ok) {
     let detail = `Summary request failed (${response.status})`
     try {

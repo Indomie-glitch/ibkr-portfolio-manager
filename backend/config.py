@@ -14,3 +14,6 @@ load_dotenv()
 # Saved summaries and caches: data/ in the repo for development, Application Support in the Mac app
 DATA_DIR = Path(os.getenv("PORTFOLIO_DATA_DIR") or Path(__file__).resolve().parent.parent / "data")
 IN_APP = bool(os.getenv("PORTFOLIO_DATA_DIR"))
+
+# Set by app_main.py in the Mac app (read from stdin, never from a file or the command line)
+API_TOKEN = None

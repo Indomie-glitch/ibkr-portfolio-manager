@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchAccount, fetchHealth, fetchPositions, fetchQuotes } from './api.js'
+import { IN_APP, fetchAccount, fetchHealth, fetchPositions, fetchQuotes } from './api.js'
 import { formatTime } from './format.js'
 import { buildHoldings } from './holdings.js'
 import { useAppearance } from './appearance.js'
@@ -13,11 +13,27 @@ const AUTO_REFRESH_MS = 60_000
 // /health is a cheap local request, so check it often to notice drops and recoveries quickly
 const HEALTH_CHECK_MS = 5_000
 
-// 'checking' before the first answer, 'offline' if the backend is unreachable,
-// 'disconnected' if the backend is up but IB Gateway isn't, otherwise 'connected'
+// The Mac app starts its own backend, which takes a few seconds (longer the first time after
+// installing, while macOS checks the new files); until then "unreachable" means "still starting"
+const APP_STARTUP_MS = 30_000
+const STARTED_AT = Date.now()
+
+// The /health response, or 'starting' / 'offline' when the backend can't be reached
+async function readHealth() {
+  try {
+    return await fetchHealth()
+  } catch {
+    return IN_APP && Date.now() - STARTED_AT < APP_STARTUP_MS ? 'starting' : 'offline'
+  }
+}
+
+// 'checking' before the first answer; 'starting' while the app's backend starts; 'offline' if the
+// backend is unreachable ('stopped' in the app, where it should always be running); 'disconnected'
+// if the backend is up but IB Gateway isn't; otherwise 'connected'
 function connectionState(health) {
-  if (health === null) return 'checking'
-  if (health === 'offline') return 'offline'
+  if (health === null) return IN_APP ? 'starting' : 'checking'
+  if (health === 'starting') return 'starting'
+  if (health === 'offline') return IN_APP ? 'stopped' : 'offline'
   return health.connected ? 'connected' : 'disconnected'
 }
 
@@ -27,7 +43,7 @@ function App() {
   const [account, setAccount] = useState(null)
   const [positions, setPositions] = useState([])
   const [quotes, setQuotes] = useState([])
-  // null = not checked yet, 'offline' = backend unreachable, otherwise the /health response
+  // null = not checked yet, 'starting' / 'offline' = backend unreachable (see readHealth), otherwise the /health response
   const [health, setHealth] = useState(null)
   const [error, setError] = useState(null)
   // true only while a Refresh-button load runs (it shows the spinner)
@@ -47,12 +63,7 @@ function App() {
 
     try {
       // Ask about the connection first; there's no point asking for data IB can't give
-      let healthData
-      try {
-        healthData = await fetchHealth()
-      } catch {
-        healthData = 'offline'
-      }
+      const healthData = await readHealth()
       if (!isLatest()) return
       setHealth(healthData)
       if (connectionState(healthData) !== 'connected') return
@@ -80,12 +91,7 @@ function App() {
   }, [])
 
   const checkHealth = useCallback(async () => {
-    let healthData
-    try {
-      healthData = await fetchHealth()
-    } catch {
-      healthData = 'offline'
-    }
+    const healthData = await readHealth()
     // Keep the old value if nothing changed, so React can skip re-rendering
     setHealth((old) => (connectionState(old) === connectionState(healthData) ? old : healthData))
   }, [])
@@ -127,6 +133,8 @@ function App() {
     page === 'overview' ? `${updated} · Prices delayed 15 min` : `${holdings.length} holdings · ${updated}`
   if (connection === 'disconnected') subtitle = 'Waiting for IB Gateway…'
   if (connection === 'offline') subtitle = 'Waiting for the backend…'
+  if (connection === 'starting') subtitle = 'Starting…'
+  if (connection === 'stopped') subtitle = 'Not running'
   // Only show the cards when the data is current; never stale numbers while disconnected
   const showData = connected && account
 
@@ -147,7 +155,7 @@ function App() {
           onAppearanceChange={setAppearance}
         />
 
-        {(connection === 'offline' || connection === 'disconnected') && (
+        {['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
           <ConnectionMessage state={connection} lastUpdated={updatedAt} />
         )}
 
