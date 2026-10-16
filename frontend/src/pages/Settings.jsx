@@ -1,7 +1,7 @@
 // Settings, laid out like the Figma frame "M7 / 8 Settings" (macOS System Settings style groups)
 import { useEffect, useState } from 'react'
 import { IN_APP } from '../api.js'
-import { deleteSecret, saveSecret, secretStatus } from '../appSecrets.js'
+import { apiKeyStatus, clearApiKey, setApiKey } from '../appApiKey.js'
 import { APPEARANCES } from '../appearance.js'
 import { gatewayStatus, installGateway } from '../appGateway.js'
 import { savedLogin, signOut } from '../appSession.js'
@@ -215,14 +215,15 @@ function GatewayGroup({ settings, onSave }) {
 }
 
 function ApiKeyRow() {
-  const [saved, setSaved] = useState(null) // null while loading
+  // Whether a key was entered this session (null while checking); it's only ever kept in memory
+  const [saved, setSaved] = useState(null)
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
   const [note, setNote] = useState(null)
 
   useEffect(() => {
-    secretStatus()
-      .then((status) => setSaved(status.anthropic_api_key))
+    apiKeyStatus()
+      .then(setSaved)
       .catch((err) => setNote({ error: true, text: String(err) }))
   }, [])
 
@@ -234,11 +235,11 @@ function ApiKeyRow() {
       return
     }
     try {
-      await saveSecret('anthropic_api_key', key)
+      await setApiKey(key)
       setSaved(true)
       setEditing(false)
       setValue('')
-      setNote({ text: 'Saved. AI summaries are on.' })
+      setNote({ text: 'AI summaries are on until you quit the app.' })
     } catch (err) {
       setNote({ error: true, text: String(err) })
     }
@@ -246,7 +247,7 @@ function ApiKeyRow() {
 
   async function remove() {
     try {
-      await deleteSecret('anthropic_api_key')
+      await clearApiKey()
       setSaved(false)
       setNote({ text: 'Removed. AI summaries are off until you add a key.' })
     } catch (err) {
@@ -263,7 +264,7 @@ function ApiKeyRow() {
             <span className="settings-check">
               <CheckCircleIcon size={14} />
             </span>
-            Saved
+            In use
           </span>
           <button type="button" className="settings-button" onClick={() => setEditing(true)}>
             Replace…
@@ -286,7 +287,7 @@ function ApiKeyRow() {
             aria-label="Anthropic API key"
           />
           <button type="submit" className="settings-button primary" disabled={!value.trim()}>
-            Save
+            Use
           </button>
           {editing && (
             <button type="button" className="settings-button" onClick={() => setEditing(false)}>
@@ -344,7 +345,7 @@ function AppearanceGroup({ appearance, onAppearanceChange }) {
 
 function Settings({ appearance, onAppearanceChange, login, connected, onSignedOut }) {
   const [settings, setSettings] = useState(null)
-  // The IBKR username is kept in the Keychain with the password
+  // The IBKR username last signed in with (settings.json; the password is never stored)
   const [username, setUsername] = useState(null)
   const [error, setError] = useState(null)
 
@@ -397,7 +398,7 @@ function Settings({ appearance, onAppearanceChange, login, connected, onSignedOu
         {settings && <GatewayGroup settings={settings} onSave={save} />}
         <Group
           title="AI summaries"
-          footnote="Your key is stored in your Mac’s Keychain. Summaries are billed to your own Anthropic account."
+          footnote="Not saved. Enter it again after restarting. Summaries are billed to your own Anthropic account."
         >
           <ApiKeyRow />
           <ModelRow settings={settings} onSave={save} />

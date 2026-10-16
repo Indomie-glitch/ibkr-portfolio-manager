@@ -18,7 +18,8 @@ IN_APP = bool(os.getenv("PORTFOLIO_DATA_DIR"))
 # Set by app_main.py in the Mac app (read from stdin, never from a file or the command line)
 API_TOKEN = None
 
-# Secrets the Mac app sends over stdin from the macOS Keychain, held only in memory
+# Secrets the Mac app sends over stdin (the Anthropic key entered in Settings), held only in
+# memory: nothing secret is ever stored
 SECRETS = {}
 
 # Settings the Mac app sends over stdin from its Settings screen (development uses .env)
@@ -37,7 +38,7 @@ def ib_port():
 
 
 def anthropic_api_key():
-    """The Anthropic key: from the Keychain in the Mac app, from .env in development."""
+    """The Anthropic key: entered in Settings in the Mac app (memory only), from .env in development."""
     if IN_APP:
         return SECRETS.get("anthropic_api_key")
     return os.getenv("ANTHROPIC_API_KEY")
@@ -59,5 +60,6 @@ def ai_model():
 
 
 # What to tell the user when there's no key
-MISSING_KEY_MESSAGE = ("Add your Anthropic API key in Settings to turn on AI summaries." if IN_APP else
+MISSING_KEY_MESSAGE = ("Add your Anthropic API key in Settings to turn on AI summaries. It isn't saved, "
+                       "so enter it again after restarting." if IN_APP else
                        "Add ANTHROPIC_API_KEY to .env and restart the backend to turn on AI summaries.")
