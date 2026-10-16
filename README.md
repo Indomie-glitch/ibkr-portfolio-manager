@@ -51,7 +51,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 5:** AI stock summaries via the Claude API
 * [x] **Milestone 5.1:** Summary history and compare
 * [ ] **Milestone 6:** Trade placement
-* [ ] **Milestone 7:** Mac app (Tauri): bundled backend, Keychain, Gateway setup and login, DMG
+* [ ] **Milestone 7:** Mac app (Tauri): bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
 
 ## Tech Stack
 

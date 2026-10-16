@@ -1,5 +1,5 @@
 //! Non-secret settings from the Settings screen, in settings.json in Application Support.
-//! (Secrets are in the Keychain: see secrets.rs.)
+//! The app stores nothing secret: the IBKR password and the Anthropic key live only in memory.
 
 use std::path::PathBuf;
 
@@ -26,10 +26,9 @@ pub struct Settings {
     pub auto_reconnect: bool,
     /// The Claude model for AI summaries (the backend only accepts the ones it knows)
     pub ai_model: String,
-    /// Whether an Anthropic key is in the Keychain, so the app knows AI is on without reading it
-    pub ai_key_saved: bool,
-    /// The Keychain items of earlier builds have been deleted (once, without reading them)
-    pub keychain_cleaned: bool,
+    /// The Keychain items of earlier builds have been deleted (once, without reading them). The
+    /// app no longer stores anything secret.
+    pub keychain_removed: bool,
 }
 
 impl Default for Settings {
@@ -41,8 +40,7 @@ impl Default for Settings {
             trading_mode: "paper".into(),
             auto_reconnect: true,
             ai_model: "claude-haiku-4-5".into(),
-            ai_key_saved: false,
-            keychain_cleaned: false,
+            keychain_removed: false,
         }
     }
 }

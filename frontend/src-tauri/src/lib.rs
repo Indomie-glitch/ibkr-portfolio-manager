@@ -1,10 +1,8 @@
 mod gateway;
-mod secrets;
 mod session;
 mod settings;
 mod traffic_lights;
 
-use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::PathBuf;
@@ -20,8 +18,9 @@ use tauri::{AppHandle, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilde
 struct Backend {
     child: Mutex<Option<Child>>,
     stdin: Mutex<Option<ChildStdin>>,
-    /// The API key has been read from the Keychain and sent (see load_api_key)
-    api_key_loaded: std::sync::atomic::AtomicBool,
+    /// Whether the user has given an Anthropic key this session (it lives only in the backend's
+    /// memory and is gone when the app quits)
+    api_key_set: std::sync::atomic::AtomicBool,
 }
 
 impl Backend {
@@ -80,16 +79,14 @@ fn start_backend(app: &AppHandle) -> Result<Option<(Backend, Connection)>, Box<d
     let mut stdin = child.stdin.take().ok_or("backend stdin unavailable")?;
     writeln!(stdin, "{}", connection.token)?;
     stdin.flush()?;
-    let backend = Backend { child: Mutex::new(Some(child)), stdin: Mutex::new(Some(stdin)), api_key_loaded: Default::default() };
+    let backend = Backend { child: Mutex::new(Some(child)), stdin: Mutex::new(Some(stdin)), api_key_set: Default::default() };
     send_settings_to_backend(&backend, &settings::load(app))?;
     Ok(Some((backend, connection)))
 }
 
 fn send_settings_to_backend(backend: &Backend, settings: &settings::Settings) -> Result<(), String> {
     backend.send(json!({ "set_setting": "ib_port", "value": settings.gateway_port }))?;
-    backend.send(json!({ "set_setting": "ai_model", "value": settings.ai_model }))?;
-    // Only whether a key is saved; the key itself is read when a summary is requested (load_api_key)
-    backend.send(json!({ "set_setting": "ai_key_saved", "value": settings.ai_key_saved }))
+    backend.send(json!({ "set_setting": "ai_model", "value": settings.ai_model }))
 }
 
 // ---------- IBKR sign-in (IB Gateway through IBC, see session.rs) ----------
@@ -193,20 +190,34 @@ fn sign_out(session: State<SharedSession>) {
     session.stop(session::LoginState::SignedOut);
 }
 
-/// Once, on the first launch of a build that keeps only the API key: deletes the Keychain items of
-/// earlier builds without reading them (reading is what makes macOS ask for permission). Runs after
-/// the window opens.
-fn clean_up_old_keychain_items(app: AppHandle) {
+/// Keychain items that earlier builds created (service com.indomieglitch.portfoliomanager)
+const OLD_KEYCHAIN_ITEMS: [&str; 5] = ["anthropic-api-key", "anthropic_api_key", "ibkr_password", "ibkr_username", "app-secrets"];
+
+/// Once: deletes the Keychain items of earlier builds without reading them, using macOS's own
+/// `security` tool (the app has no Keychain code any more). Runs in the background after the
+/// window opens.
+fn remove_old_keychain_items(app: AppHandle) {
     std::thread::spawn(move || {
         let mut saved = settings::load(&app);
-        if saved.keychain_cleaned {
+        if saved.keychain_removed {
             return;
         }
-        secrets::delete_old_items();
-        saved.keychain_cleaned = true;
-        saved.ai_key_saved = false; // the old key went with them; it's entered again in Settings
+        for account in OLD_KEYCHAIN_ITEMS {
+            // Repeat in case an item exists more than once; stops when there's none left
+            for _ in 0..5 {
+                let deleted = Command::new("/usr/bin/security")
+                    .args(["delete-generic-password", "-s", "com.indomieglitch.portfoliomanager", "-a", account])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status()
+                    .is_ok_and(|status| status.success());
+                if !deleted {
+                    break;
+                }
+            }
+        }
+        saved.keychain_removed = true;
         let _ = settings::save(&app, &saved);
-        let _ = app.state::<Backend>().send(json!({ "set_setting": "ai_key_saved", "value": false }));
     });
 }
 
@@ -265,56 +276,29 @@ fn install_gateway(app: AppHandle, setup: State<GatewaySetup>) -> Result<(), Str
     Ok(())
 }
 
-/// Whether an API key is saved (from settings.json: no Keychain read, so no prompt).
+/// Whether an Anthropic key has been given this session.
 #[tauri::command]
-fn secret_status(app: AppHandle) -> HashMap<&'static str, bool> {
-    HashMap::from([("anthropic_api_key", settings::load(&app).ai_key_saved)])
+fn api_key_status(backend: State<Backend>) -> bool {
+    backend.api_key_set.load(std::sync::atomic::Ordering::SeqCst)
 }
 
-fn set_key_saved(app: &AppHandle, saved: bool) -> Result<(), String> {
-    let mut settings = settings::load(app);
-    settings.ai_key_saved = saved;
-    settings::save(app, &settings)
-}
-
-/// Saves the Anthropic key in the Keychain and hands it to the backend right away.
+/// Hands the Anthropic key to the backend, which keeps it in memory only. Nothing is stored: it's
+/// gone when the app quits.
 #[tauri::command]
-fn save_secret(app: AppHandle, backend: State<Backend>, name: String, value: String) -> Result<(), String> {
-    let value = value.trim();
-    if name != "anthropic_api_key" || value.is_empty() || value.len() > 1000 {
+fn set_api_key(backend: State<Backend>, key: String) -> Result<(), String> {
+    let key = key.trim();
+    if key.is_empty() || key.len() > 1000 {
         return Err("That doesn't look right: it's empty or too long.".into());
     }
-    secrets::save_api_key(value)?;
-    set_key_saved(&app, true)?;
-    backend.send(json!({ "set_setting": "ai_key_saved", "value": true }))?;
-    backend.send(json!({ "set_secret": "anthropic_api_key", "value": value }))
-}
-
-#[tauri::command]
-fn delete_secret(app: AppHandle, backend: State<Backend>, name: String) -> Result<(), String> {
-    if name != "anthropic_api_key" {
-        return Err(format!("unknown secret {name}"));
-    }
-    secrets::delete_api_key()?;
-    set_key_saved(&app, false)?;
-    backend.send(json!({ "set_setting": "ai_key_saved", "value": false }))?;
-    backend.send(json!({ "clear_secret": "anthropic_api_key" }))
-}
-
-/// Called just before an AI summary: reads the key from the Keychain (macOS may ask for
-/// permission) and hands it to the backend, once per launch.
-#[tauri::command]
-fn load_api_key(app: AppHandle, backend: State<Backend>) -> Result<(), String> {
-    if backend.api_key_loaded.load(std::sync::atomic::Ordering::SeqCst) {
-        return Ok(());
-    }
-    let Some(key) = secrets::api_key() else {
-        set_key_saved(&app, false)?;
-        backend.send(json!({ "set_setting": "ai_key_saved", "value": false }))?;
-        return Err("The API key couldn't be read from the Keychain. Add it again in Settings.".into());
-    };
     backend.send(json!({ "set_secret": "anthropic_api_key", "value": key }))?;
-    backend.api_key_loaded.store(true, std::sync::atomic::Ordering::SeqCst);
+    backend.api_key_set.store(true, std::sync::atomic::Ordering::SeqCst);
+    Ok(())
+}
+
+#[tauri::command]
+fn clear_api_key(backend: State<Backend>) -> Result<(), String> {
+    backend.send(json!({ "clear_secret": "anthropic_api_key" }))?;
+    backend.api_key_set.store(false, std::sync::atomic::Ordering::SeqCst);
     Ok(())
 }
 
@@ -376,20 +360,19 @@ pub fn run() {
             }
             let (backend, connection) = match start_backend(app.handle())? {
                 Some((backend, connection)) => (backend, Some(connection)),
-                None => (Backend { child: Mutex::new(None), stdin: Mutex::new(None), api_key_loaded: Default::default() }, None),
+                None => (Backend { child: Mutex::new(None), stdin: Mutex::new(None), api_key_set: Default::default() }, None),
             };
             app.manage(backend);
             app.manage(GatewaySetup(Mutex::new(gateway::Progress::default())));
             app.manage::<SharedSession>(Arc::new(session::Session::default()));
             open_main_window(app.handle(), connection.as_ref())?;
-            clean_up_old_keychain_items(app.handle().clone());
+            remove_old_keychain_items(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            secret_status,
-            save_secret,
-            delete_secret,
-            load_api_key,
+            api_key_status,
+            set_api_key,
+            clear_api_key,
             get_settings,
             save_settings,
             gateway_status,
