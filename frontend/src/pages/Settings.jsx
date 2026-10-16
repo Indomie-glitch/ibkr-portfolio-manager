@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { IN_APP } from '../api.js'
 import { deleteSecret, saveSecret, secretStatus } from '../appSecrets.js'
 import { APPEARANCES } from '../appearance.js'
+import { gatewayStatus, installGateway } from '../appGateway.js'
 import { getSettings, saveSettings } from '../appSettings.js'
 
 // Written in two parts, like backend/secrets_guard.py, so the pre-commit check for keys doesn't flag it
@@ -116,6 +117,78 @@ function ApiKeySetting() {
   )
 }
 
+const MB = 1024 * 1024
+const ACTIVE_STEPS = ['downloading', 'checking', 'installer_open']
+
+function GatewayInstallSetting() {
+  const [status, setStatus] = useState(null)
+  const [error, setError] = useState(null)
+  // Bumped by install() to start following progress again
+  const [watching, setWatching] = useState(0)
+
+  // Check once, then every second while a download or the installer is in progress
+  useEffect(() => {
+    let timer
+    async function check() {
+      try {
+        const next = await gatewayStatus()
+        setStatus(next)
+        if (ACTIVE_STEPS.includes(next.setup.step) && !next.installed) timer = setTimeout(check, 1000)
+      } catch (err) {
+        setError(String(err))
+      }
+    }
+    check()
+    return () => clearTimeout(timer)
+  }, [watching])
+
+  async function install() {
+    setError(null)
+    try {
+      await installGateway()
+      setWatching((n) => n + 1)
+    } catch (err) {
+      setError(String(err))
+    }
+  }
+
+  const { installed, setup } = status ?? {}
+  return (
+    <Row
+      label="IB Gateway"
+      caption="Interactive Brokers' connection app. Portfolio Manager runs it in the background, so you never need to open it."
+    >
+      {!status && !error && <span className="settings-caption">Checking…</span>}
+      {installed && (
+        <span className="settings-status" title={installed.path}>
+          <span className="status-dot ok" /> IB Gateway {installed.version} installed
+        </span>
+      )}
+      {status && !installed && (setup.step === 'idle' || setup.step === 'failed') && (
+        <button type="button" className="button-primary compact" onClick={install}>
+          {setup.step === 'failed' ? 'Try again' : 'Download and install (about 300 MB)'}
+        </button>
+      )}
+      {!installed && setup?.step === 'downloading' && (
+        <div className="gateway-progress">
+          <progress max={setup.total || 1} value={setup.received} />
+          <span className="settings-caption">
+            {setup.total ? `Downloading from Interactive Brokers… ${Math.floor(setup.received / MB)} of ${Math.floor(setup.total / MB)} MB` : 'Connecting to Interactive Brokers…'}
+          </span>
+        </div>
+      )}
+      {!installed && setup?.step === 'checking' && <span className="settings-caption">Checking the installer is genuine…</span>}
+      {!installed && setup?.step === 'installer_open' && (
+        <p className="settings-note">
+          IBKR's installer is open in another window: click Next through it and keep the suggested folder. This page
+          notices when it's done.
+        </p>
+      )}
+      {(error || setup?.error) && <Note note={{ error: true, text: error || setup.error }} />}
+    </Row>
+  )
+}
+
 function GatewayPortSetting() {
   const [port, setPort] = useState('')
   const [note, setNote] = useState(null)
@@ -175,7 +248,10 @@ function Settings({ appearance, onAppearanceChange }) {
       <section className="card settings-card">
         <h2 className="settings-heading">IB Gateway</h2>
         {IN_APP ? (
-          <GatewayPortSetting />
+          <>
+            <GatewayInstallSetting />
+            <GatewayPortSetting />
+          </>
         ) : (
           <Row label="IB Gateway API port" caption="In development, set IB_PORT in .env (default 4002)." />
         )}

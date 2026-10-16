@@ -1,3 +1,4 @@
+mod gateway;
 mod secrets;
 mod settings;
 
@@ -111,6 +112,49 @@ fn send_secrets_to_backend(app: AppHandle) {
     });
 }
 
+/// Gateway setup in progress (download, checking, installer open).
+struct GatewaySetup(Mutex<gateway::Progress>);
+
+#[derive(serde::Serialize)]
+struct GatewayStatus {
+    installed: Option<gateway::Installed>,
+    setup: gateway::Progress,
+}
+
+/// Whether IB Gateway is installed, and how its download or installer is going.
+#[tauri::command]
+fn gateway_status(app: AppHandle, setup: State<GatewaySetup>) -> Result<GatewayStatus, String> {
+    let installed = gateway::find_installed();
+    let mut progress = setup.0.lock().unwrap();
+    if installed.is_some() && matches!(progress.step, gateway::Step::InstallerOpen) {
+        // Installed: the installer's disk image isn't needed any more
+        gateway::unmount_installer(&app.path().app_cache_dir().map_err(|e| e.to_string())?);
+        *progress = gateway::Progress::default();
+    }
+    Ok(GatewayStatus { installed, setup: progress.clone() })
+}
+
+/// Downloads IBKR's installer and opens it, in the background (follow it with gateway_status).
+#[tauri::command]
+fn install_gateway(app: AppHandle, setup: State<GatewaySetup>) -> Result<(), String> {
+    {
+        let mut progress = setup.0.lock().unwrap();
+        if matches!(progress.step, gateway::Step::Downloading | gateway::Step::Checking) {
+            return Ok(()); // already on its way
+        }
+        *progress = gateway::Progress { step: gateway::Step::Downloading, ..Default::default() };
+    }
+    let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+    std::thread::spawn(move || {
+        let setup = app.state::<GatewaySetup>();
+        let result = gateway::download_and_open_installer(&cache_dir, |progress| *setup.0.lock().unwrap() = progress);
+        if let Err(error) = result {
+            *setup.0.lock().unwrap() = gateway::Progress { step: gateway::Step::Failed, error: Some(error), ..Default::default() };
+        }
+    });
+    Ok(())
+}
+
 /// Which secrets are saved (never their values).
 #[tauri::command]
 fn secret_status() -> HashMap<&'static str, bool> {
@@ -190,6 +234,7 @@ pub fn run() {
                 None => (Backend { child: Mutex::new(None), stdin: Mutex::new(None) }, None),
             };
             app.manage(backend);
+            app.manage(GatewaySetup(Mutex::new(gateway::Progress::default())));
             open_main_window(app.handle(), connection.as_ref())?;
             send_secrets_to_backend(app.handle().clone());
             Ok(())
@@ -199,12 +244,17 @@ pub fn run() {
             save_secret,
             delete_secret,
             get_settings,
-            save_settings
+            save_settings,
+            gateway_status,
+            install_gateway
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
             if let RunEvent::Exit = event {
+                if let Ok(cache_dir) = app.path().app_cache_dir() {
+                    gateway::unmount_installer(&cache_dir);
+                }
                 if let Some(mut child) = app.state::<Backend>().child.lock().unwrap().take() {
                     stop_backend(&mut child);
                 }
