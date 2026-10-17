@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatDayMonth, formatNumber } from '../../format.js'
+import { formatDayMonth, formatNumber } from '../../lib/format.js'
 import { SectionLoading, SectionUnavailable } from './DisclosureSection.jsx'
 
 const LONG_DESCRIPTION = 320 // characters; longer descriptions start collapsed

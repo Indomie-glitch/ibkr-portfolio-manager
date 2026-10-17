@@ -1,4 +1,4 @@
-import { formatMoney, formatPercent, trendClass } from '../format.js'
+import { formatMoney, formatPercent, trendClass } from '../lib/format.js'
 import AiSummaryCard from '../components/AiSummaryCard.jsx'
 import AllocationCard from '../components/AllocationCard.jsx'
 import PositionsTable from '../components/PositionsTable.jsx'

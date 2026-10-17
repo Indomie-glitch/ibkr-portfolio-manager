@@ -15,18 +15,6 @@ MONTH_SESSIONS = 21
 # Weight changes since the last summary smaller than this (percentage points) aren't listed
 WEIGHT_CHANGE_POINTS = 1
 
-FACT_LABELS = {
-    "D:portfolio": "Portfolio",
-    "D:allocation": "Allocation",
-    "D:pnl": "Gain or loss",
-    "D:market_moves": "Moves vs the market",
-    "D:concentration": "Concentration",
-    "D:events": "Upcoming events",
-    "D:income": "Dividends",
-    "D:since_last": "Previous summary",
-    "D:missing": "Missing data",
-}
-
 
 def holding_id(con_id):
     return f"H:{con_id}"

@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { fetchNews } from '../../api.js'
-import { formatAge } from '../../format.js'
-import { useFetch } from '../../useFetch.js'
+import { fetchNews } from '../../lib/api.js'
+import { formatAge } from '../../lib/format.js'
+import { useFetch } from '../../hooks/useFetch.js'
 import { ChevronIcon } from '../icons.jsx'
 import { SectionLoading, SectionUnavailable } from './DisclosureSection.jsx'
 

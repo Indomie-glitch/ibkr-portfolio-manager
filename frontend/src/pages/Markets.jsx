@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { fetchPrices, searchStocks } from '../api.js'
-import { formatNumber, formatPercent, trendClass } from '../format.js'
-import { useResizableWidth } from '../useResizableWidth.js'
+import { fetchPrices, searchStocks } from '../lib/api.js'
+import { formatNumber, formatPercent, trendClass } from '../lib/format.js'
+import { useResizableWidth } from '../hooks/useResizableWidth.js'
 import HoldingDetail from '../components/HoldingDetail.jsx'
 import { SearchIcon } from '../components/icons.jsx'
 

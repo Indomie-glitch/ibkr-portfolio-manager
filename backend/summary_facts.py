@@ -15,20 +15,6 @@ from secrets_guard import mask_secrets
 CURRENCY_SYMBOLS = {"AUD": "A$", "USD": "US$"}
 MINUS = "−"
 
-# Labels the frontend shows for each data id (also documents what each id means)
-DATA_IDS = {
-    "D:profile": "About",
-    "D:key_stats": "Key statistics",
-    "D:financials": "Financial statements",
-    "D:valuation_history": "Past P/E",
-    "D:price_moves": "Price history",
-    "D:performance": "Performance",
-    "D:events": "Upcoming events",
-    "D:position": "Your position",
-    "D:since_last": "Previous summary",
-    "D:missing": "Missing data",
-}
-
 
 # ---------- formatting helpers (match how the app displays numbers) ----------
 
@@ -550,7 +536,7 @@ def parse_money(text):
 
 
 # Changes smaller than this share of the old value are shown but marked minor (same rule as the
-# "Changed" tags in frontend/src/summaryDiff.js)
+# "Changed" tags in frontend/src/lib/summaryDiff.js)
 MINOR_CHANGE_PCT = 1
 
 

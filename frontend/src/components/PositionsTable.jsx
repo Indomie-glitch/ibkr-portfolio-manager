@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { companyName, formatMoney, formatNumber, formatPercent, trendClass } from '../format.js'
+import { companyName, formatMoney, formatNumber, formatPercent, trendClass } from '../lib/format.js'
 import { ChevronIcon, SortArrowIcon } from './icons.jsx'
 
 // Each sortable column says which value to sort by. Money columns use the AUD copy

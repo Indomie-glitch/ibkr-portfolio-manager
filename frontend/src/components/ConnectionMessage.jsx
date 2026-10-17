@@ -1,5 +1,5 @@
-import { IN_APP } from '../api.js'
-import { formatTime } from '../format.js'
+import { IN_APP } from '../lib/api.js'
+import { formatTime } from '../lib/format.js'
 
 const MESSAGES = {
   disconnected: {

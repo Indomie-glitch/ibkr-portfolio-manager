@@ -46,20 +46,6 @@ export function SparklesIcon({ size = 16 }) {
   )
 }
 
-export function TradeIcon({ size = 16 }) {
-  return (
-    <Icon size={size} viewBox="0 0 16 16">
-      <path
-        d="M2.5 5H12.5M10 7.5L12.5 5L10 2.5M13.5 11H3.5M6 13.5L3.5 11L6 8.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Icon>
-  )
-}
-
 export function RefreshIcon({ size = 14 }) {
   return (
     <Icon size={size} viewBox="0 0 14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">

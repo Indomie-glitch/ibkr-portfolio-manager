@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { cancelOrder, fetchOrders, watchOrders } from '../api.js'
-import { formatMoney, formatNumber } from '../format.js'
+import { cancelOrder, fetchOrders, watchOrders } from '../lib/api.js'
+import { formatMoney, formatNumber } from '../lib/format.js'
 
 const TYPE_WORDS = { LMT: 'Limit', MKT: 'Market' }
 const TIF_WORDS = { DAY: 'Day', GTC: 'GTC' }

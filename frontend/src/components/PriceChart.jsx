@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { formatMoney } from '../format.js'
+import { formatMoney } from '../lib/format.js'
 
 const HEIGHT = 230
 const PAD_Y = 10

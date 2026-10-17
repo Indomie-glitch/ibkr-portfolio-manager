@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { companyName, formatNumber, formatPercent, trendClass } from '../format.js'
+import { companyName, formatNumber, formatPercent, trendClass } from '../lib/format.js'
 import { SearchIcon } from './icons.jsx'
-import { useResizableWidth } from '../useResizableWidth.js'
+import { useResizableWidth } from '../hooks/useResizableWidth.js'
 
 const MARKETS = ['All', 'ASX', 'US']
 

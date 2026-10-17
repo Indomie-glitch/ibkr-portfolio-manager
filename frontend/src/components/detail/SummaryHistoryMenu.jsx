@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { formatSummaryTime } from '../../format.js'
+import { formatSummaryTime } from '../../lib/format.js'
 import { ChevronIcon } from '../icons.jsx'
 
 function label(item) {

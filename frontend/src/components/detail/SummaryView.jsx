@@ -1,5 +1,5 @@
 // How a summary is drawn; shared by the latest, past and compare views
-import { GROUPS } from '../../summarySections.js'
+import { GROUPS } from '../../lib/summarySections.js'
 
 // Data ids the model cites -> label and the part of the page that shows that data
 const DATA_SOURCES = {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { IN_APP } from './api.js'
-import { loginState } from './appSession.js'
+import { IN_APP } from '../lib/api.js'
+import { loginState } from '../desktop/appSession.js'
 
 // Steps where something is happening: check often so the screen follows along
 const BUSY = ['starting', 'signing_in', 'awaiting_approval']

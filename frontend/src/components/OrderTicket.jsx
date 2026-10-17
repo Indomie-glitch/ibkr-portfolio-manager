@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { previewOrder } from '../api.js'
-import { formatMoney, prefixFor } from '../format.js'
+import { previewOrder } from '../lib/api.js'
+import { formatMoney, prefixFor } from '../lib/format.js'
 import { ChevronsIcon, StepDownIcon, StepUpIcon } from './icons.jsx'
 
 // Ask IBKR for a new estimate once typing pauses

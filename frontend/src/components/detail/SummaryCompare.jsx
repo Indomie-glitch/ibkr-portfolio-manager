@@ -1,6 +1,6 @@
-import { formatSummaryTime } from '../../format.js'
-import { diffSection } from '../../summaryDiff.js'
-import { GROUPS } from '../../summarySections.js'
+import { formatSummaryTime } from '../../lib/format.js'
+import { diffSection } from '../../lib/summaryDiff.js'
+import { GROUPS } from '../../lib/summarySections.js'
 import { SectionBody } from './SummaryView.jsx'
 
 function heading(view) {
