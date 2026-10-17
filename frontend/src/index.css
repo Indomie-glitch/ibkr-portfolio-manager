@@ -948,9 +948,13 @@ p {
   min-height: 0;
 }
 
+/* The list's width comes from useResizableWidth (220-480px); CSS keeps the same minimum, and in a
+   narrow window the list gives way before the detail panel does, so neither can disappear (#91) */
 .holdings-pane {
   position: relative;
   flex-shrink: 0;
+  min-width: 220px;
+  max-width: max(220px, calc(100% - 360px));
   border-right: 1px solid var(--border);
 }
 

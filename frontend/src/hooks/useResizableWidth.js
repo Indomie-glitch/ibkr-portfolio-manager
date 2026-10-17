@@ -4,14 +4,17 @@ const MIN_WIDTH = 220
 const MAX_WIDTH = 480
 const DEFAULT_WIDTH = 300
 
+// Never narrower than MIN_WIDTH, so the list can't be dragged out of sight (#91); anything that isn't
+// a number (a stray pointer event) falls back to the default
 function clampWidth(width) {
+  if (!Number.isFinite(width)) return DEFAULT_WIDTH
   return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width))
 }
 
 function loadWidth(storageKey) {
   try {
     const saved = Number(localStorage.getItem(storageKey))
-    return saved ? clampWidth(saved) : DEFAULT_WIDTH
+    return saved > 0 ? clampWidth(saved) : DEFAULT_WIDTH
   } catch {
     return DEFAULT_WIDTH
   }
