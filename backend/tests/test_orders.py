@@ -93,7 +93,7 @@ class TradeSummaryTest(unittest.TestCase):
     def test_summary(self):
         from ib_async import Contract, OrderStatus, Trade
         from ib_async.objects import TradeLogEntry
-        from main import trade_summary
+        from routers.trading import trade_summary
         trade = Trade(contract=Contract(conId=1, symbol="BHP"), order=build_order(order(quantity=5, limit_price=40.0)),
                       orderStatus=OrderStatus(status="Submitted", filled=2, remaining=3, avgFillPrice=39.9),
                       log=[TradeLogEntry(time=None, status="Submitted", message="Order accepted")])

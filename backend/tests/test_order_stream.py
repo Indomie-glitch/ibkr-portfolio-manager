@@ -4,7 +4,7 @@ from unittest import mock
 
 from ib_async import Contract, OrderStatus, Trade
 
-import main
+from routers import trading as orders_api
 from trading import build_order
 
 
@@ -25,12 +25,12 @@ class FakeRequest:
 
 
 async def read_stream(request, updates):
-    response = await main.order_stream(request)
+    response = await orders_api.order_stream(request)
     chunks = []
     body = response.body_iterator
     chunks.append(await body.__anext__())  # the opening snapshot
     for status in updates:
-        main.publish_trade(trade(status))
+        orders_api.publish_trade(trade(status))
         chunks.append(await body.__anext__())
     request.closed = True
     await body.aclose()
@@ -40,17 +40,17 @@ async def read_stream(request, updates):
 class OrderStreamTest(unittest.TestCase):
     def test_snapshot_then_updates(self):
         request = FakeRequest()
-        with mock.patch.object(main.ib, "trades", return_value=[trade("Submitted")]):
+        with mock.patch.object(orders_api.ib, "trades", return_value=[trade("Submitted")]):
             chunks = asyncio.run(read_stream(request, ["Filled", "Cancelled"]))
         self.assertTrue(chunks[0].startswith("event: orders\n"))
         self.assertIn('"status": "Submitted"', chunks[0])
         self.assertTrue(chunks[1].startswith("event: order\n") and '"status": "Filled"' in chunks[1])
         self.assertIn('"status": "Cancelled"', chunks[2])
-        self.assertEqual(main.order_listeners, set())  # closed streams stop listening
+        self.assertEqual(orders_api.order_listeners, set())  # closed streams stop listening
 
     def test_publish_without_listeners_does_nothing(self):
-        main.publish_trade(trade("Filled"))  # no error, nothing queued
-        self.assertEqual(main.order_listeners, set())
+        orders_api.publish_trade(trade("Filled"))  # no error, nothing queued
+        self.assertEqual(orders_api.order_listeners, set())
 
 
 if __name__ == "__main__":

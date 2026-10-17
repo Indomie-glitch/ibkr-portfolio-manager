@@ -3,7 +3,7 @@ import unittest
 from ib_async import Contract
 from ib_async.contract import ContractDescription
 
-from main import SEARCH_LIMIT, search_results
+from routers.positions import SEARCH_LIMIT, search_results
 
 
 def found(con_id, symbol, sec_type="STK", exchange="NASDAQ", currency="USD", description="APPLE INC"):
