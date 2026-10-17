@@ -306,6 +306,7 @@ ibkr-portfolio-manager/
 ├── frontend/         React app (Vite)
 │   └── src-tauri/    Mac app shell (Tauri, Rust)
 ├── docs/screenshots/ Screenshots used in this README
+├── scripts/          screenshots.mjs: retakes the README screenshots with headless Chrome
 ├── .env.example      Template for environment variables
 └── README.md
 ```

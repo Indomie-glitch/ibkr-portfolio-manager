@@ -20,3 +20,6 @@ data/
 
 # Tauri updater signing key: never commit it (keep it in ~/.tauri and your password manager)
 *.key
+
+# Browser profiles from screenshot runs (scripts/screenshots.mjs keeps its own in the system temp folder)
+docs/screenshots/prof-*/
