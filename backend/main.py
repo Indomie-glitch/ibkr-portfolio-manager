@@ -445,6 +445,8 @@ async def summary_facts_for(con_id):
         "total_market_value_base": sum(to_base(p) for p in all_positions),
         "is_asx": is_asx,
         "index_symbol": index_symbol,
+        # Purchase lots from the Flex report (local, never waits for IBKR); empty without one
+        "lots": lots.lots_for(con_id, position["quantity"]),
     }
     return await summary_facts.build_facts(inputs, loaders, previous=summary_store.latest(con_id))
 
