@@ -12,7 +12,8 @@ import trading
 from ib_core import build_quote, clean, fetch_tickers, get_contract_info, ib, require_ib
 from names import display_name
 from secrets_guard import mask_secrets
-from web import check_origin, sse
+import web
+from web import check_origin, next_or_none, sse
 from routers.positions import account
 
 router = APIRouter()
@@ -315,13 +316,12 @@ async def order_stream(request: Request):
     async def events():
         try:
             yield sse("orders", [trade_summary(t) for t in ib.trades()])
-            while not await request.is_disconnected():
-                try:
-                    update = await asyncio.wait_for(queue.get(), timeout=STREAM_HEARTBEAT_S)
-                except asyncio.TimeoutError:
-                    yield ": still here\n\n"
-                    continue
-                yield sse("order", update)
+            # Ends when the page goes away or the server is stopping (see web.stopping)
+            while not web.stopping.is_set() and not await request.is_disconnected():
+                update = await next_or_none(queue, STREAM_HEARTBEAT_S)
+                if web.stopping.is_set():
+                    break
+                yield sse("order", update) if update is not None else ": still here\n\n"
         finally:
             order_listeners.discard(queue)
 

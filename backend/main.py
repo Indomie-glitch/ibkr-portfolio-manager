@@ -10,10 +10,12 @@ import config  # first: loads .env before other modules read settings
 import lots
 from ib_core import NOT_CONNECTED, ib, keep_connected
 from routers import app as app_routes, flex, positions, summaries, trading
-from web import ALLOWED_ORIGINS
+from web import ALLOWED_ORIGINS, end_streams_on_stop
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Live streams end when the server is told to stop, so a reload or quit doesn't hang on them
+    end_streams_on_stop()
     task = asyncio.create_task(keep_connected())
     # Purchase dates from IBKR's Flex report, refreshed daily when Flex is set up (docs/flex-query.md)
     lots_task = asyncio.create_task(lots.keep_refreshed())

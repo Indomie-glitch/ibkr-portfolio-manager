@@ -5,6 +5,7 @@ from unittest import mock
 from ib_async import Contract, OrderStatus, Trade
 
 from routers import trading as orders_api
+import web
 from trading import build_order
 
 
@@ -51,6 +52,51 @@ class OrderStreamTest(unittest.TestCase):
     def test_publish_without_listeners_does_nothing(self):
         orders_api.publish_trade(trade("Filled"))  # no error, nothing queued
         self.assertEqual(orders_api.order_listeners, set())
+
+
+class StreamStopsWithServerTest(unittest.TestCase):
+    """#168: a live stream kept uvicorn's reload / quit waiting forever."""
+
+    def test_stream_ends_when_the_server_is_stopping(self):
+        async def run():
+            web.stopping = asyncio.Event()  # a fresh one for this event loop
+            with mock.patch.object(orders_api.ib, "trades", return_value=[]), \
+                    mock.patch.object(orders_api, "STREAM_HEARTBEAT_S", 60):
+                response = await orders_api.order_stream(FakeRequest())
+                body = response.body_iterator
+                await body.__anext__()  # the opening snapshot
+                waiting = asyncio.ensure_future(body.__anext__())
+                await asyncio.sleep(0.05)
+                web.stopping.set()  # what SIGTERM / SIGINT do
+                with self.assertRaises(StopAsyncIteration):
+                    await asyncio.wait_for(waiting, timeout=1)  # ends at once, not after the 60 s heartbeat
+            self.assertEqual(orders_api.order_listeners, set())
+
+        try:
+            asyncio.run(run())
+        finally:
+            web.stopping = asyncio.Event()
+
+    def test_stop_signal_sets_the_flag_and_runs_the_previous_handler(self):
+        import signal
+        calls = []
+        original = signal.getsignal(signal.SIGTERM)
+        signal.signal(signal.SIGTERM, lambda signum, frame: calls.append(signum))  # stands in for uvicorn's
+
+        async def run():
+            web.stopping = asyncio.Event()
+            web.end_streams_on_stop()
+            signal.raise_signal(signal.SIGTERM)
+            await asyncio.sleep(0.05)
+            return web.stopping.is_set()
+
+        try:
+            self.assertTrue(asyncio.run(run()))
+            self.assertEqual(calls, [signal.SIGTERM])
+        finally:
+            signal.signal(signal.SIGTERM, original)
+            signal.signal(signal.SIGINT, signal.default_int_handler)
+            web.stopping = asyncio.Event()
 
 
 if __name__ == "__main__":
