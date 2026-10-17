@@ -6,9 +6,26 @@ import { ChevronsIcon, StepDownIcon, StepUpIcon } from './icons.jsx'
 // Ask IBKR for a new estimate once typing pauses
 const PREVIEW_DELAY_MS = 500
 
+// The price an amount is divided by: the limit price, or for a market order the latest price
+function amountPrice(stock, form) {
+  const price = form.orderType === 'LMT' ? Number(form.limitPrice) : stock.last
+  return price > 0 ? price : null
+}
+
+// Ordering by amount: the whole number of shares it buys or sells (orders are whole shares only,
+// so it rounds down); null until there's an amount and a price (#161)
+function sharesForAmount(stock, form) {
+  const amount = Number(form.amount)
+  const price = amountPrice(stock, form)
+  if (!(amount > 0) || !price) return null
+  // IBKR's prices carry more decimals than are shown (342.76000975), so allow for rounding noise:
+  // a millionth of a share, far less than a cent
+  return Math.floor(amount / price + 1e-6)
+}
+
 // The order the form describes, in the shape POST /orders/preview takes (null while incomplete)
 function orderFrom(stock, form) {
-  const quantity = Number(form.quantity)
+  const quantity = form.by === 'amount' ? sharesForAmount(stock, form) : Number(form.quantity)
   const limitPrice = Number(form.limitPrice)
   if (!Number.isFinite(quantity) || quantity <= 0) return null
   if (form.orderType === 'LMT' && !(limitPrice > 0)) return null
@@ -55,7 +72,16 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
           limitPrice: existing.limit_price != null ? existing.limit_price.toFixed(2) : '',
           tif: existing.tif === 'GTC' ? 'GTC' : 'DAY',
         }
-      : { side, orderType: 'LMT', quantity: '1', limitPrice: stock.last != null ? stock.last.toFixed(2) : '', tif: 'DAY' },
+      : {
+          side,
+          orderType: 'LMT',
+          // Order by a number of shares, or by an amount of money (new orders only)
+          by: 'shares',
+          quantity: '1',
+          amount: '',
+          limitPrice: stock.last != null ? stock.last.toFixed(2) : '',
+          tif: 'DAY',
+        },
   )
   // The preview belongs to `key`, so an old estimate never shows for changed numbers
   const [preview, setPreview] = useState({ key: null, data: null, error: null })
@@ -92,6 +118,25 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
     const next = Math.max(1, Math.floor(Number(form.quantity) || 0) + by)
     set('quantity')(String(next))
   }
+
+  // Switching keeps the order about the same size: shares × price becomes the amount, and back
+  function orderBy(by) {
+    setForm((old) => {
+      if (old.by === by) return old
+      const price = amountPrice(stock, old)
+      if (by === 'amount') {
+        // Rounded up to the cent, so switching back gives the same number of shares
+        const amount = price && Number(old.quantity) > 0 ? (Math.ceil(Number(old.quantity) * price * 100) / 100).toFixed(2) : ''
+        return { ...old, by, amount }
+      }
+      const shares = sharesForAmount(stock, old)
+      return { ...old, by, quantity: shares > 0 ? String(shares) : old.quantity }
+    })
+  }
+
+  const byAmount = form.by === 'amount'
+  const amountShares = byAmount ? sharesForAmount(stock, form) : null
+  const unitPrice = amountPrice(stock, form)
 
   const current = preview.key === key && preview.nonce === previewNonce ? preview : { data: null, error: null }
   const data = current.data
@@ -162,26 +207,69 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
             </span>
           </label>
 
-          <div className="form-row">
-            <label htmlFor="ticket-quantity">Quantity</label>
-            <div className="quantity-stepper">
-              <input
-                id="ticket-quantity"
-                ref={quantityRef}
-                className="form-field num"
-                inputMode="numeric"
-                value={form.quantity}
-                onChange={(e) => set('quantity')(e.target.value.replace(/[^\d]/g, ''))}
-              />
-              <div className="stepper">
-                <button type="button" aria-label="One more share" onClick={() => step(1)}>
-                  <StepUpIcon />
-                </button>
-                <button type="button" aria-label="One less share" onClick={() => step(-1)}>
-                  <StepDownIcon />
-                </button>
-              </div>
+          <div className="form-row wrap">
+            <label htmlFor={byAmount ? 'ticket-amount' : 'ticket-quantity'}>{byAmount ? 'Amount' : 'Quantity'}</label>
+            <div className="quantity-controls">
+              {/* Shares or an amount of money: new orders only (a change edits the shares) */}
+              {!existing && (
+                <div className="segmented order-by" role="group" aria-label="Order by">
+                  {[
+                    ['shares', 'Shares'],
+                    ['amount', 'Amount'],
+                  ].map(([value, label]) => (
+                    <button key={value} type="button" aria-pressed={form.by === value} onClick={() => orderBy(value)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {byAmount ? (
+                <span className="form-field price-field amount-field">
+                  <span className="price-prefix">{prefixFor(c).trim()}</span>
+                  <input
+                    id="ticket-amount"
+                    className="num"
+                    inputMode="decimal"
+                    value={form.amount}
+                    onChange={(e) => set('amount')(e.target.value.replace(/[^\d.]/g, ''))}
+                  />
+                </span>
+              ) : (
+                <div className="quantity-stepper">
+                  <input
+                    id="ticket-quantity"
+                    ref={quantityRef}
+                    className="form-field num"
+                    inputMode="numeric"
+                    value={form.quantity}
+                    onChange={(e) => set('quantity')(e.target.value.replace(/[^\d]/g, ''))}
+                  />
+                  <div className="stepper">
+                    <button type="button" aria-label="One more share" onClick={() => step(1)}>
+                      <StepUpIcon />
+                    </button>
+                    <button type="button" aria-label="One less share" onClick={() => step(-1)}>
+                      <StepDownIcon />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
+            {byAmount && (
+              <p className="form-row-note" aria-live="polite">
+                {!unitPrice
+                  ? form.orderType === 'LMT'
+                    ? 'Enter a limit price to work out the shares.'
+                    : 'No current price to work out the shares. Use Shares, or a limit order.'
+                  : amountShares === null
+                    ? 'Enter an amount.'
+                    : amountShares === 0
+                      ? `Less than one share at ${formatMoney(unitPrice, c)}.`
+                      : `= ${amountShares} ${amountShares === 1 ? 'share' : 'shares'} at ${formatMoney(unitPrice, c)} ${
+                          form.orderType === 'MKT' ? '(latest price; the final cost can differ)' : '(limit price)'
+                        }`}
+              </p>
+            )}
           </div>
 
           {form.orderType === 'LMT' && (

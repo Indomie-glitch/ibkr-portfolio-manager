@@ -3628,3 +3628,31 @@ button.ai-source:hover {
 .order-side.sell {
   color: var(--loss);
 }
+
+/* Order by shares or amount (#161): the selector sits next to the field, the share count below */
+.form-row.wrap {
+  flex-wrap: wrap;
+}
+
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-by button {
+  padding: 3px 9px;
+  font-size: 11px;
+}
+
+.amount-field {
+  width: 132px;
+}
+
+.form-row-note {
+  flex-basis: 100%;
+  margin-top: 6px;
+  color: var(--text-2);
+  font-size: 11px;
+  text-align: right;
+}
