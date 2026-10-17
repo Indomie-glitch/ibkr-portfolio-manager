@@ -1,4 +1,4 @@
-import { GridIcon, ListIcon, OrdersIcon, SearchIcon, SparklesIcon } from './icons.jsx'
+import { GridIcon, ListIcon, OrdersIcon, SearchIcon } from './icons.jsx'
 import { IN_APP } from '../lib/api.js'
 import AccountCard from './AccountCard.jsx'
 
@@ -72,9 +72,6 @@ function Sidebar({ page, onNavigate, health, login, trading, username, savedMode
           onClick={() => onNavigate('orders')}
         >
           <OrdersIcon /> Orders
-        </button>
-        <button type="button" className="sidebar-item" disabled>
-          <SparklesIcon /> AI Summaries <span className="soon-pill">Soon</span>
         </button>
 
         <div className="sidebar-spacer" />
