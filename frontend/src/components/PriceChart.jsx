@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { formatMoney } from '../lib/format.js'
 
 const HEIGHT = 230
@@ -7,11 +8,12 @@ const LABEL_COUNT = 5
 
 // Track an element's width so the SVG can be drawn in real pixels (no stretching).
 // ResizeObserver calls us whenever the element changes size, e.g. when the list is resized.
+// flushSync redraws before the browser paints, so the chart never shows at the old width (#183).
 function useWidth() {
   const ref = useRef(null)
   const [width, setWidth] = useState(0)
   useEffect(() => {
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    const observer = new ResizeObserver(([entry]) => flushSync(() => setWidth(entry.contentRect.width)))
     observer.observe(ref.current)
     return () => observer.disconnect()
   }, [])
