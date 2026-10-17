@@ -19,6 +19,8 @@
   --connection-card: rgba(255, 255, 255, 0.8);
   --accent: #007aff;
   --accent-tint: rgba(0, 122, 255, 0.06);
+  --accent-badge-bg: rgba(0, 122, 255, 0.1);
+  --loss-badge-bg: rgba(215, 0, 21, 0.1);
   --accent-border: rgba(0, 122, 255, 0.18);
   --selected: rgba(0, 122, 255, 0.1);
   --gain: #248a3d;
@@ -90,6 +92,8 @@
   --connection-card: rgba(255, 255, 255, 0.07);
   --accent: #0a84ff;
   --accent-tint: rgba(10, 132, 255, 0.06);
+  --accent-badge-bg: rgba(10, 132, 255, 0.16);
+  --loss-badge-bg: rgba(255, 69, 58, 0.16);
   --accent-border: rgba(10, 132, 255, 0.18);
   --selected: rgba(10, 132, 255, 0.2);
   --gain: #30d158;
@@ -344,6 +348,26 @@ p {
   height: 6px;
   border-radius: 50%;
   background: var(--warning-dot);
+}
+
+/* Paper / live account (Figma: M6 toolbar "Account Badge") */
+.badge-account.paper {
+  background: var(--accent-badge-bg);
+  color: var(--accent);
+}
+
+.badge-account.paper .badge-dot {
+  background: var(--accent);
+}
+
+/* Not in the design: a live account gets the same badge in the loss colour, so it stands out */
+.badge-account.live {
+  background: var(--loss-badge-bg);
+  color: var(--loss);
+}
+
+.badge-account.live .badge-dot {
+  background: var(--loss);
 }
 
 .button {

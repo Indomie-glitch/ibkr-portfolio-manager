@@ -82,3 +82,32 @@ def ai_model():
 MISSING_KEY_MESSAGE = ("Add your Anthropic API key in Settings to turn on AI summaries. It isn't saved, "
                        "so enter it again after restarting." if IN_APP else
                        "Add ANTHROPIC_API_KEY to .env and restart the backend to turn on AI summaries.")
+
+
+# ---------- trading (Milestone 6): off unless explicitly turned on ----------
+
+TRADING_MODES = ("off", "paper", "live")
+
+
+def trading_mode():
+    """"off" (read only, the default), "paper" or "live", from TRADING_MODE in .env in development.
+    The Mac app is always "off" for now: its Gateway runs with ReadOnlyApi=yes and Settings has no
+    trading switch yet. "live" also needs LIVE_TRADING_CONFIRM (see live_trading_confirmed)."""
+    if IN_APP:
+        return "off"
+    mode = os.getenv("TRADING_MODE", "off").strip().lower()
+    return mode if mode in TRADING_MODES else "off"
+
+
+def live_trading_confirmed():
+    """Live trading needs a second, deliberately awkward setting, so a copied .env line can't turn it on."""
+    return os.getenv("LIVE_TRADING_CONFIRM") == "I understand this places real orders"
+
+
+def max_order_value():
+    """The largest order allowed, in the account's base currency (MAX_ORDER_VALUE, default 10,000)."""
+    try:
+        value = float(os.getenv("MAX_ORDER_VALUE", "10000"))
+    except ValueError:
+        return 10000.0
+    return value if value > 0 else 10000.0

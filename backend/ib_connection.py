@@ -19,6 +19,8 @@ class ConnectionStatus:
         self.problem = None  # "client_id_in_use" | "refused" | "timeout" | "other" | None
         self.problem_since = None
         self._clash = False
+        # Whether the current connection was opened read only (trading.py checks it before orders)
+        self.read_only = True
 
     def on_ib_error(self, code):
         """Called for every IB error; only a client ID clash matters here."""

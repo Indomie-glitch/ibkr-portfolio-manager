@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { IN_APP, fetchAccount, fetchHealth, fetchPositions, fetchQuotes } from './api.js'
+import { IN_APP, fetchAccount, fetchHealth, fetchPositions, fetchQuotes, fetchTradingStatus } from './api.js'
 import { formatTime } from './format.js'
 import { buildHoldings } from './holdings.js'
 import { useAppearance } from './appearance.js'
@@ -58,6 +58,8 @@ function App() {
   const [updatedAt, setUpdatedAt] = useState(null)
   // Goes up after every successful load so child components (the chart) can refetch too
   const [dataVersion, setDataVersion] = useState(0)
+  // Paper or live account, for the toolbar badge (null until known)
+  const [trading, setTrading] = useState(null)
   // Only the newest request may update state, in case an older one finishes later
   const latestRequest = useRef(0)
   const [appearance, setAppearance] = useAppearance()
@@ -79,12 +81,15 @@ function App() {
       setHealth(healthData)
       if (connectionState(healthData) !== 'connected') return
 
-      const [accountData, positionsData, quotesData] = await Promise.all([
+      const [accountData, positionsData, quotesData, tradingData] = await Promise.all([
         fetchAccount(),
         fetchPositions(),
         fetchQuotes(),
+        // Only for the badge: a failure here shouldn't hide the portfolio
+        fetchTradingStatus().catch(() => null),
       ])
       if (!isLatest()) return
+      setTrading(tradingData)
       setAccount(accountData)
       setPositions(positionsData)
       setQuotes(quotesData)
@@ -215,6 +220,7 @@ function App() {
             }}
             appearance={appearance}
             onAppearanceChange={setAppearance}
+            trading={connected ? trading : null}
           />
 
           {/* Settings works without a connection: it's where you'd fix one */}
