@@ -118,6 +118,11 @@ class PortfolioSummaryTest(unittest.TestCase):
                 with summary_store._connect() as conn:
                     count = conn.execute("SELECT COUNT(*) FROM portfolio_summaries").fetchone()[0]
                 self.assertEqual(count, summary_store.KEEP_PER_STOCK)
+                history = summary_store.portfolio_history()
+                self.assertEqual(len(history), summary_store.KEEP_PER_STOCK)
+                self.assertEqual(history[0]["id"], latest["id"])
+                self.assertEqual(summary_store.get_portfolio(history[-1]["id"])["facts"], FACTS)
+                self.assertIsNone(summary_store.get_portfolio(9999))
             finally:
                 summary_store.DB_PATH = original
 
