@@ -98,6 +98,46 @@ Each IBKR username can be signed in in only one place at a time. If the app uses
 - **Live accounts:** in IBKR's Client Portal, go to **Settings → Users & Access Rights** and add a user, then sign in to the app with that username. Market data subscriptions belong to a username, so the new one starts with free delayed prices, which is what this app uses anyway.
 - **Paper accounts** already have their own username, separate from your live one, so you don't need a second one.
 
+### Updates
+
+When a new version is published, the app offers it at launch: a small window with the version number, what changed, and **Update Now** or **Later**. You can also choose **Portfolio Manager → Check for Updates…** at any time. Update Now downloads the new version, signs you out of IBKR, installs it and restarts the app. If macOS doesn't let the app replace itself, it offers the release page instead, where you can download the DMG and install it by hand.
+
+## Releasing a new version
+
+Releases are built by GitHub Actions (`.github/workflows/release.yml`) when a version tag is pushed, and land as a **draft**: nobody gets the update until you publish it.
+
+### One-time setup: the update signing key
+
+The app only installs updates signed with your key, so keep it safe; if it's lost, everyone has to reinstall from a DMG once.
+
+1. Generate the key (choose a password when asked):
+   ```bash
+   cd frontend
+   npx tauri signer generate -w ~/.tauri/portfolio-manager-updater.key
+   ```
+   This creates `~/.tauri/portfolio-manager-updater.key` (private, **never commit it**; `*.key` is gitignored) and `~/.tauri/portfolio-manager-updater.key.pub` (public).
+2. Back up the private key file and its password in your password manager.
+3. Put the public key in the app: copy the contents of the `.pub` file into `frontend/src-tauri/tauri.conf.json` as `plugins.updater.pubkey` (replacing `REPLACE_WITH_UPDATER_PUBLIC_KEY`), and commit that.
+4. Add two repository secrets on GitHub (**Settings → Secrets and variables → Actions → New repository secret**):
+   - `TAURI_SIGNING_PRIVATE_KEY`: the full contents of `~/.tauri/portfolio-manager-updater.key`
+   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: its password
+
+### Each release
+
+The version lives in one place, `frontend/package.json` (the app reads it from there).
+
+```bash
+# 1. Bump "version" in frontend/package.json (e.g. 0.2.1), then:
+git commit -am "chore: release 0.2.1"
+# 2. Tag it with a message; the message becomes the release notes shown in the app
+git tag -a v0.2.1 -m "Faster price chart. Fixed the AI summary footnote in dark mode."
+git push origin main v0.2.1
+```
+
+The workflow stops with a clear error if the tag has no message (a plain `git tag v0.2.1`), if it doesn't match the version in `package.json`, or if the public key is missing. When it finishes, open **Releases** on GitHub, check the draft (the DMG, the `.app.tar.gz` update with its `.sig`, and `latest.json`), and click **Publish release**. Apps check `releases/latest/download/latest.json`, so they see it from that moment.
+
+The first version with updates (0.2.0) has to be installed from its DMG; after that, updates arrive in the app.
+
 ## Getting Started
 
 ### Prerequisites

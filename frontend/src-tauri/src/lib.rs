@@ -2,6 +2,7 @@ mod gateway;
 mod session;
 mod settings;
 mod traffic_lights;
+mod updater;
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -11,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde_json::json;
-use tauri::{AppHandle, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder};
 
 /// The bundled Python backend (PyInstaller build in Resources/backend), while it runs, and the
 /// pipe to its stdin: one JSON message per line (see watch_parent in backend/app_main.py).
@@ -331,6 +332,35 @@ fn open_main_window(app: &AppHandle, connection: Option<&Connection>) -> tauri::
     Ok(())
 }
 
+/// Before an update replaces the app bundle: stops IB Gateway (ending the IBKR session) and the
+/// backend, both of which run from inside the bundle, and waits for them to exit.
+pub(crate) fn shutdown_for_update(app: &AppHandle) {
+    app.state::<SharedSession>().stop(session::LoginState::SignedOut);
+    let backend = app.state::<Backend>();
+    backend.stdin.lock().unwrap().take();
+    if let Some(mut child) = backend.child.lock().unwrap().take() {
+        stop_backend(&mut child);
+    }
+}
+
+/// The macOS menu: the default one plus "Check for Updates…" under the app name, after About.
+/// Choosing it tells the page to check (and to say so if there's no update).
+fn add_update_menu_item(app: &AppHandle) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem};
+    let menu = Menu::default(app)?;
+    if let Some(app_menu) = menu.items()?.first().and_then(|item| item.as_submenu().cloned()) {
+        let check = MenuItem::with_id(app, "check_for_updates", "Check for Updates…", true, None::<&str>)?;
+        app_menu.insert(&check, 1)?;
+    }
+    app.set_menu(menu)?;
+    app.on_menu_event(|app, event| {
+        if event.id() == "check_for_updates" {
+            let _ = app.emit("check-for-updates", ());
+        }
+    });
+    Ok(())
+}
+
 /// Asks the backend to shut down cleanly (uvicorn closes the IB connection on SIGTERM), and
 /// forces it after 3 seconds.
 fn stop_backend(child: &mut Child) {
@@ -350,6 +380,7 @@ fn stop_backend(child: &mut Child) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -365,6 +396,8 @@ pub fn run() {
             app.manage(backend);
             app.manage(GatewaySetup(Mutex::new(gateway::Progress::default())));
             app.manage::<SharedSession>(Arc::new(session::Session::default()));
+            updater::manage(app.handle());
+            add_update_menu_item(app.handle())?;
             open_main_window(app.handle(), connection.as_ref())?;
             remove_old_keychain_items(app.handle().clone());
             Ok(())
@@ -373,6 +406,11 @@ pub fn run() {
             api_key_status,
             set_api_key,
             clear_api_key,
+            updater::check_for_update,
+            updater::download_update,
+            updater::install_update,
+            updater::restart_app,
+            updater::open_release_page,
             get_settings,
             save_settings,
             gateway_status,

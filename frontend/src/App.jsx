@@ -6,6 +6,7 @@ import { useAppearance } from './appearance.js'
 import { sizeWindowFor } from './appWindow.js'
 import ConnectionMessage from './components/ConnectionMessage.jsx'
 import SessionBanner from './components/SessionBanner.jsx'
+import UpdatePrompt from './components/UpdatePrompt.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import Overview from './pages/Overview.jsx'
@@ -176,9 +177,12 @@ function App() {
 
   // No title bar in the app: this strip is where the window can be dragged from
   const dragStrip = <div className="drag-strip" data-tauri-drag-region />
+  // First in every screen below, so it stays mounted (and keeps a download going) when the screen changes
+  const updates = IN_APP ? <UpdatePrompt ready={appScreen !== 'startup'} /> : null
   if (appScreen === 'startup') {
     return (
       <>
+        {updates}
         {dragStrip}
         <Startup />
       </>
@@ -187,6 +191,7 @@ function App() {
   if (appScreen === 'setup') {
     return (
       <>
+        {updates}
         {dragStrip}
         <Setup login={login} onChange={refreshLogin} />
       </>
@@ -194,68 +199,71 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <Sidebar page={page} onNavigate={setPage} health={health} />
+    <>
+      {updates}
+      <div className="app">
+        <Sidebar page={page} onNavigate={setPage} health={health} />
 
-      <main className="content">
-        <Toolbar
-          title={PAGE_TITLES[page]}
-          subtitle={subtitle}
-          loading={loading}
-          onRefresh={() => {
-            setLoading(true)
-            load()
-          }}
-          appearance={appearance}
-          onAppearanceChange={setAppearance}
-        />
-
-        {/* Settings works without a connection: it's where you'd fix one */}
-        {page === 'settings' && (
-          <Settings
+        <main className="content">
+          <Toolbar
+            title={PAGE_TITLES[page]}
+            subtitle={subtitle}
+            loading={loading}
+            onRefresh={() => {
+              setLoading(true)
+              load()
+            }}
             appearance={appearance}
             onAppearanceChange={setAppearance}
-            login={login}
-            connected={connected}
-            onSignedOut={refreshLogin}
           />
-        )}
 
-        {page !== 'settings' && sessionEnded && (
-          <SessionBanner reason={login.reason} lastUpdated={updatedAt} onReconnect={reconnectSession} />
-        )}
+          {/* Settings works without a connection: it's where you'd fix one */}
+          {page === 'settings' && (
+            <Settings
+              appearance={appearance}
+              onAppearanceChange={setAppearance}
+              login={login}
+              connected={connected}
+              onSignedOut={refreshLogin}
+            />
+          )}
 
-        {page !== 'settings' && !sessionEnded && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
-          <ConnectionMessage state={connection} health={health} lastUpdated={updatedAt} />
-        )}
+          {page !== 'settings' && sessionEnded && (
+            <SessionBanner reason={login.reason} lastUpdated={updatedAt} onReconnect={reconnectSession} />
+          )}
 
-        {page !== 'settings' && connected && error && (
-          <div className="page-message">
-            <div className="error" role="alert">
-              <strong>Could not load data.</strong> Make sure the backend is running on port 8000 and IB
-              Gateway is logged in.
-              <div className="error-detail">{error}</div>
+          {page !== 'settings' && !sessionEnded && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
+            <ConnectionMessage state={connection} health={health} lastUpdated={updatedAt} />
+          )}
+
+          {page !== 'settings' && connected && error && (
+            <div className="page-message">
+              <div className="error" role="alert">
+                <strong>Could not load data.</strong> Make sure the backend is running on port 8000 and IB
+                Gateway is logged in.
+                <div className="error-detail">{error}</div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {showData && page === 'overview' && (
-          <div className={`page-body ${sessionEnded ? 'stale' : ''}`}>
-            <Overview account={account} holdings={holdings} onOpenHolding={openHolding} />
-          </div>
-        )}
+          {showData && page === 'overview' && (
+            <div className={`page-body ${sessionEnded ? 'stale' : ''}`}>
+              <Overview account={account} holdings={holdings} onOpenHolding={openHolding} />
+            </div>
+          )}
 
-        {showData && page === 'positions' && (
-          <Positions
-            stale={sessionEnded}
-            holdings={holdings}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            refreshKey={dataVersion}
-          />
-        )}
-      </main>
-    </div>
+          {showData && page === 'positions' && (
+            <Positions
+              stale={sessionEnded}
+              holdings={holdings}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              refreshKey={dataVersion}
+            />
+          )}
+        </main>
+      </div>
+    </>
   )
 }
 
