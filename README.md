@@ -93,9 +93,6 @@ For a Mac with Apple Silicon (M1 or later) and macOS 13 or later. You won't need
 1. Open the `Portfolio Manager` DMG you were sent and drag **Portfolio Manager** into **Applications**.
 2. Open it from Applications. The first time, macOS stops it, because the app isn't from the App Store and isn't signed by a registered developer. Click **Done**.
 3. Open **System Settings → Privacy & Security** and scroll down to **Security**. Next to "Portfolio Manager was blocked to protect your Mac", click **Open Anyway**, enter your Mac password, then click **Open Anyway** again. You only do this once.
-
-   ![The Open Anyway button in System Settings, Privacy & Security](docs/screenshots/open-anyway.png)
-
 4. In the app, click **Get Started**, then **Download IB Gateway**. When IBKR's installer opens, click Continue through it and keep the suggested folder, then click **Continue** in the app.
 5. Sign in with your IBKR username and password and choose **Live** or **Paper**. With a live account, approve the login in IBKR Mobile on your phone.
 6. Optional: to turn on AI summaries, open **Settings → AI summaries** and paste an Anthropic API key.
