@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import flex  # noqa: E402
+import flex_report as flex  # noqa: E402
 
 # A trimmed Activity Flex Query report in IBKR's XML layout: two lots of one stock, one sold-out
 # stock, an option (ignored), executions and a per-order summary row (ignored)

@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB, Contract
 import config  # first: loads .env before other modules read settings
 import ai_summary
+import lots
 from secrets_guard import mask_secrets
 import summary_facts
 import summary_store
@@ -98,8 +99,11 @@ async def keep_connected():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task = asyncio.create_task(keep_connected())
+    # Purchase dates from IBKR's Flex report, refreshed daily when Flex is set up (docs/flex-query.md)
+    lots_task = asyncio.create_task(lots.keep_refreshed())
     yield
     task.cancel()
+    lots_task.cancel()
     ib.disconnect()
 
 app = FastAPI(lifespan=lifespan)
@@ -320,6 +324,22 @@ async def call_yahoo(fetch):
     except Exception as exc:
         print(f"Yahoo lookup failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
         raise HTTPException(status_code=502, detail=YAHOO_UNAVAILABLE)
+
+# ---------- Purchase lots (Flex report) ----------
+
+@app.get("/lots/status")
+def lots_status():
+    """Whether Flex is set up, when the lots were last fetched, the report's date and the last error."""
+    return lots.status()
+
+@app.get("/lots/{con_id}", dependencies=[Depends(require_ib)])
+def holding_lots(con_id: int):
+    """A holding's purchase lots with their 12-month CGT discount dates, matched to the quantity
+    held now (lots.lots_for)."""
+    held = next((item.position for item in ib.portfolio() if item.contract.conId == con_id), None)
+    if held is None:
+        raise HTTPException(status_code=404, detail="Not a current holding")
+    return lots.lots_for(con_id, held)
 
 @app.get("/profile/{con_id}", dependencies=[Depends(require_ib)])
 async def profile(con_id: int):

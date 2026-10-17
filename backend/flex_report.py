@@ -1,4 +1,5 @@
-"""IBKR Flex Web Service: downloads the Activity Flex Query (docs/flex-query.md) and reads the
+"""IBKR Flex Web Service (named flex_report, not flex: PyInstaller has a hook for an unrelated
+"flex" package that would break the build): downloads the Activity Flex Query (docs/flex-query.md) and reads the
 open lots (with the date each was bought) and the trades from it.
 
 The trading API (IB Gateway) has no purchase dates, which the 12-month CGT date needs. The Flex
