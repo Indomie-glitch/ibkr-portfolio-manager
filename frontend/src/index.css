@@ -971,8 +971,15 @@ p {
     min-width 0.2s ease;
 }
 
-/* The list keeps its layout while the pane animates closed, instead of squashing */
+/* The list keeps its layout while the pane animates closed, instead of squashing, and stays
+   pinned to the pane's right edge so it slides out to the left: prices and day change pills stay
+   whole until the end instead of being cut off first (#183) */
 .holdings-pane .holdings-list {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
   min-width: 220px;
 }
 
@@ -1086,6 +1093,7 @@ p {
 }
 
 .holding-names {
+  flex: 1;
   min-width: 0;
 }
 
@@ -1104,9 +1112,11 @@ p {
 .holding-price {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   align-items: flex-end;
   gap: 3px;
   margin-left: auto;
+  white-space: nowrap;
   font-weight: 500;
 }
 
@@ -1225,6 +1235,8 @@ p {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
+  overflow: hidden;
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -1235,7 +1247,12 @@ p {
   height: 230px;
 }
 
+/* Out of the layout, so a drawing still at the old width can't make the chart wider while the
+   list is resized; the ResizeObserver in PriceChart redraws it at the new width (#183) */
 .chart svg {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
   overflow: visible;
 }
@@ -1269,6 +1286,9 @@ p {
 .x-axis {
   display: flex;
   justify-content: space-between;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
   color: var(--text-3);
   font-size: 10px;
 }
@@ -1277,6 +1297,7 @@ p {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   color: var(--text-3);
   font-size: 10px;
 }
