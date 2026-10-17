@@ -33,6 +33,7 @@ Connection is read only (readonly=True). Do not add order placement until milest
 Connection settings (IB_HOST, IB_PORT, IB_CLIENT_ID) come from .env via python-dotenv.
 CORS allows http://localhost:5173, http://127.0.0.1:5173 and tauri://localhost (the Mac app window). GET only, except POST /summary/{con_id} (generating an AI summary), which PathCORS in main.py allows from those origins only; the endpoint also checks the Origin header, since simple cross-site POSTs skip the preflight.
 After installing any Python package, run pip freeze > requirements.txt from backend/ with the venv active.
+Purchase dates (Milestone 5.1): IBKR Flex Web Service. config.flex_token() (secret: IB_FLEX_TOKEN in .env, memory only in the app via set_secret flex_token) and config.flex_query_id() (IB_FLEX_QUERY_ID / set_setting flex_query_id). mask_secrets also masks the Flex token by value. User setup guide: docs/flex-query.md (Activity Flex Query with Open Positions at Lot level + Trades, XML, last 365 days). The app's Settings rows for these need a Figma design first.
 Current API
 GET /health returns {"connected": bool}
 GET /positions returns a list of {"con_id", "symbol", "name", "name_truncated", "sec_type", "currency", "exchange", "quantity", "avg_cost", "market_price", "market_value", "unrealized_pnl", "unrealized_pnl_pct"} (from ib.portfolio(); names from contract details, cached, title-cased by backend/names.py; IB cuts longName at 28 characters, which sets name_truncated)
