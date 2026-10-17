@@ -133,7 +133,7 @@ class PathCORS:
 
     async def __call__(self, scope, receive, send):
         summary_path = scope["type"] == "http" and (scope["path"].startswith(("/summary/", "/orders/"))
-                                                    or scope["path"] == "/portfolio-summary")
+                                                    or scope["path"] in ("/portfolio-summary", "/orders"))
         await (self.get_post if summary_path else self.get_only)(scope, receive, send)
 
 # In the Mac app, every request must carry the token the app created at launch, so other programs
@@ -613,10 +613,13 @@ async def preview_order(order: OrderRequest, request: Request):
     checked = await checked_order(order)
     contract = checked["contract"]
     what_if = None
+    token = None
     if not checked["problems"]:
         try:
             state = await asyncio.wait_for(ib.whatIfOrderAsync(contract, trading.build_order(order.model_dump())), timeout=10)
             what_if = trading.what_if_summary(state)
+            # Placing this exact order needs this token (single use, 2 minutes)
+            token = confirmation_tokens.issue(order.con_id, order.model_dump(), time.monotonic())
         except asyncio.TimeoutError:
             checked["problems"].append("IB didn't answer the preview in time. Try again.")
         except Exception as exc:
@@ -629,7 +632,56 @@ async def preview_order(order: OrderRequest, request: Request):
         "estimated_value_base": checked["value_base"], "base_currency": checked["base_currency"],
         "held_quantity": checked["held"], "max_order_value": checked["status"]["max_order_value"],
         "what_if": what_if, "problems": checked["problems"], "can_submit": not checked["problems"],
+        "confirmation_token": token, "confirmation_expires_in_s": trading.TOKEN_LIFETIME_S if token else None,
     }
+
+confirmation_tokens = trading.ConfirmationTokens()
+order_lock = asyncio.Lock()
+# Statuses that mean IB hasn't accepted or rejected the order yet (PreSubmitted = accepted, waiting
+# for the market to open)
+PENDING_STATUSES = {"PendingSubmit", "ApiPending"}
+
+class PlaceOrderRequest(OrderRequest):
+    confirmation_token: str
+
+def trade_summary(trade):
+    """An order's state for the app (also used by the order status stream later)."""
+    status = trade.orderStatus
+    messages = [entry.message for entry in trade.log if entry.message]
+    return {
+        "order_id": trade.order.orderId, "perm_id": trade.order.permId or None,
+        "con_id": trade.contract.conId, "symbol": trade.contract.symbol,
+        "action": trade.order.action, "quantity": trade.order.totalQuantity, "order_type": trade.order.orderType,
+        "limit_price": clean(trade.order.lmtPrice) if trade.order.orderType == "LMT" else None,
+        "status": status.status, "filled": status.filled, "remaining": status.remaining,
+        "avg_fill_price": clean(status.avgFillPrice) or None,
+        "message": messages[-1] if messages else None,
+    }
+
+@app.post("/orders", dependencies=[Depends(require_ib)])
+async def place_order(order: PlaceOrderRequest, request: Request):
+    """Place an order that was previewed: needs the preview's confirmation token for exactly this
+    order, and passes every guardrail check again (trading status, limits) right before sending."""
+    check_origin(request)
+    if order_lock.locked():
+        raise HTTPException(status_code=409, detail="Another order is being placed")
+    async with order_lock:
+        details = order.model_dump(exclude={"confirmation_token"})
+        problem = confirmation_tokens.redeem(order.confirmation_token, order.con_id, details, time.monotonic())
+        if problem:
+            raise HTTPException(status_code=409, detail=problem)
+        checked = await checked_order(order)
+        if checked["problems"]:
+            raise HTTPException(status_code=409, detail=" ".join(checked["problems"]))
+        trade = ib.placeOrder(checked["contract"], trading.build_order(details))
+        print(f"Order placed: {order.action} {order.quantity:g} {checked['contract'].symbol} {order.order_type} "
+              f"(order {trade.order.orderId})")
+        # Give IB a moment to accept or reject it, so the app can say which
+        for _ in range(25):
+            if trade.orderStatus.status not in PENDING_STATUSES:
+                break
+            await asyncio.sleep(0.2)
+        return trade_summary(trade)
 
 @app.get("/portfolio-summary/facts", dependencies=[Depends(require_ib)])
 async def portfolio_summary_facts():

@@ -232,7 +232,8 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 |---|---|
 | `GET /search?q=` | ASX and US stocks matching a symbol or company name (IB symbol search, cached 10 min), marked if owned |
 | `GET /prices?con_ids=` | Quotes for any stocks, same shape as `/quotes` (for search results) |
-| `POST /orders/preview` | What an order would cost (IB what-if: commission, margin change) and any guardrail problems, without sending it. Needs `TRADING_MODE=paper` |
+| `POST /orders/preview` | What an order would cost (IB what-if: commission, margin change) and any guardrail problems, without sending it; returns a `confirmation_token` when it can be placed. Needs `TRADING_MODE=paper` |
+| `POST /orders` | Places a previewed order: needs the preview's single-use `confirmation_token` (2 minutes, exactly that order); every check runs again first |
 | `GET /trading/status` | Paper or live account, whether orders are allowed (and why not), and the order limit |
 | `GET /health` | Whether the backend is connected to IB Gateway |
 | `GET /account` | Net liquidation, cash, positions value, buying power, unrealised P&L, FX rates |

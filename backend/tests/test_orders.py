@@ -1,7 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
-from trading import UNSET, build_order, check_order, what_if_summary
+from trading import UNSET, ConfirmationTokens, build_order, check_order, what_if_summary
 
 OPEN = {"can_trade": True, "reason": None, "max_order_value": 10000.0}
 
@@ -63,6 +63,45 @@ class WhatIfTest(unittest.TestCase):
         self.assertEqual(summary["init_margin_change"], 250.5)
         self.assertIsNone(summary["maint_margin_change"])
         self.assertIsNone(summary["warning"])
+
+
+class ConfirmationTokensTest(unittest.TestCase):
+    def test_single_use(self):
+        tokens = ConfirmationTokens()
+        token = tokens.issue(1, order(), now=0)
+        self.assertIsNone(tokens.redeem(token, 1, order(), now=10))
+        self.assertIn("already used", tokens.redeem(token, 1, order(), now=11))
+
+    def test_expires(self):
+        tokens = ConfirmationTokens(lifetime_s=120)
+        token = tokens.issue(1, order(), now=0)
+        self.assertIn("expired", tokens.redeem(token, 1, order(), now=121))
+
+    def test_bound_to_the_order(self):
+        tokens = ConfirmationTokens()
+        for changed in (order(quantity=11), order(limit_price=101), order(action="SELL"), order(order_type="MKT")):
+            token = tokens.issue(1, order(), now=0)
+            self.assertIn("changed", tokens.redeem(token, 1, changed, now=1))
+        token = tokens.issue(1, order(), now=0)
+        self.assertIn("changed", tokens.redeem(token, 2, order(), now=1))
+
+    def test_missing_token(self):
+        self.assertIn("expired", ConfirmationTokens().redeem(None, 1, order(), now=0))
+
+
+class TradeSummaryTest(unittest.TestCase):
+    def test_summary(self):
+        from ib_async import Contract, OrderStatus, Trade
+        from ib_async.objects import TradeLogEntry
+        from main import trade_summary
+        trade = Trade(contract=Contract(conId=1, symbol="BHP"), order=build_order(order(quantity=5, limit_price=40.0)),
+                      orderStatus=OrderStatus(status="Submitted", filled=2, remaining=3, avgFillPrice=39.9),
+                      log=[TradeLogEntry(time=None, status="Submitted", message="Order accepted")])
+        trade.order.orderId = 7
+        summary = trade_summary(trade)
+        self.assertEqual((summary["order_id"], summary["symbol"], summary["status"], summary["filled"], summary["remaining"]),
+                         (7, "BHP", "Submitted", 2, 3))
+        self.assertEqual((summary["limit_price"], summary["avg_fill_price"], summary["message"]), (40.0, 39.9, "Order accepted"))
 
 
 if __name__ == "__main__":
