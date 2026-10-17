@@ -1,4 +1,4 @@
-import { formatTime } from '../format.js'
+import { formatTime } from '../lib/format.js'
 import { WarningIcon } from './icons.jsx'
 
 const REASONS = {

@@ -1,4 +1,4 @@
-import { APPEARANCES } from '../appearance.js'
+import { APPEARANCES } from '../hooks/appearance.js'
 import { RefreshIcon } from './icons.jsx'
 
 // The account badge's tooltip: whether orders are possible and the order limit

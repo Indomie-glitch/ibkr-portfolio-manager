@@ -418,15 +418,6 @@ p {
   opacity: 0.55;
 }
 
-.button-muted {
-  padding: 8px 16px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--fill-subtle);
-  color: var(--text-3);
-  font-size: 13px;
-  font-weight: 500;
-}
 
 /* ---------- Messages ---------- */
 
@@ -2494,19 +2485,7 @@ button.ai-source:hover {
   font-weight: 500;
 }
 
-.setup-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
 
-.setup-checkbox input {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: var(--accent);
-}
 
 .setup-tip {
   display: flex;

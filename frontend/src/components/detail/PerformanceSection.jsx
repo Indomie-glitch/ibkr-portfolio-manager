@@ -1,6 +1,6 @@
-import { fetchPerformance } from '../../api.js'
-import { formatPercent, trendClass } from '../../format.js'
-import { useFetch } from '../../useFetch.js'
+import { fetchPerformance } from '../../lib/api.js'
+import { formatPercent, trendClass } from '../../lib/format.js'
+import { useFetch } from '../../hooks/useFetch.js'
 import { SectionLoading, SectionUnavailable } from './DisclosureSection.jsx'
 
 const PERIOD_LABELS = { ytd: 'Year to date', '1y': '1 year', '3y': '3 years', '5y': '5 years' }

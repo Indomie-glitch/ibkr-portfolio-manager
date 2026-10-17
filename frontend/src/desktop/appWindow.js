@@ -1,7 +1,7 @@
 // Sizes the Mac app's window for each screen: the setup screens are small fixed windows (as in
 // the Figma frames), the dashboard is large and resizable. Does nothing outside the app.
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
-import { IN_APP } from './api.js'
+import { IN_APP } from '../lib/api.js'
 
 const SIZES = {
   startup: [360, 280],

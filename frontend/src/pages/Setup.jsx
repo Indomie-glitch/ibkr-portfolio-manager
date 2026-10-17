@@ -1,9 +1,9 @@
 // The Mac app's setup and sign-in screens (Figma page "Desktop app (M7)"): Startup, Welcome,
 // Install IB Gateway, Sign in (and its error state), Approve on phone, Login not approved.
 import { useEffect, useState } from 'react'
-import { gatewayStatus, installGateway } from '../appGateway.js'
-import { cancelSignIn, savedLogin, signIn } from '../appSession.js'
-import { sizeWindowFor } from '../appWindow.js'
+import { gatewayStatus, installGateway } from '../desktop/appGateway.js'
+import { cancelSignIn, savedLogin, signIn } from '../desktop/appSession.js'
+import { sizeWindowFor } from '../desktop/appWindow.js'
 import appIcon from '../assets/app-icon.png'
 import {
   CheckCircleIcon,

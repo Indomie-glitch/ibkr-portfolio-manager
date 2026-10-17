@@ -1,5 +1,5 @@
 import { GearIcon, GridIcon, ListIcon, OrdersIcon, SearchIcon, SparklesIcon } from './icons.jsx'
-import { IN_APP } from '../api.js'
+import { IN_APP } from '../lib/api.js'
 
 function connectionText(health) {
   if (health === null) return { dot: '', title: 'Checking…', detail: 'Contacting the backend' }

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { IN_APP, fetchAccount, fetchHealth, fetchPositions, fetchQuotes, fetchTradingStatus } from './api.js'
-import { formatTime } from './format.js'
-import { buildHoldings } from './holdings.js'
-import { useAppearance } from './appearance.js'
-import { sizeWindowFor } from './appWindow.js'
+import { IN_APP, fetchAccount, fetchHealth, fetchPositions, fetchQuotes, fetchTradingStatus } from './lib/api.js'
+import { formatTime } from './lib/format.js'
+import { buildHoldings } from './lib/holdings.js'
+import { useAppearance } from './hooks/appearance.js'
+import { sizeWindowFor } from './desktop/appWindow.js'
 import ConnectionMessage from './components/ConnectionMessage.jsx'
 import SessionBanner from './components/SessionBanner.jsx'
 import UpdatePrompt from './components/UpdatePrompt.jsx'
@@ -17,7 +17,7 @@ import Orders from './pages/Orders.jsx'
 import Positions from './pages/Positions.jsx'
 import Settings from './pages/Settings.jsx'
 import Setup, { Startup } from './pages/Setup.jsx'
-import { useLogin } from './useLogin.js'
+import { useLogin } from './hooks/useLogin.js'
 
 const AUTO_REFRESH_MS = 60_000
 const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', markets: 'Markets', orders: 'Orders', settings: 'Settings' }

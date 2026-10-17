@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { modifyOrder, placeOrder, watchOrders } from '../api.js'
-import { formatMoney } from '../format.js'
+import { modifyOrder, placeOrder, watchOrders } from '../lib/api.js'
+import { formatMoney } from '../lib/format.js'
 import { CheckCircleIcon, CheckIcon, InfoIcon, WarningIcon } from './icons.jsx'
 
 // IB statuses after which nothing more will happen to an order

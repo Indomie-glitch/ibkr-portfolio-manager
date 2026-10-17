@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import appIcon from '../assets/app-icon.png'
-import { checkForUpdate, downloadUpdate, installUpdate, onCheckForUpdatesMenu, openReleasePage, restartApp } from '../appUpdater.js'
+import { checkForUpdate, downloadUpdate, installUpdate, onCheckForUpdatesMenu, openReleasePage, restartApp } from '../desktop/appUpdater.js'
 import { SpinnerIcon } from './icons.jsx'
 
 const MB = 1024 * 1024

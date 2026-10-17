@@ -1,11 +1,11 @@
 // Settings, laid out like the Figma frame "M7 / 8 Settings" (macOS System Settings style groups)
 import { useEffect, useState } from 'react'
-import { IN_APP } from '../api.js'
-import { apiKeyStatus, clearApiKey, setApiKey } from '../appApiKey.js'
-import { APPEARANCES } from '../appearance.js'
-import { gatewayStatus, installGateway } from '../appGateway.js'
-import { savedLogin, signOut } from '../appSession.js'
-import { getSettings, saveSettings } from '../appSettings.js'
+import { IN_APP } from '../lib/api.js'
+import { apiKeyStatus, clearApiKey, setApiKey } from '../desktop/appApiKey.js'
+import { APPEARANCES } from '../hooks/appearance.js'
+import { gatewayStatus, installGateway } from '../desktop/appGateway.js'
+import { savedLogin, signOut } from '../desktop/appSession.js'
+import { getSettings, saveSettings } from '../desktop/appSettings.js'
 import { CheckCircleIcon, ChevronsIcon } from '../components/icons.jsx'
 
 // Written in two parts, like backend/secrets_guard.py, so the pre-commit check for keys doesn't flag it

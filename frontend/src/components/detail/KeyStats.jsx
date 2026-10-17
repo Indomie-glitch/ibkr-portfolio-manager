@@ -1,6 +1,6 @@
-import { fetchStats } from '../../api.js'
-import { formatCompactNumber, formatDate, formatNumber, formatPercent } from '../../format.js'
-import { useFetch } from '../../useFetch.js'
+import { fetchStats } from '../../lib/api.js'
+import { formatCompactNumber, formatDate, formatNumber, formatPercent } from '../../lib/format.js'
+import { useFetch } from '../../hooks/useFetch.js'
 
 function range(low, high) {
   return low == null || high == null ? '—' : `${formatNumber(low)} – ${formatNumber(high)}`
