@@ -1,9 +1,10 @@
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from portfolio_facts import build_portfolio_facts, month_move, source_ids
 
 TODAY = date(2026, 10, 17)
+NOW = datetime(2026, 10, 17, 10, 30, tzinfo=timezone(timedelta(hours=11), "AEDT"))
 ACCOUNT = {"currency": "AUD", "net_liquidation": 12000.0, "cash": 2000.0, "fx_rates": {"USD": 1.5}}
 
 
@@ -42,7 +43,7 @@ HOLDINGS = [
 
 class PortfolioFactsTest(unittest.TestCase):
     def setUp(self):
-        self.facts = build_portfolio_facts(ACCOUNT, HOLDINGS, TODAY, missing=["BHP company data (Yahoo Finance unavailable)"])
+        self.facts = build_portfolio_facts(ACCOUNT, HOLDINGS, NOW, missing=["BHP company data (Yahoo Finance unavailable)"])
 
     def test_weights_in_base_currency(self):
         allocation = self.facts["D:allocation"]
@@ -103,13 +104,13 @@ class PortfolioFactsTest(unittest.TestCase):
             "D:concentration", "D:events", "D:income", "D:since_last", "D:missing"})
 
     def test_missing_exchange_rate_skips_holding(self):
-        facts = build_portfolio_facts({**ACCOUNT, "fx_rates": {}}, HOLDINGS, TODAY)
+        facts = build_portfolio_facts({**ACCOUNT, "fx_rates": {}}, HOLDINGS, NOW)
         self.assertNotIn("H:2", facts)
         self.assertIn("AAPL: no exchange rate for USD", facts["D:missing"])
         self.assertEqual(facts["D:allocation"]["by_holding"], {"CBA": 75.0, "BHP": 25.0})
 
     def test_empty_portfolio(self):
-        facts = build_portfolio_facts(ACCOUNT, [], TODAY)
+        facts = build_portfolio_facts(ACCOUNT, [], NOW)
         self.assertEqual(facts["D:portfolio"]["number_of_holdings"], 0)
         self.assertEqual(facts["D:allocation"]["by_market"], {})
         self.assertIsNone(facts["D:concentration"]["top_3_share_pct"])

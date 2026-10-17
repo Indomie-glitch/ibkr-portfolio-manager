@@ -31,6 +31,16 @@ def _connect():
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS summaries_by_stock ON summaries (con_id, created_at)")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS portfolio_summaries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL,
+            model TEXT NOT NULL,
+            facts TEXT NOT NULL,        -- JSON: the portfolio facts sheet (portfolio_facts.py)
+            summary TEXT NOT NULL,      -- JSON: the 8 sections
+            warnings TEXT NOT NULL
+        )
+    """)
     return conn
 
 
@@ -83,6 +93,39 @@ def _record(row):
         "id": row["id"],
         "con_id": row["con_id"],
         "symbol": row["symbol"],
+        "created_at": row["created_at"],
+        "model": row["model"],
+        "facts": json.loads(row["facts"]),
+        "summary": json.loads(row["summary"]),
+        "warnings": json.loads(row["warnings"]),
+    }
+
+
+# ---------- portfolio summaries (one list, not per stock) ----------
+
+def save_portfolio(created_at, model, facts, summary, warnings):
+    with _connect() as conn:
+        cursor = conn.execute(
+            "INSERT INTO portfolio_summaries (created_at, model, facts, summary, warnings) VALUES (?, ?, ?, ?, ?)",
+            (created_at, model, mask_secrets(json.dumps(facts)), mask_secrets(json.dumps(summary)),
+             mask_secrets(json.dumps(warnings))),
+        )
+        conn.execute("""
+            DELETE FROM portfolio_summaries WHERE id NOT IN (
+                SELECT id FROM portfolio_summaries ORDER BY created_at DESC, id DESC LIMIT ?
+            )
+        """, (KEEP_PER_STOCK,))
+        return cursor.lastrowid
+
+
+def latest_portfolio():
+    """The most recent portfolio summary as a dict, or None."""
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM portfolio_summaries ORDER BY created_at DESC, id DESC LIMIT 1").fetchone()
+    if row is None:
+        return None
+    return {
+        "id": row["id"],
         "created_at": row["created_at"],
         "model": row["model"],
         "facts": json.loads(row["facts"]),
