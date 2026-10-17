@@ -73,8 +73,9 @@ Fill every section, in this order:
 8. key_risks: 2-4 risks specific to this company. Not about the share price itself (its 52-week
    range or recent falls are not risks).
 9. your_position: explain the figures in D:position (gain or loss, portfolio weight, expected
-   yearly dividends, the 12-month date for the capital gains tax discount, or that the purchase
-   date is unknown). Restate the figures; give no advice.
+   yearly dividends, and the 12-month capital gains tax discount: when D:position has lots, which
+   lots already qualify and the date each of the others will, plus any shares whose purchase date
+   is unknown; otherwise that the purchase date is unknown). Restate the figures; give no advice.
 10. changes_since_last: why the price moved since the previous summary, using only D:since_last
     and the news ids in its news_between_summaries. 1-3 points. Say whether the stock rose or fell.
     typical_move_this_window_pct is the stock's usual move over the whole window

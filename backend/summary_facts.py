@@ -85,6 +85,49 @@ async def safe(load, what, missing):
 
 # ---------- the facts sheet ----------
 
+def position_lots(holding_lots):
+    """Purchase lots and 12-month CGT discount dates for D:position, from lots.lots_for() (the
+    Flex report), all as stated facts. Without a report, says the purchase date is unknown."""
+    if not holding_lots or not holding_lots["lots"]:
+        return {
+            "purchase_date": None,
+            "cgt_12_month_date": None,
+            "cgt_note": "Purchase date unknown: Interactive Brokers' trading connection doesn't provide it, "
+                        "and no IBKR Flex report with purchase dates is set up",
+        }
+    report_day = date.fromisoformat(holding_lots["report_date"]) if holding_lots.get("report_date") else None
+    lots = []
+    for lot in holding_lots["lots"]:
+        opened = date.fromisoformat(lot["opened"])
+        discount_from = date.fromisoformat(lot["cgt_discount_from"])
+        lots.append({
+            "quantity": lot["quantity"],
+            "purchase_date": long_date(opened),
+            "cgt_discount_from": long_date(discount_from),
+            "days_until_discount": lot["days_until_discount"],
+            "discount_applies_now": lot["days_until_discount"] == 0,
+        })
+    first, last = lots[0], lots[-1]
+    waiting = [lot for lot in lots if not lot["discount_applies_now"]]
+    unknown = holding_lots.get("unknown_quantity") or 0
+    source = ("IBKR's own lots in the Flex report" if holding_lots["source"] == "flex_lots"
+              else "trades in the Flex report, oldest sold first")
+    return {
+        "purchase_date": first["purchase_date"] if len(lots) == 1 else
+        f"{len(lots)} lots, bought {first['purchase_date']} to {last['purchase_date']}",
+        "cgt_12_month_date": (f"All lots qualify (the last since {last['cgt_discount_from']})" if not waiting
+                              else f"Next lot qualifies on {waiting[0]['cgt_discount_from']}"),
+        "lots": lots,
+        "shares_with_unknown_purchase_date": unknown or None,
+        "cgt_note": (
+            f"Purchase dates from {source}"
+            + (f" as of {long_date(report_day)}" if report_day else "")
+            + ". The CGT discount applies to a sale from the day after the 12-month anniversary of purchase"
+            + (f"; {unknown:g} shares were bought outside the report's period, so their dates are unknown" if unknown else "")
+        ),
+    }
+
+
 async def build_facts(inputs, loaders, previous=None, now=None):
     """inputs: IB data gathered by main.py (contract, position, quote, bars, fx, totals).
     loaders: zero-argument async functions for each Yahoo source (cached in main.py).
@@ -308,9 +351,7 @@ async def build_facts(inputs, loaders, previous=None, now=None):
         "expected_yearly_dividends": money(expected, currency),
         "expected_yearly_dividends_in_base_currency": money(expected * fx, base) if expected is not None and currency != base else None,
         "dividend_basis": f"Dividends with ex-dividend dates in the 12 months to {long_date(today)}; future dividends may differ",
-        "purchase_date": None,
-        "cgt_12_month_date": None,
-        "cgt_note": "Purchase date unknown: Interactive Brokers doesn't provide it through this connection",
+        **position_lots(inputs.get("lots")),
     }
 
     # --- news with ids, and D:since_last ---
