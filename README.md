@@ -86,6 +86,8 @@ React frontend  <-->  Python REST API  <-->  IB Gateway (localhost:4002)  <-->  
 
 The React frontend talks only to the Python backend. The backend manages the connection to IB Gateway running locally, and calls the Claude API to generate stock summaries.
 
+For the full picture (the Mac app's parts, every backend module and page, and step by step diagrams of sign in, AI summaries, orders and updates), see **[docs/architecture.md](docs/architecture.md)**.
+
 ## Install the Mac app
 
 For a Mac with Apple Silicon (M1 or later) and macOS 13 or later. You won't need the terminal or to open IB Gateway yourself.
@@ -302,7 +304,8 @@ ibkr-portfolio-manager/
 ├── backend/          FastAPI app (main.py), IB Gateway connection, REST API
 ├── frontend/         React app (Vite)
 │   └── src-tauri/    Mac app shell (Tauri, Rust)
-├── docs/screenshots/ Screenshots used in this README
+├── docs/             Architecture diagrams, setup guides and specs
+│   └── screenshots/  Screenshots used in this README
 ├── scripts/          screenshots.mjs: retakes the README screenshots with headless Chrome
 ├── .env.example      Template for environment variables
 └── README.md

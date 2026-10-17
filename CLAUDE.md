@@ -13,6 +13,7 @@ frontend/        React app (Vite): src/ has App.jsx, main.jsx, index.css, compon
 .env             real settings, gitignored, never commit
 .env.example     template for .env, committed
 README.md
+docs/architecture.md  Mermaid diagrams of the whole system (context, containers, backend modules, frontend pages, key flows, data storage). When a change adds, removes or renames a module, page, endpoint, background task or external service, update the matching diagram in the same PR.
 Running locally
 IB Gateway must be running and logged in to the paper account
 Backend: cd backend && source venv/bin/activate && uvicorn main:app --reload (port 8000)
