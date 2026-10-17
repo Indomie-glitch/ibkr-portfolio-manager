@@ -4,6 +4,7 @@ import math
 import os
 import secrets
 import time
+from datetime import date, timedelta
 from typing import Literal
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -13,6 +14,7 @@ from ib_async import IB, Contract
 import config  # first: loads .env before other modules read settings
 import ai_summary
 import lots
+import portfolio_facts
 from secrets_guard import mask_secrets
 import summary_facts
 import summary_store
@@ -456,6 +458,59 @@ async def summary_facts_preview(con_id: int):
     result = await summary_facts_for(con_id)
     return {"facts": summary_facts.model_facts(result["facts"]), "links": result["links"],
             "source_ids": summary_facts.source_ids(result["facts"])}
+
+BENCHMARK_NAMES = {"ASX": "S&P/ASX 200", "US": "S&P 500"}
+
+async def holding_inputs(position, quote, today, missing):
+    """IB and Yahoo data for one holding of the portfolio facts sheet; gaps are recorded in missing."""
+    contract, _ = await get_contract_info(position["con_id"])
+    symbol = yahoo.yahoo_symbol(contract) if contract else None
+    market = portfolio_facts.market_of(position)
+    index_symbol = yahoo.PRICE_INDEXES[market]
+    label = position["symbol"]
+    inputs = {"position": position, "quote": quote, "benchmark": BENCHMARK_NAMES[market],
+              "sector": None, "beta": None, "events": [], "dividends_12m": None, "closes": None, "index_closes": None}
+    if symbol is None:
+        missing.append(f"{label}: not covered by Yahoo Finance (sector, beta, events and dividends)")
+    else:
+        info = await summary_facts.safe(lambda: yahoo_info(symbol), f"{label} company data", missing)
+        if info:
+            stats = yahoo.stats_from_info(info)
+            inputs.update(sector=info.get("sector"), beta=stats["beta"])
+            for key, event in (("earnings_date", "Earnings result"), ("ex_dividend_date", "Ex-dividend date")):
+                if stats[key]:
+                    inputs["events"].append((date.fromisoformat(stats[key]), event))
+        dividends = await summary_facts.safe(
+            lambda: cached(("dividends", symbol), 24 * 60 * 60, lambda: yahoo.fetch_dividends(symbol)), f"{label} dividends", missing)
+        if dividends is not None:
+            cutoff = today - timedelta(days=365)
+            inputs["dividends_12m"] = sum(amount for day, amount in dividends if cutoff < day <= today)
+    try:
+        bars = await get_bars(position["con_id"], "3 M", "1 day", max_age=15 * 60)
+        inputs["closes"] = [(b.date if isinstance(b.date, date) else b.date.date(), b.close) for b in bars]
+    except Exception as exc:
+        missing.append(f"{label}: price history unavailable ({exc.__class__.__name__})")
+    inputs["index_closes"] = await summary_facts.safe(
+        lambda: cached(("index", index_symbol), 60 * 60, lambda: yahoo.fetch_index_closes(index_symbol)),
+        f"{BENCHMARK_NAMES[market]} closes", missing)
+    return inputs
+
+async def portfolio_facts_for():
+    """Gather IB and Yahoo data for every holding and build the portfolio facts sheet (no Claude call)."""
+    today = date.today()
+    missing = []
+    quote_by_id = {q["con_id"]: q for q in await quotes()}
+    holdings = []
+    for position in await positions():
+        if position["sec_type"] == "STK":
+            holdings.append(await holding_inputs(position, quote_by_id.get(position["con_id"]), today, missing))
+    return portfolio_facts.build_portfolio_facts(await account(), holdings, today, missing)
+
+@app.get("/portfolio-summary/facts", dependencies=[Depends(require_ib)])
+async def portfolio_summary_facts():
+    """Exactly what the model would be given for the portfolio summary. Free: no Claude call."""
+    facts = await portfolio_facts_for()
+    return {"facts": facts, "source_ids": portfolio_facts.source_ids(facts)}
 
 def saved_summary_response(record):
     facts = record["facts"]
