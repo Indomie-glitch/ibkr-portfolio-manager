@@ -4,7 +4,7 @@ import math
 import os
 import secrets
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Literal
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -15,6 +15,7 @@ import config  # first: loads .env before other modules read settings
 import ai_summary
 import lots
 import portfolio_facts
+import portfolio_summary
 from secrets_guard import mask_secrets
 import summary_facts
 import summary_store
@@ -111,12 +112,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # Let the Vite dev server and the Mac app's window (Tauri serves the built frontend from
-# tauri://localhost) call the API. Everything is GET-only, except POST /summary/{con_id}
-# (generating a summary), which only these origins may call.
+# tauri://localhost) call the API. Everything is GET-only, except POST /summary/{con_id} and
+# POST /portfolio-summary (generating a summary), which only these origins may call.
 ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "tauri://localhost"]
 
 class PathCORS:
-    """Two CORS policies chosen by path: GET-only everywhere, GET + POST for /summary/."""
+    """Two CORS policies chosen by path: GET-only everywhere, GET + POST for the summaries."""
 
     def __init__(self, app):
         self.get_only = CORSMiddleware(app, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET"],
@@ -125,7 +126,8 @@ class PathCORS:
                                        allow_headers=["X-App-Token"])
 
     async def __call__(self, scope, receive, send):
-        summary_path = scope["type"] == "http" and scope["path"].startswith("/summary/")
+        summary_path = scope["type"] == "http" and (scope["path"].startswith("/summary/")
+                                                    or scope["path"] == "/portfolio-summary")
         await (self.get_post if summary_path else self.get_only)(scope, receive, send)
 
 # In the Mac app, every request must carry the token the app created at launch, so other programs
@@ -497,14 +499,15 @@ async def holding_inputs(position, quote, today, missing):
 
 async def portfolio_facts_for():
     """Gather IB and Yahoo data for every holding and build the portfolio facts sheet (no Claude call)."""
-    today = date.today()
+    now = datetime.now().astimezone()
+    today = now.date()
     missing = []
     quote_by_id = {q["con_id"]: q for q in await quotes()}
     holdings = []
     for position in await positions():
         if position["sec_type"] == "STK":
             holdings.append(await holding_inputs(position, quote_by_id.get(position["con_id"]), today, missing))
-    return portfolio_facts.build_portfolio_facts(await account(), holdings, today, missing)
+    return portfolio_facts.build_portfolio_facts(await account(), holdings, now, missing)
 
 @app.get("/portfolio-summary/facts", dependencies=[Depends(require_ib)])
 async def portfolio_summary_facts():
@@ -569,6 +572,15 @@ def compare_summaries(con_id: int, a: int, b: int):
         "data_changes": summary_facts.compare_data(older["facts"], newer["facts"]),
     }
 
+def check_generate_request(request):
+    # A cross-site form POST skips the CORS preflight, so check the origin here as well.
+    # Requests without an Origin header come from local tools like curl, not other websites.
+    origin = request.headers.get("origin")
+    if origin is not None and origin not in ALLOWED_ORIGINS:
+        raise HTTPException(status_code=403, detail="Origin not allowed")
+    if not ai_summary.api_key_configured():
+        raise HTTPException(status_code=503, detail=config.MISSING_KEY_MESSAGE)
+
 # One generation per holding at a time, so a double click doesn't pay twice
 summary_locks = {}
 
@@ -580,13 +592,7 @@ def sse(event, data):
 async def generate_summary(con_id: int, request: Request):
     """Generate a new summary and stream it as Server-Sent Events:
     facts -> section (one per finished section) -> done, or error."""
-    # A cross-site form POST skips the CORS preflight, so check the origin here as well.
-    # Requests without an Origin header come from local tools like curl, not other websites.
-    origin = request.headers.get("origin")
-    if origin is not None and origin not in ALLOWED_ORIGINS:
-        raise HTTPException(status_code=403, detail="Origin not allowed")
-    if not ai_summary.api_key_configured():
-        raise HTTPException(status_code=503, detail=config.MISSING_KEY_MESSAGE)
+    check_generate_request(request)
     lock = summary_locks.setdefault(con_id, asyncio.Lock())
     if lock.locked():
         raise HTTPException(status_code=409, detail="A summary for this holding is already being written")
@@ -624,5 +630,80 @@ async def generate_summary(con_id: int, request: Request):
                 yield sse("error", {"code": "unexpected", "message": "Something went wrong while writing the summary."})
 
     # no-cache and X-Accel-Buffering stop anything in between from holding events back
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+# ---------- AI portfolio summary (Milestone 5.2) ----------
+
+def saved_portfolio_response(record):
+    facts = record["facts"]
+    allowed = set(portfolio_facts.source_ids(facts))
+    summary, warnings = {}, []
+    for name in portfolio_summary.SECTIONS:
+        summary[name], section_warnings = portfolio_summary.validate_section(name, record["summary"][name], allowed, facts)
+        warnings += section_warnings
+    return {
+        "id": record["id"],
+        "created_at": record["created_at"],
+        "as_of_text": facts.get("as_of_text"),
+        "model": record["model"],
+        "summary": summary,
+        "warnings": warnings,
+        "missing": facts.get("D:missing", []),
+        "facts": facts,
+    }
+
+@app.get("/portfolio-summary")
+def latest_portfolio_summary():
+    """The last saved portfolio summary (shown instantly), and whether an API key is set."""
+    record = summary_store.latest_portfolio()
+    return {
+        "ai_configured": ai_summary.api_key_configured(),
+        "missing_key_message": config.MISSING_KEY_MESSAGE,
+        "model": config.ai_model(),
+        "latest": saved_portfolio_response(record) if record else None,
+    }
+
+portfolio_summary_lock = asyncio.Lock()
+
+@app.post("/portfolio-summary", dependencies=[Depends(require_ib)])
+async def generate_portfolio_summary(request: Request):
+    """Generate a portfolio summary, streamed as Server-Sent Events like POST /summary/{con_id}:
+    status -> facts -> section (one per finished section) -> done, or error."""
+    check_generate_request(request)
+    if portfolio_summary_lock.locked():
+        raise HTTPException(status_code=409, detail="A portfolio summary is already being written")
+
+    async def events():
+        async with portfolio_summary_lock:
+            yield sse("status", {"message": "Gathering data"})
+            try:
+                facts = await portfolio_facts_for()
+            except Exception as exc:
+                print(f"Portfolio facts failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
+                yield sse("error", {"code": "facts_failed", "message": "Couldn't gather the data for the portfolio."})
+                return
+            if not facts["D:portfolio"]["number_of_holdings"]:
+                yield sse("error", {"code": "no_holdings", "message": "There are no share holdings to summarise."})
+                return
+            yield sse("facts", {"as_of_text": facts["as_of_text"], "missing": facts["D:missing"], "facts": facts})
+            try:
+                async for kind, *payload in portfolio_summary.stream_sections(facts, portfolio_facts.source_ids(facts)):
+                    if kind == "section":
+                        name, section, warnings = payload
+                        yield sse("section", {"name": name, "section": section, "warnings": warnings})
+                    else:
+                        summary, warnings, usage = payload
+                        summary_store.save_portfolio(facts["as_of"], config.ai_model(), facts, summary, warnings)
+                        print(f"Portfolio summary: {usage['input_tokens']} in, {usage['output_tokens']} out, "
+                              f"{len(warnings)} warnings")
+                        yield sse("done", saved_portfolio_response(summary_store.latest_portfolio()))
+            except ai_summary.SummaryError as exc:
+                yield sse("error", {"code": exc.code, "message": exc.message})
+            except Exception as exc:
+                print(f"Portfolio summary failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
+                yield sse("error", {"code": "unexpected", "message": "Something went wrong while writing the summary."})
+
     return StreamingResponse(events(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

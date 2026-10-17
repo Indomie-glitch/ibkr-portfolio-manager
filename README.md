@@ -240,6 +240,8 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 | `GET /summary/{con_id}` | The last saved AI summary for a holding |
 | `POST /summary/{con_id}` | Writes a new AI summary, streamed section by section (Server-Sent Events) |
 | `GET /summary/{con_id}/facts` | The exact data the AI summary is based on (no API call) |
+| `GET /portfolio-summary` | The last saved AI portfolio summary, and whether AI is set up |
+| `POST /portfolio-summary` | Writes a new AI portfolio summary (8 sections), streamed like the stock summary |
 | `GET /portfolio-summary/facts` | The data the AI portfolio summary will be based on: weights, allocation, P&L contributors, concentration, events, dividends (no API call) |
 | `GET /lots/status` | Whether Flex purchase dates are set up, when they were last fetched, and the last error |
 | `GET /lots/{con_id}` | A holding's purchase lots with their 12-month CGT discount dates (from the Flex report) |

@@ -196,9 +196,11 @@ def since_last_flags(point, since_last):
     return flags
 
 
-def validate_section(name, section, allowed_ids, facts=None):
+def validate_section(name, section, allowed_ids, facts=None, *, point_ranges=POINT_RANGES,
+                     rule_checks=RULE_CHECKS, since_last_checks=True):
     """Remove any cited id that isn't in the facts sheet and flag points left without a source.
-    facts (optional) enables the section 10 checks. Returns (cleaned section, warnings)."""
+    facts (optional) enables the section 10 checks. The keyword arguments let the portfolio
+    summary (portfolio_summary.py) reuse this with its own rules. Returns (cleaned section, warnings)."""
     since_last = (facts or {}).get("D:since_last") or {}
     cleaned = copy.deepcopy(section)
     warnings = []
@@ -212,15 +214,15 @@ def validate_section(name, section, allowed_ids, facts=None):
                 point["uncited"] = True
                 warnings.append(f"{name}: a point has no valid source")
             point.pop("flags", None)  # recompute from scratch
-            flags = [label for label, pattern, sections in RULE_CHECKS
+            flags = [label for label, pattern, sections in rule_checks
                      if (sections is None or name in sections) and pattern.search(point.get("text", ""))]
-            if name == "changes_since_last":
+            if name == "changes_since_last" and since_last_checks:
                 flags += since_last_flags(point, since_last)
             if flags:
                 point["flags"] = flags
                 warnings.append(f"{name}: a point may break the rules ({', '.join(flags)})")
-    if name in POINT_RANGES and cleaned.get("status") == "ok":
-        low, high = POINT_RANGES[name]
+    if name in point_ranges and cleaned.get("status") == "ok":
+        low, high = point_ranges[name]
         count = len(cleaned.get("points", []))
         if not low <= count <= high:
             warnings.append(f"{name}: {count} points (expected {low}-{high})")
@@ -240,14 +242,18 @@ def api_key_configured():
     return bool(config.anthropic_api_key())
 
 
-async def stream_sections(facts, source_ids):
+async def stream_sections(facts, source_ids, *, sections=SECTIONS, system=SYSTEM_PROMPT, message=None,
+                          schema=None, validate=validate_section, client=None):
     """Call Claude and yield ("section", name, cleaned_section, warnings) as each section completes,
-    then ("final", summary, warnings, usage). Raises SummaryError on failure."""
-    if not api_key_configured():
+    then ("final", summary, warnings, usage). Raises SummaryError on failure. Defaults are the
+    stock summary; the portfolio summary passes its own sections, prompt, schema and checks.
+    client is only passed by tests (a fake that needs no API key)."""
+    if client is None and not api_key_configured():
         raise SummaryError("missing_api_key", config.MISSING_KEY_MESSAGE)
 
     allowed = set(source_ids)
-    client = anthropic.AsyncAnthropic(api_key=config.anthropic_api_key())  # the key never leaves the backend
+    # the key never leaves the backend
+    client = client or anthropic.AsyncAnthropic(api_key=config.anthropic_api_key())
     sent = {}
     warnings = []
     text = ""
@@ -256,9 +262,9 @@ async def stream_sections(facts, source_ids):
         async with client.messages.stream(
             model=config.ai_model(),
             max_tokens=MAX_TOKENS,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_message(facts)}],
-            output_config={"format": {"type": "json_schema", "schema": build_schema(source_ids)}},
+            system=system,
+            messages=[{"role": "user", "content": message or user_message(facts)}],
+            output_config={"format": {"type": "json_schema", "schema": schema or build_schema(source_ids)}},
         ) as stream:
             async for chunk in stream.text_stream:
                 text += chunk
@@ -271,8 +277,8 @@ async def stream_sections(facts, source_ids):
                     continue
                 keys = list(partial)
                 for name in keys[:-1]:
-                    if name in SECTIONS and name not in sent:
-                        cleaned, section_warnings = validate_section(name, partial[name], allowed, facts)
+                    if name in sections and name not in sent:
+                        cleaned, section_warnings = validate(name, partial[name], allowed, facts)
                         sent[name] = cleaned
                         warnings += section_warnings
                         yield ("section", name, cleaned, section_warnings)
@@ -299,11 +305,11 @@ async def stream_sections(facts, source_ids):
         raise SummaryError("incomplete", "The summary was cut off before it finished.")
 
     summary = json.loads(next(b.text for b in final.content if b.type == "text"))
-    for name in SECTIONS:
+    for name in sections:
         if name not in sent:
-            cleaned, section_warnings = validate_section(name, summary[name], allowed, facts)
+            cleaned, section_warnings = validate(name, summary[name], allowed, facts)
             sent[name] = cleaned
             warnings += section_warnings
             yield ("section", name, cleaned, section_warnings)
     usage = {"input_tokens": final.usage.input_tokens, "output_tokens": final.usage.output_tokens}
-    yield ("final", {name: sent[name] for name in SECTIONS}, warnings, usage)
+    yield ("final", {name: sent[name] for name in sections}, warnings, usage)

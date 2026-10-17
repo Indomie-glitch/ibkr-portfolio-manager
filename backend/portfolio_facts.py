@@ -4,7 +4,7 @@ portfolio and H:<con_id> for each holding.
 """
 from datetime import timedelta
 
-from summary_facts import change_pct, long_date, money, pct
+from summary_facts import as_of_text, change_pct, long_date, money, pct
 
 # Concentration flags (stated in the facts, so the model can quote them)
 SINGLE_STOCK_PCT = 20
@@ -62,10 +62,12 @@ def month_move(closes, index_closes, beta):
     return move
 
 
-def build_portfolio_facts(account, holdings, today, missing=None):
+def build_portfolio_facts(account, holdings, now, missing=None):
     """account: GET /account. holdings: one dict per position with position (GET /positions item),
     quote (GET /quotes item or None), sector, beta, closes, index_closes, benchmark (name),
-    events [(date, label)] and dividends_12m (per share, position currency); missing data as None."""
+    events [(date, label)] and dividends_12m (per share, position currency); missing data as None.
+    now: an aware datetime (the summary's time)."""
+    today = now.date()
     base = account["currency"]
     rates = account.get("fx_rates") or {}
     missing = list(missing or [])
@@ -95,7 +97,7 @@ def build_portfolio_facts(account, holdings, today, missing=None):
     invested = sum(r["value"] for r in rows)
     weight = {r["p"]["con_id"]: (r["value"] / invested * 100 if invested else None) for r in rows}
 
-    facts = {"as_of_text": long_date(today), "base_currency": base}
+    facts = {"as_of": now.isoformat(timespec="seconds"), "as_of_text": as_of_text(now), "base_currency": base}
 
     # --- one block per holding ---
     for r in rows:
