@@ -51,3 +51,79 @@ def status(accounts, connection_read_only, mode=None, live_confirmed=None):
         "reason": reason,
         "max_order_value": config.max_order_value(),
     }
+
+
+# ---------- order checks (shared by preview and placement) ----------
+
+ACTIONS = ("BUY", "SELL")
+ORDER_TYPES = ("MKT", "LMT")
+# IB's "no value" for doubles
+UNSET = 1.7976931348623157e308
+
+
+def check_order(order, price, fx_rate, held_quantity, trading_status):
+    """Problems that stop an order, in plain words (empty when it may go ahead), and its estimated
+    value. order: {action, quantity, order_type, limit_price}. price: the limit price, or the last
+    price for a market order (None if unknown). fx_rate: order currency -> base currency."""
+    problems = []
+    if not trading_status["can_trade"]:
+        problems.append(trading_status["reason"])
+    if order["action"] not in ACTIONS:
+        problems.append("Choose Buy or Sell.")
+    if order["order_type"] not in ORDER_TYPES:
+        problems.append("Choose a market or limit order.")
+    quantity = order["quantity"]
+    if not quantity or quantity <= 0 or quantity != int(quantity):
+        problems.append("Enter a whole number of shares.")
+    if order["order_type"] == "LMT" and not (order.get("limit_price") or 0) > 0:
+        problems.append("Enter a limit price above zero.")
+    if order["action"] == "SELL" and quantity and quantity > (held_quantity or 0):
+        # No short selling: only shares you hold can be sold
+        problems.append(f"You can sell at most {held_quantity or 0:g} shares (the number you hold).")
+
+    value = price * quantity if price is not None and quantity and quantity > 0 else None
+    value_base = value * fx_rate if value is not None and fx_rate is not None else None
+    limit = trading_status["max_order_value"]
+    if value is None:
+        problems.append("The order's value can't be worked out without a current price.")
+    elif value_base is None:
+        problems.append("The order's value can't be checked against the limit without an exchange rate.")
+    elif value_base > limit:
+        problems.append(f"The order is worth about {value_base:,.2f} in the account's currency, above the "
+                        f"{limit:,.0f} limit (MAX_ORDER_VALUE).")
+    return problems, value, value_base
+
+
+def build_order(order):
+    """The ib_async order: a day order, regular trading hours only."""
+    from ib_async import LimitOrder, MarketOrder
+    if order["order_type"] == "LMT":
+        ib_order = LimitOrder(order["action"], order["quantity"], round(order["limit_price"], 4))
+    else:
+        ib_order = MarketOrder(order["action"], order["quantity"])
+    ib_order.tif = "DAY"
+    ib_order.outsideRth = False
+    return ib_order
+
+
+def _number(value):
+    """OrderState numbers arrive as strings or IB's 'unset' double."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return None if number >= UNSET or number != number else number
+
+
+def what_if_summary(state):
+    """The parts of IB's what-if answer the confirmation sheet shows."""
+    return {
+        "commission": _number(state.commission),
+        "min_commission": _number(state.minCommission),
+        "max_commission": _number(state.maxCommission),
+        "commission_currency": state.commissionCurrency or None,
+        "init_margin_change": _number(state.initMarginChange),
+        "maint_margin_change": _number(state.maintMarginChange),
+        "equity_with_loan_change": _number(state.equityWithLoanChange),
+        "warning": state.warningText or None,
+    }
