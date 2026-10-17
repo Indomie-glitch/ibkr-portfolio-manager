@@ -194,19 +194,41 @@ async def modify_order(order_id: int, change: ModifyOrderRequest, request: Reque
         print(f"Order change requested: order {order_id} ({trade.contract.symbol}) to {change.quantity:g}")
         return await settled(trade, {"PendingSubmit", "ApiPending"})
 
+ORDER_LISTS = {"open": "your open orders", "completed": "today's completed orders", "executions": "today's executions"}
+
+async def ib_list(what, request):
+    """One of IBKR's order lists, or a 502 that says which one failed (a plain 500 would reach the
+    page without CORS headers, so it could only say "Failed to fetch")."""
+    try:
+        return await asyncio.wait_for(request, timeout=10)
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=502, detail=f"IBKR didn't send {ORDER_LISTS[what]} in time. Try again.")
+    except ConnectionError:
+        raise  # Gateway dropped: the app-wide handler answers 503
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"IBKR couldn't send {ORDER_LISTS[what]} ({mask_secrets(exc)}).")
+
+def order_names(infos):
+    """{con_id: company name} from get_contract_info results ((contract, long_name) pairs)."""
+    return {contract.conId: display_name(long_name, contract.symbol)[0]
+            for contract, long_name in infos if contract is not None and long_name}
+
 @router.get("/orders", dependencies=[Depends(require_ib)])
 async def orders():
     """Open orders (from every client, including TWS and mobile), and today's filled and cancelled
     orders, for the Orders page."""
     open_trades, completed, fills = await asyncio.gather(
-        asyncio.wait_for(ib.reqAllOpenOrdersAsync(), timeout=10),
-        asyncio.wait_for(ib.reqCompletedOrdersAsync(apiOnly=False), timeout=10),
-        asyncio.wait_for(ib.reqExecutionsAsync(), timeout=10),
+        ib_list("open", ib.reqAllOpenOrdersAsync()),
+        ib_list("completed", ib.reqCompletedOrdersAsync(apiOnly=False)),
+        ib_list("executions", ib.reqExecutionsAsync()),
     )
-    con_ids = {t.contract.conId for t in [*open_trades, *completed]}
-    infos = await asyncio.gather(*(get_contract_info(con_id) for con_id in con_ids))
-    names = {con_id: display_name(long_name, None)[0] for con_id, (_, long_name) in zip(con_ids, infos) if long_name}
-    return trading.orders_overview(open_trades, completed, fills, names)
+    con_ids = sorted({t.contract.conId for t in [*open_trades, *completed]})
+    names = order_names(await asyncio.gather(*(get_contract_info(con_id) for con_id in con_ids)))
+    try:
+        return trading.orders_overview(open_trades, completed, fills, names)
+    except Exception as exc:
+        print(f"Orders overview failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
+        raise HTTPException(status_code=502, detail=f"Couldn't read the orders from IBKR ({exc.__class__.__name__}).")
 
 # ---------- order status stream ----------
 

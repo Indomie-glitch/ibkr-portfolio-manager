@@ -100,6 +100,22 @@ function OrdersTable({ title, orders, empty, ...rowProps }) {
   )
 }
 
+// A failed request in words: the backend's own message (e.g. which IBKR list failed), or, when no
+// answer came back at all ("Failed to fetch"), what that usually means
+function errorText(err) {
+  if (err.status) return err.message
+  return 'The backend didn’t answer. Check that it’s running; the backend terminal shows the details.'
+}
+
+function OrdersError({ title, message }) {
+  return (
+    <div className="error" role="alert">
+      <strong>{title}</strong>
+      <div className="error-detail">{message}</div>
+    </div>
+  )
+}
+
 // Open orders, and today's filled and cancelled orders. Updates live while open.
 function Orders({ refreshKey, trading, onModify }) {
   const [tab, setTab] = useState('open')
@@ -113,7 +129,7 @@ function Orders({ refreshKey, trading, onModify }) {
         setData(orders)
         setError(null)
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => setError({ title: 'Couldn’t load your orders', message: errorText(err) }))
   }, [])
 
   useEffect(() => {
@@ -141,7 +157,7 @@ function Orders({ refreshKey, trading, onModify }) {
     try {
       await cancelOrder(order.order_id)
     } catch (err) {
-      setError(err.message)
+      setError({ title: 'Couldn’t cancel the order', message: errorText(err) })
     } finally {
       setCancellingId(null)
       load()
@@ -149,7 +165,13 @@ function Orders({ refreshKey, trading, onModify }) {
   }
 
   if (!data) {
-    return <p className="empty">{error ?? 'Loading orders…'}</p>
+    return error ? (
+      <div className="page-body">
+        <OrdersError {...error} />
+      </div>
+    ) : (
+      <p className="empty">Loading orders…</p>
+    )
   }
 
   const canTrade = Boolean(trading?.can_trade)
@@ -169,7 +191,7 @@ function Orders({ refreshKey, trading, onModify }) {
           </button>
         ))}
       </div>
-      {error && <p className="ticket-problems">{error}</p>}
+      {error && <OrdersError {...error} />}
       {tab === 'open' && <OrdersTable title="Open orders" orders={data.open} empty="No open orders." {...rowProps} />}
       {tab === 'filled' && (
         <OrdersTable title="Filled today" orders={data.filled_today} empty="No orders filled today." {...rowProps} />
