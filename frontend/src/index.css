@@ -955,7 +955,31 @@ p {
   flex-shrink: 0;
   min-width: 220px;
   max-width: max(220px, calc(100% - 360px));
+  overflow: hidden;
   border-right: 1px solid var(--border);
+}
+
+/* Hidden by dragging the divider past the minimum, the toolbar button or ⌘⌥S (#91) */
+.holdings-pane.collapsed {
+  min-width: 0;
+  border-right-width: 0;
+}
+
+.holdings-pane.snapping {
+  transition:
+    width 0.2s ease,
+    min-width 0.2s ease;
+}
+
+/* The list keeps its layout while the pane animates closed, instead of squashing */
+.holdings-pane .holdings-list {
+  min-width: 220px;
+}
+
+.resize-divider {
+  position: relative;
+  flex-shrink: 0;
+  width: 0;
 }
 
 .holdings-list {
@@ -1109,7 +1133,7 @@ p {
   position: absolute;
   z-index: 1;
   top: 0;
-  right: -5px;
+  left: -5px;
   bottom: 0;
   width: 10px;
   cursor: col-resize;
@@ -3655,4 +3679,14 @@ button.ai-source:hover {
   color: var(--text-2);
   font-size: 11px;
   text-align: right;
+}
+
+/* An icon-only toolbar button (show / hide the list), in the Refresh button's style */
+.button.icon-only {
+  padding: 7px 9px;
+  color: var(--text-2);
+}
+
+.toolbar .button.icon-only {
+  margin-right: 4px;
 }

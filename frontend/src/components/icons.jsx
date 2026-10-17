@@ -300,3 +300,14 @@ export function CloseIcon({ size = 14 }) {
     </Icon>
   )
 }
+
+// Show / hide the list on Positions and Markets (no Figma icon: drawn like macOS's sidebar symbol)
+export function SidebarIcon({ size = 16 }) {
+  return (
+    <Icon size={size} viewBox="0 0 16 16">
+      <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2.25" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M6 3V13" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M3.6 5.5H4.4M3.6 7.5H4.4M3.6 9.5H4.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </Icon>
+  )
+}

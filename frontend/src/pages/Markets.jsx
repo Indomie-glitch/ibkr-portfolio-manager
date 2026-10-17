@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchPrices, searchStocks } from '../lib/api.js'
 import { formatNumber, formatPercent, trendClass } from '../lib/format.js'
 import { useResizableWidth } from '../hooks/useResizableWidth.js'
+import { MARKETS_LIST } from '../lib/listPanes.js'
 import HoldingDetail from '../components/HoldingDetail.jsx'
 import { SearchIcon } from '../components/icons.jsx'
 
@@ -61,7 +62,7 @@ function Markets({ holdings, refreshKey, trading, onTrade }) {
   const [prices, setPrices] = useState({})
   const [recent, setRecent] = useState(loadRecent)
   const [selected, setSelected] = useState(null)
-  const [width, handleProps] = useResizableWidth('marketsListWidth', 'Resize search list')
+  const { paneProps, handleProps } = useResizableWidth(MARKETS_LIST, 'Resize search list')
 
   const q = query.trim()
   useEffect(() => {
@@ -129,7 +130,7 @@ function Markets({ holdings, refreshKey, trading, onTrade }) {
 
   return (
     <div className="positions-page">
-      <aside className="holdings-pane" style={{ width }}>
+      <aside {...paneProps}>
         <div className="holdings-list">
           <label className="search-field">
             <SearchIcon />
@@ -182,8 +183,11 @@ function Markets({ holdings, refreshKey, trading, onTrade }) {
             </>
           )}
         </div>
-        <div {...handleProps} />
       </aside>
+      {/* Outside the pane, so it stays at the detail's edge (and can be dragged) when the list is hidden */}
+      <div className="resize-divider">
+        <div {...handleProps} />
+      </div>
 
       {detail ? (
         <HoldingDetail key={detail.con_id} holding={detail} refreshKey={refreshKey} trading={trading} onTrade={onTrade} />
