@@ -36,7 +36,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_UPDATER_PUBLIC_KEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEzQjQwQjhGMUJBQzlDMTIKUldRU25Ld2Jqd3UwbzZBaWxsendYdkFKTkxKc2EwUHBWM3NXbWNaa2RuV3BXRE1MVVdhOGduemkK",
       "endpoints": [
         "https://github.com/Indomie-glitch/ibkr-portfolio-manager/releases/latest/download/latest.json"
       ]
