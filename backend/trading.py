@@ -170,3 +170,74 @@ class ConfirmationTokens:
     def _drop_expired(self, now):
         for token in [t for t, (_, expires) in self._tokens.items() if expires <= now]:
             del self._tokens[token]
+
+
+# ---------- open orders and today's history (GET /orders) ----------
+
+DONE_STATUSES = ("Filled", "Cancelled", "ApiCancelled", "Inactive")
+
+
+def _number_or_none(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return None if number >= UNSET or number != number else number
+
+
+def order_row(trade, names, fills=()):
+    """One row of the Orders page. fills: this order's executions (for the average price, the
+    commission and the time when the order itself doesn't have them)."""
+    order, contract, status = trade.order, trade.contract, trade.orderStatus
+    shares = sum(f.execution.shares for f in fills)
+    avg = (sum(f.execution.shares * f.execution.price for f in fills) / shares) if shares else _number_or_none(status.avgFillPrice)
+    commissions = [_number_or_none(f.commissionReport.commission) for f in fills if f.commissionReport]
+    commissions = [c for c in commissions if c is not None]
+    placed = trade.log[0].time if trade.log else (min(f.execution.time for f in fills) if fills else None)
+    return {
+        "order_id": order.orderId or None, "perm_id": order.permId or None,
+        "con_id": contract.conId, "symbol": contract.symbol, "name": names.get(contract.conId),
+        "currency": contract.currency, "action": order.action, "quantity": _number_or_none(order.totalQuantity),
+        "filled": shares or _number_or_none(status.filled) or 0, "order_type": order.orderType,
+        "tif": order.tif or "DAY", "limit_price": _number_or_none(order.lmtPrice) if order.orderType == "LMT" else None,
+        "avg_fill_price": avg, "commission": sum(commissions) if commissions else None,
+        "status": status.status, "placed": placed.isoformat() if placed else None,
+    }
+
+
+def orders_overview(open_trades, completed, fills, names):
+    """{open, filled_today, cancelled} for the Orders page.
+    open_trades: reqAllOpenOrders; completed: reqCompletedOrders (IB keeps them for the current
+    day; ib_async gives no completion time); fills: reqExecutions (today's executions)."""
+    from ib_async import Order, OrderStatus, Trade
+
+    fills_by_perm = {}
+    for fill in fills:
+        fills_by_perm.setdefault(fill.execution.permId, []).append(fill)
+    known = {t.order.permId: t for t in [*completed, *open_trades] if t.order.permId}
+
+    open_rows = [order_row(t, names, fills_by_perm.get(t.order.permId, ()))
+                 for t in open_trades if t.orderStatus.status not in DONE_STATUSES]
+
+    filled_today = []
+    open_perms = {t.order.permId for t in open_trades if t.orderStatus.status not in DONE_STATUSES}
+    for perm_id, order_fills in fills_by_perm.items():
+        if perm_id in open_perms:
+            continue  # partly filled: still listed as open
+        trade = known.get(perm_id)
+        if trade is None:
+            # An order IB no longer lists: rebuild what the executions say
+            first = order_fills[0]
+            trade = Trade(contract=first.contract,
+                          order=Order(orderId=first.execution.orderId, permId=perm_id,
+                                      action="BUY" if first.execution.side == "BOT" else "SELL",
+                                      totalQuantity=sum(f.execution.shares for f in order_fills), orderType=""),
+                          orderStatus=OrderStatus(status="Filled"))
+        row = order_row(trade, names, order_fills)
+        row["status"] = "Filled"
+        filled_today.append(row)
+
+    cancelled = [order_row(t, names, fills_by_perm.get(t.order.permId, ()))
+                 for t in completed if t.orderStatus.status in ("Cancelled", "ApiCancelled")]
+    newest_first = lambda rows: sorted(rows, key=lambda r: r["placed"] or "", reverse=True)  # noqa: E731
+    return {"open": newest_first(open_rows), "filled_today": newest_first(filled_today), "cancelled": newest_first(cancelled)}

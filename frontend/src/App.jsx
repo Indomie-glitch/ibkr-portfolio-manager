@@ -13,13 +13,14 @@ import Overview from './pages/Overview.jsx'
 import OrderConfirm from './components/OrderConfirm.jsx'
 import OrderTicket from './components/OrderTicket.jsx'
 import Markets from './pages/Markets.jsx'
+import Orders from './pages/Orders.jsx'
 import Positions from './pages/Positions.jsx'
 import Settings from './pages/Settings.jsx'
 import Setup, { Startup } from './pages/Setup.jsx'
 import { useLogin } from './useLogin.js'
 
 const AUTO_REFRESH_MS = 60_000
-const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', markets: 'Markets', settings: 'Settings' }
+const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', markets: 'Markets', orders: 'Orders', settings: 'Settings' }
 // /health is a cheap local request, so check it often to notice drops and recoveries quickly
 const HEALTH_CHECK_MS = 5_000
 
@@ -182,6 +183,7 @@ function App() {
   if (connection === 'offline') subtitle = 'Waiting for the backend…'
   if (connection === 'starting') subtitle = 'Starting…'
   if (connection === 'stopped') subtitle = 'Not running'
+  if (page === 'orders' && connected) subtitle = updated
   if (page === 'markets' && connected) subtitle = 'Search stocks on the ASX and US exchanges'
   if (page === 'settings') subtitle = IN_APP ? 'Saved on this Mac' : 'Development: most settings come from .env'
   // Only show the cards when the data is current; never stale numbers while disconnected, except
@@ -288,13 +290,28 @@ function App() {
             />
           )}
 
+          {showData && connected && page === 'orders' && (
+            <Orders
+              refreshKey={dataVersion}
+              trading={trading}
+              onModify={(order) =>
+                setTicket({
+                  stock: { con_id: order.con_id, symbol: order.symbol, currency: order.currency, last: null },
+                  side: order.action,
+                  existing: order,
+                })
+              }
+            />
+          )}
+
           {ticket && connected && (
             <>
               {/* Stays mounted under the review sheet, so Edit returns to the same numbers */}
               <OrderTicket
-                key={`${ticket.stock.con_id}-${ticket.side}`}
+                key={`${ticket.stock.con_id}-${ticket.side}-${ticket.existing?.order_id ?? 'new'}`}
                 stock={ticket.stock}
                 side={ticket.side}
+                existing={ticket.existing}
                 trading={trading}
                 account={account}
                 onClose={closeTicket}
@@ -309,6 +326,11 @@ function App() {
                   onEdit={() => setTicket((t) => ({ ...t, review: null, nonce: (t.nonce ?? 0) + 1 }))}
                   onDone={() => {
                     closeTicket()
+                    load()
+                  }}
+                  onViewOrders={() => {
+                    closeTicket()
+                    setPage('orders')
                     load()
                   }}
                 />

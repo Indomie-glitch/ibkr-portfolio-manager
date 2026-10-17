@@ -3235,3 +3235,167 @@ button.ai-source:hover {
   color: var(--text-2);
   font-weight: 400;
 }
+
+/* ---------- Orders page (Figma M6 / 5 Orders) ---------- */
+
+.orders-tabs {
+  align-self: flex-start;
+}
+
+.orders-tabs button {
+  flex: none;
+  padding: 4px 14px;
+  white-space: nowrap;
+}
+
+.orders-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.orders-section-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.orders-table {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.orders-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  border-top: 1px solid var(--row-border);
+  font-size: 13px;
+}
+
+.orders-header {
+  padding: 8px 20px;
+  border-top: 0;
+  background: var(--fill-header);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.orders-symbol {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.orders-symbol .company {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orders-placed {
+  width: 90px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.orders-header .orders-placed {
+  font-size: 11px;
+}
+
+.orders-side {
+  width: 70px;
+}
+
+.orders-qty {
+  width: 60px;
+  text-align: right;
+}
+
+.orders-type {
+  width: 120px;
+  padding-left: 16px;
+  font-size: 12px;
+}
+
+.orders-header .orders-type,
+.orders-header .orders-status {
+  font-size: 11px;
+}
+
+.orders-price {
+  width: 110px;
+  text-align: right;
+}
+
+.orders-status {
+  width: 140px;
+  padding-left: 16px;
+}
+
+.orders-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 170px;
+}
+
+.status-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-pill.gain {
+  background: rgba(52, 199, 89, 0.14);
+  color: var(--gain);
+}
+
+.status-pill.loss {
+  background: rgba(255, 59, 48, 0.14);
+  color: var(--loss);
+}
+
+.status-pill.accent {
+  background: rgba(0, 122, 255, 0.14);
+  color: var(--accent);
+}
+
+.status-pill.neutral {
+  background: var(--fill);
+  color: var(--text-2);
+}
+
+.small-button {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.small-button.destructive {
+  color: var(--loss);
+}
+
+.small-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.orders-empty {
+  padding: 14px 20px;
+  border-top: 1px solid var(--row-border);
+  color: var(--text-2);
+  font-size: 13px;
+}

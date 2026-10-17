@@ -281,3 +281,17 @@ export function CheckIcon({ size = 30 }) {
     </Icon>
   )
 }
+
+// Sidebar: Orders (Figma icon/orders)
+export function OrdersIcon({ size = 16 }) {
+  return (
+    <Icon size={size} viewBox="0 0 16 16">
+      <path
+        d="M4.5 2H11.5C12.6046 2 13.5 2.89543 13.5 4V12C13.5 13.1046 12.6046 14 11.5 14H4.5C3.39543 14 2.5 13.1046 2.5 12V4C2.5 2.89543 3.39543 2 4.5 2Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path d="M5.5 5.5H10.5M5.5 8H10.5M5.5 10.5H8.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </Icon>
+  )
+}

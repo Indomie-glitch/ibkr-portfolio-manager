@@ -749,6 +749,20 @@ async def modify_order(order_id: int, change: ModifyOrderRequest, request: Reque
         print(f"Order change requested: order {order_id} ({trade.contract.symbol}) to {change.quantity:g}")
         return await settled(trade, {"PendingSubmit", "ApiPending"})
 
+@app.get("/orders", dependencies=[Depends(require_ib)])
+async def orders():
+    """Open orders (from every client, including TWS and mobile), and today's filled and cancelled
+    orders, for the Orders page."""
+    open_trades, completed, fills = await asyncio.gather(
+        asyncio.wait_for(ib.reqAllOpenOrdersAsync(), timeout=10),
+        asyncio.wait_for(ib.reqCompletedOrdersAsync(apiOnly=False), timeout=10),
+        asyncio.wait_for(ib.reqExecutionsAsync(), timeout=10),
+    )
+    con_ids = {t.contract.conId for t in [*open_trades, *completed]}
+    infos = await asyncio.gather(*(get_contract_info(con_id) for con_id in con_ids))
+    names = {con_id: display_name(long_name, None)[0] for con_id, (_, long_name) in zip(con_ids, infos) if long_name}
+    return trading.orders_overview(open_trades, completed, fills, names)
+
 # ---------- order status stream ----------
 
 # One queue per open stream; IB's order events are copied into every queue

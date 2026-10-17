@@ -1,4 +1,4 @@
-import { GearIcon, GridIcon, ListIcon, SearchIcon, SparklesIcon, TradeIcon } from './icons.jsx'
+import { GearIcon, GridIcon, ListIcon, OrdersIcon, SearchIcon, SparklesIcon, TradeIcon } from './icons.jsx'
 import { IN_APP } from '../api.js'
 
 function connectionText(health) {
@@ -44,6 +44,14 @@ function Sidebar({ page, onNavigate, health }) {
           onClick={() => onNavigate('markets')}
         >
           <SearchIcon /> Markets
+        </button>
+        <button
+          type="button"
+          className={`sidebar-item ${page === 'orders' ? 'active' : ''}`}
+          aria-current={page === 'orders' ? 'page' : undefined}
+          onClick={() => onNavigate('orders')}
+        >
+          <OrdersIcon /> Orders
         </button>
         <button type="button" className="sidebar-item" disabled>
           <SparklesIcon /> AI Summaries <span className="soon-pill">Soon</span>
