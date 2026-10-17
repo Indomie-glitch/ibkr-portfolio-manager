@@ -264,8 +264,6 @@ function App() {
               setLoading(true)
               load()
             }}
-            appearance={appearance}
-            onAppearanceChange={setAppearance}
             trading={connected ? trading : null}
           />
 

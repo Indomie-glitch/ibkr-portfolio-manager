@@ -1012,11 +1012,6 @@ p {
   cursor: pointer;
 }
 
-.appearance-control button {
-  padding: 3px 9px;
-  font-size: 11px;
-}
-
 .segmented button[aria-pressed='true'] {
   background: var(--segment-selected);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
