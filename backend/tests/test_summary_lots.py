@@ -21,6 +21,9 @@ class PositionLotsTests(unittest.TestCase):
         lots.DB_PATH = Path(self.dir.name) / "lots.sqlite"
         config.SECRETS["flex_token"] = "TOKEN123456789"
         config.SETTINGS["flex_query_id"] = "987"
+        # App mode (Flex settings from SECRETS/SETTINGS), even if another test imported config first
+        in_app, config.IN_APP = config.IN_APP, True
+        self.addCleanup(setattr, config, "IN_APP", in_app)
         asyncio.run(lots.refresh(now=datetime(2026, 10, 17, tzinfo=timezone.utc), force=True, fetch=lambda t, q: REPORT))
 
     def tearDown(self):

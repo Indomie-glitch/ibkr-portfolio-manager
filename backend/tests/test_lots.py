@@ -24,6 +24,9 @@ class LotsTestCase(unittest.TestCase):
         lots.DB_PATH = Path(self.dir.name) / "lots.sqlite"
         config.SECRETS["flex_token"] = "TOKEN123456789"
         config.SETTINGS["flex_query_id"] = "987"
+        # App mode (Flex settings from SECRETS/SETTINGS), even if another test imported config first
+        in_app, config.IN_APP = config.IN_APP, True
+        self.addCleanup(setattr, config, "IN_APP", in_app)
 
     def tearDown(self):
         self.dir.cleanup()

@@ -683,6 +683,65 @@ async def place_order(order: PlaceOrderRequest, request: Request):
             await asyncio.sleep(0.2)
         return trade_summary(trade)
 
+# Orders IB still might fill: these can be cancelled or changed
+OPEN_STATUSES = {"PendingSubmit", "ApiPending", "PreSubmitted", "Submitted"}
+
+def open_trade(order_id):
+    trade = next((t for t in ib.openTrades() if t.order.orderId == order_id), None)
+    if trade is None or trade.orderStatus.status not in OPEN_STATUSES:
+        raise HTTPException(status_code=404, detail="No open order with that id (it may have filled or been cancelled)")
+    return trade
+
+async def settled(trade, waiting_for):
+    """Wait up to 5 s for IB to confirm a cancel or change, then describe the order."""
+    for _ in range(25):
+        if trade.orderStatus.status not in waiting_for:
+            break
+        await asyncio.sleep(0.2)
+    return trade_summary(trade)
+
+@app.post("/orders/{order_id}/cancel", dependencies=[Depends(require_ib)])
+async def cancel_order(order_id: int, request: Request):
+    """Cancel an open order. No confirmation token: cancelling only reduces what can happen."""
+    check_origin(request)
+    if connection.read_only:
+        raise HTTPException(status_code=409, detail="The connection to IB Gateway is read only, so orders can't be changed.")
+    trade = open_trade(order_id)
+    ib.cancelOrder(trade.order)
+    print(f"Order cancel requested: order {order_id} ({trade.contract.symbol})")
+    return await settled(trade, OPEN_STATUSES | {"PendingCancel"})
+
+class ModifyOrderRequest(BaseModel):
+    quantity: float = Field(gt=0)
+    limit_price: float | None = None
+    confirmation_token: str
+
+@app.post("/orders/{order_id}/modify", dependencies=[Depends(require_ib)])
+async def modify_order(order_id: int, change: ModifyOrderRequest, request: Request):
+    """Change an open order's quantity or limit price. The changed order must be previewed first
+    (POST /orders/preview with the new numbers) and its token passed here; side and type stay."""
+    check_origin(request)
+    async with order_lock:
+        trade = open_trade(order_id)
+        details = {
+            "con_id": trade.contract.conId, "action": trade.order.action, "quantity": change.quantity,
+            "order_type": trade.order.orderType, "limit_price": change.limit_price if trade.order.orderType == "LMT" else None,
+        }
+        if details["order_type"] not in trading.ORDER_TYPES:
+            raise HTTPException(status_code=409, detail="Only market and limit orders placed here can be changed.")
+        problem = confirmation_tokens.redeem(change.confirmation_token, details["con_id"], details, time.monotonic())
+        if problem:
+            raise HTTPException(status_code=409, detail=problem)
+        checked = await checked_order(OrderRequest(**details))
+        if checked["problems"]:
+            raise HTTPException(status_code=409, detail=" ".join(checked["problems"]))
+        trade.order.totalQuantity = change.quantity
+        if details["order_type"] == "LMT":
+            trade.order.lmtPrice = round(change.limit_price, 4)
+        ib.placeOrder(trade.contract, trade.order)  # same order id = a change, not a new order
+        print(f"Order change requested: order {order_id} ({trade.contract.symbol}) to {change.quantity:g}")
+        return await settled(trade, {"PendingSubmit", "ApiPending"})
+
 # ---------- order status stream ----------
 
 # One queue per open stream; IB's order events are copied into every queue
