@@ -223,8 +223,16 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
 
         <div className="review-summary">
           <p className="review-headline">
-            {preview.modify_order_id ? 'Change to ' : ''}
-            {buying ? 'Buy' : 'Sell'} {preview.quantity} {preview.symbol}
+            {preview.modify_order_id ? (
+              <>
+                Change to <span className={`order-side ${buying ? 'buy' : 'sell'}`}>{buying ? 'Buy' : 'Sell'}</span>
+              </>
+            ) : buying ? (
+              'Buy'
+            ) : (
+              'Sell'
+            )}{' '}
+            {preview.quantity} {preview.symbol}
           </p>
           <p className="review-words">{orderWords(preview, c)}</p>
         </div>
