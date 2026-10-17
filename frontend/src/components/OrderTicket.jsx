@@ -125,22 +125,19 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
           )}
         </div>
 
-        <div className="segmented sheet-side" role="group" aria-label="Buy or sell">
-          {[
-            ['BUY', 'Buy'],
-            ['SELL', 'Sell'],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={form.side === value}
-              disabled={Boolean(existing) && form.side !== value}
-              onClick={() => set('side')(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* A change keeps the order's side (the title says it), so only new orders get the selector */}
+        {!existing && (
+          <div className="segmented sheet-side" role="group" aria-label="Buy or sell">
+            {[
+              ['BUY', 'Buy'],
+              ['SELL', 'Sell'],
+            ].map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={form.side === value} onClick={() => set('side')(value)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="form-rows">
           <label className="form-row">
