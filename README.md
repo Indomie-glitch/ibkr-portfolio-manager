@@ -234,6 +234,8 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 | `GET /prices?con_ids=` | Quotes for any stocks, same shape as `/quotes` (for search results) |
 | `POST /orders/preview` | What an order would cost (IB what-if: commission, margin change) and any guardrail problems, without sending it; returns a `confirmation_token` when it can be placed. Needs `TRADING_MODE=paper` |
 | `POST /orders` | Places a previewed order: needs the preview's single-use `confirmation_token` (2 minutes, exactly that order); every check runs again first |
+| `POST /orders/{order_id}/cancel` | Cancels an open order |
+| `POST /orders/{order_id}/modify` | Changes an open order's quantity or limit price; needs a `confirmation_token` from a preview of the changed order |
 | `GET /orders/stream` | Server-Sent Events: every known order at the start (`orders`), then each status change or fill (`order`) |
 | `GET /trading/status` | Paper or live account, whether orders are allowed (and why not), and the order limit |
 | `GET /health` | Whether the backend is connected to IB Gateway |
