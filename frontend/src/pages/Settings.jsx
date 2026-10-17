@@ -30,14 +30,11 @@ function Group({ title, children, footnote }) {
   )
 }
 
-function Row({ label, caption, children, note }) {
+function Row({ label, children, note }) {
   return (
     <div className="settings-row">
       <div className="settings-row-main">
-        <span className="settings-row-label">
-          {label}
-          {caption && <span className="settings-row-caption">{caption}</span>}
-        </span>
+        <span className="settings-row-label">{label}</span>
         <span className="settings-row-spacer" />
         {children}
       </div>
@@ -178,21 +175,14 @@ function GatewayGroup({ settings, onSave }) {
 
   return (
     <Group title="IB Gateway">
-      <Row
-        label="Reconnect automatically"
-        caption="After IB Gateway’s daily restart. When the app opens, and when IBKR asks once a week, you sign in yourself."
-      >
+      <Row label="Reconnect automatically">
         <Toggle
           label="Reconnect automatically"
           checked={settings.auto_reconnect}
           onChange={(value) => onSave({ auto_reconnect: value })}
         />
       </Row>
-      <Row
-        label="API port"
-        caption="The port Portfolio Manager’s IB Gateway uses. The default is 4012, so it doesn’t clash with another Gateway or TWS on 4001 or 4002."
-        note={portNote}
-      >
+      <Row label="API port" note={portNote}>
         <form onSubmit={savePort}>
           <input
             className="settings-field port"
