@@ -1,4 +1,4 @@
-import { GearIcon, GridIcon, ListIcon, OrdersIcon, SearchIcon, SparklesIcon, TradeIcon } from './icons.jsx'
+import { GearIcon, GridIcon, ListIcon, OrdersIcon, SearchIcon, SparklesIcon } from './icons.jsx'
 import { IN_APP } from '../api.js'
 
 function connectionText(health) {
@@ -55,11 +55,6 @@ function Sidebar({ page, onNavigate, health }) {
         </button>
         <button type="button" className="sidebar-item" disabled>
           <SparklesIcon /> AI Summaries <span className="soon-pill">Soon</span>
-        </button>
-
-        <div className="sidebar-section">Trading</div>
-        <button type="button" className="sidebar-item" disabled>
-          <TradeIcon /> Trade <span className="soon-pill">Soon</span>
         </button>
 
         <div className="sidebar-section">App</div>
