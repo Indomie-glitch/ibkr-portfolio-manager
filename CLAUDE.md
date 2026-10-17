@@ -59,7 +59,7 @@ AI summary (backend/summary_facts.py, ai_summary.py, summary_store.py):
 IB limits: about 60 history requests per 10 minutes, so history is cached. Error 10197 ("competing live session") means the live account is logged in elsewhere (TWS, mobile, web), which blocks market data on the paper account; history still works.
 Design
 Source: Figma file e8rdacwgUA1ZtyNaw81Ry7 (Overview + Positions, light + dark, Components frame). Figma MCP calls are limited, so do not re-fetch it; use the values below.
-Style: macOS-like. Font: the macOS system font (-apple-system, i.e. San Francisco; weights 400/500/600/700); Inter is no longer used. Plain CSS with CSS variables in frontend/src/index.css; dark set is active when <html data-theme="dark">, set by useAppearance (frontend/src/hooks/appearance.js) from the toolbar's System/Light/Dark control, saved in localStorage. No Tailwind, no chart library (charts are hand-drawn SVG).
+Style: macOS-like. Font: the macOS system font (-apple-system, i.e. San Francisco; weights 400/500/600/700); Inter is no longer used. Plain CSS with CSS variables in frontend/src/index.css; dark set is active when <html data-theme="dark">, set by useAppearance (frontend/src/hooks/appearance.js) from Settings → Appearance (System/Light/Dark; the toolbar has no theme control, #92), saved in localStorage. No Tailwind, no chart library (charts are hand-drawn SVG).
 Icons: frontend/src/components/icons.jsx (paths copied from the Figma SVGs), drawn with currentColor.
 Colours (light / dark):
   bg #ffffff / #1e1e1e; sidebar panel #f2f2f6 / #262628; surface-2 (stat cards) #f5f5f7 / #2c2c2e

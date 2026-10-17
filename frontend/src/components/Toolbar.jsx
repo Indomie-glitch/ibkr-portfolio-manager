@@ -1,4 +1,3 @@
-import { APPEARANCES } from '../hooks/appearance.js'
 import { RefreshIcon } from './icons.jsx'
 
 // The account badge's tooltip: whether orders are possible and the order limit
@@ -9,7 +8,8 @@ function tradingTitle(trading) {
   return `Connected to your ${trading.account_label.toLowerCase()}.${real} Orders up to ${limit} in the account's currency.`
 }
 
-function Toolbar({ title, subtitle, loading, onRefresh, appearance, onAppearanceChange, trading }) {
+// The theme is set in Settings → Appearance only (as in Figma, the toolbar has no theme control)
+function Toolbar({ title, subtitle, loading, onRefresh, trading }) {
   return (
     <header className="toolbar" data-tauri-drag-region>
       <div>
@@ -24,18 +24,6 @@ function Toolbar({ title, subtitle, loading, onRefresh, appearance, onAppearance
       )}
       <div className="badge" title="IB prices are delayed about 15 minutes without a market data subscription">
         <span className="badge-dot" /> Delayed data
-      </div>
-      <div className="segmented appearance-control" role="group" aria-label="Appearance">
-        {APPEARANCES.map((a) => (
-          <button
-            key={a.value}
-            type="button"
-            aria-pressed={appearance === a.value}
-            onClick={() => onAppearanceChange(a.value)}
-          >
-            {a.label}
-          </button>
-        ))}
       </div>
       <button
         type="button"
