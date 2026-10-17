@@ -3380,12 +3380,6 @@ button.ai-source:hover {
   font-size: 13px;
 }
 
-/* A fixed value in a form row (shown as text, not a disabled control) */
-.form-value {
-  color: var(--text);
-  font-size: 13px;
-}
-
 .order-result .callout {
   align-self: stretch;
 }
