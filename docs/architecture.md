@@ -174,19 +174,19 @@ flowchart TB
     App --> Positions["pages/Positions.jsx"]
     App --> Markets["pages/Markets.jsx"]
     App --> Orders["pages/Orders.jsx"]
-    App --> Settings["pages/Settings.jsx"]
+    App --> Settings["SettingsSheet.jsx + pages/Settings.jsx<br/>(opened from the account menu)"]
     App --> Ticket["OrderTicket.jsx<br/>buy/sell form, live preview"] --> Confirm["OrderConfirm.jsx<br/>review sheet, then 'Order filled'"]
 
     Overview --> StatCard & PositionsTable & AllocationCard & AiSummaryCard["AiSummaryCard<br/>(placeholder until #22)"]
     Positions --> HoldingsList & HoldingDetail
     Markets --> HoldingDetail
 
-    HoldingDetail["HoldingDetail.jsx<br/>price, chart, your position"] --> PriceChart
+    HoldingDetail["HoldingDetail.jsx<br/>price, chart, your position<br/>(incl. purchase and CGT dates)"] --> PriceChart
     HoldingDetail --> detail["components/detail/<br/>KeyStats, About, News,<br/>Performance, AI summary<br/>(collapsible sections)"]
 
     subgraph lib["lib/ + hooks/"]
         api["lib/api.js<br/>every backend call"]
-        helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js"]
+        helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js,<br/>lotCards.js, listPanes.js"]
         hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, appearance"]
     end
 
@@ -379,7 +379,7 @@ sequenceDiagram
     end
 ```
 
-When a stock is opened, `lots_for()` matches these lots to the shares you hold now and works out each lot's CGT discount date (the day after the first anniversary of purchase).
+When a stock is opened, `lots_for()` matches these lots to the shares you hold now and works out each lot's CGT discount date (the day after the first anniversary of purchase). The **Purchase date** and **12-month CGT date** cards in Your position fetch them with `GET /lots/{con_id}` (and `GET /lots/status`, to suggest setting up Flex when it isn't), and `lib/lotCards.js` turns them into what the cards say: one purchase, several purchases (lots bought the same day count as one), the next date still to come with the days left, or Unknown.
 
 ---
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { fetchHistory, fetchProfile } from '../lib/api.js'
+import { fetchHistory, fetchLots, fetchLotsStatus, fetchProfile } from '../lib/api.js'
+import { lotCards } from '../lib/lotCards.js'
 import { companyName, formatMoney, formatNumber, formatPercent, trendClass } from '../lib/format.js'
 import { benchmarkName } from '../lib/holdings.js'
 import { useFetch } from '../hooks/useFetch.js'
@@ -28,11 +29,12 @@ function rangeChange(range, bars, quote) {
   return { change: last - first, pct: ((last - first) / first) * 100, words }
 }
 
-function PositionStat({ label, value, className = '' }) {
+function PositionStat({ label, value, className = '', note = null, noteTone = 'muted' }) {
   return (
     <div className="position-stat">
       <p className="position-stat-label">{label}</p>
       <p className={`position-stat-value num ${className}`}>{value}</p>
+      {note && <p className={`position-stat-note ${noteTone}`}>{note}</p>}
     </div>
   )
 }
@@ -65,6 +67,13 @@ function HoldingDetail({ holding, refreshKey, trading, onTrade }) {
   const profile = useFetch(() => fetchProfile(holding.con_id), holding.con_id)
   const fullName = profile.data?.long_name ?? companyName(holding)
   const shortName = profile.data?.short_name ?? holding.symbol
+
+  // Purchase and 12-month CGT dates from the Flex report (#17); not for stocks you don't own
+  const owned = !holding.not_owned
+  const lots = useFetch(() => (owned ? fetchLots(holding.con_id) : Promise.resolve(null)), holding.con_id)
+  const lotsStatus = useFetch(() => (owned ? fetchLotsStatus() : Promise.resolve(null)), holding.con_id)
+  const lotsLoading = owned && (lots.loading || lotsStatus.loading)
+  const dates = lotCards(lots.data, lotsStatus.data?.configured)
 
   const price = holding.last
   // Buy and Sell open the order ticket while connected; otherwise they say why not
@@ -159,6 +168,7 @@ function HoldingDetail({ holding, refreshKey, trading, onTrade }) {
           <PositionStat label="Quantity" value={formatNumber(holding.quantity, 0)} />
           <PositionStat label="Average cost" value={formatMoney(holding.avg_cost, c)} />
           <PositionStat label="Cost basis" value={formatMoney(holding.cost_basis, c)} />
+          <PositionStat label="Purchase date" {...(lotsLoading ? { value: '…' } : dates.purchase)} />
           <PositionStat label="Market value" value={formatMoney(holding.market_value, c)} />
           <PositionStat
             label="Unrealised P&L"
@@ -169,6 +179,7 @@ function HoldingDetail({ holding, refreshKey, trading, onTrade }) {
             label="Portfolio weight"
             value={formatPercent(holding.weight, { signed: false, decimals: 1 })}
           />
+          <PositionStat label="12-month CGT date" {...(lotsLoading ? { value: '…' } : dates.cgt)} />
         </div>
         )}
       </section>
