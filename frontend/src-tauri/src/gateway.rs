@@ -78,7 +78,7 @@ pub fn ibc_config(trading_mode: &str, settings_dir: &Path, api_port: u16) -> Str
 TradingMode={trading_mode}
 IbDir={settings_dir}
 OverrideTwsApiPort={api_port}
-ReadOnlyApi=yes
+ReadOnlyApi=no
 AutoRestartTime=11:45 PM
 AcceptIncomingConnectionAction=reject
 ExistingSessionDetectedAction=primaryoverride
@@ -300,7 +300,7 @@ mod tests {
     fn ibc_config_has_api_settings_and_no_credentials() {
         let config = ibc_config("paper", Path::new("/tmp/gw"), 4002);
         assert!(config.contains("OverrideTwsApiPort=4002"));
-        assert!(config.contains("ReadOnlyApi=yes"));
+        assert!(config.contains("ReadOnlyApi=no")); // the app places orders (Milestone 6)
         assert!(config.contains("IbDir=/tmp/gw"));
         assert!(!config.contains("IbPassword") && !config.contains("IbLoginId"));
     }

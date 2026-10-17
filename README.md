@@ -37,7 +37,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Summary history: reopen any of the last 20 summaries of a stock, or compare two side by side, with the exact changes in the data (price, P/E, analyst target, dividend yield, P&L, new news) and each point tagged as new, changed or no longer present
 
 * Markets: search any ASX or US stock by symbol or name, see its price, chart, statistics and news, with recently viewed stocks
-* Trading on a **paper** account (development only, off by default): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders. See [Trading safety](#trading-safety)
+* Trading (paper or live account, in the browser and the Mac app): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders. See [Trading safety](#trading-safety)
 * Purchase dates and 12-month CGT discount dates per lot from an IBKR Flex Query ([setup](docs/flex-query.md)), used in the AI summary
 * Mac app that sets up and runs IB Gateway itself, with nothing secret stored
 
@@ -55,7 +55,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 5:** AI stock summaries via the Claude API, with summary history and compare, and explanations of price moves since the last summary
 * [ ] **Milestone 5.1:** Purchase dates per lot from an IBKR Flex Query, each with its 12-month CGT date: done in the backend and the AI summary; Settings rows, manual entry and the Your position section wait for a design
 * [ ] **Milestone 5.2: AI portfolio summary:** facts sheet, prompt, streaming endpoint and history done; the Overview card waits for a design
-* [ ] **Milestone 6: Trade placement:** built for paper trading; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
+* [ ] **Milestone 6: Trade placement:** built; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
 * [ ] **Milestone 8:** Risk analysis
 * [ ] **Milestone 9:** Company connections
@@ -192,7 +192,6 @@ cp .env.example .env
 | `IB_HOST` | IB Gateway host, usually `127.0.0.1` |
 | `IB_PORT` | IB Gateway port (`4002` for paper trading, `4001` for live) |
 | `IB_CLIENT_ID` | API client ID, `1` by default; use a different one if another app is already connected with it |
-| `TRADING_MODE` | `off` (default, read only) or `paper` (orders allowed on a paper account only; refused on a live one). Development only: the Mac app is always read only for now |
 | `MAX_ORDER_VALUE` | The largest order allowed, in the account's base currency (default 10000) |
 | `IB_FLEX_TOKEN`, `IB_FLEX_QUERY_ID` | Optional: IBKR Flex Web Service token and query ID, for purchase dates and the 12-month CGT date ([setup guide](docs/flex-query.md)); the token is a secret |
 
@@ -243,7 +242,7 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 |---|---|
 | `GET /search?q=` | ASX and US stocks matching a symbol or company name (IB symbol search, cached 10 min), marked if owned |
 | `GET /prices?con_ids=` | Quotes for any stocks, same shape as `/quotes` (for search results) |
-| `POST /orders/preview` | What an order would cost (IB what-if: commission, margin change) and any guardrail problems, without sending it; returns a `confirmation_token` when it can be placed. Needs `TRADING_MODE=paper` |
+| `POST /orders/preview` | What an order would cost (IB what-if: commission, margin change) and any guardrail problems, without sending it; returns a `confirmation_token` when it can be placed |
 | `GET /orders` | Open orders (from every client), and today's filled and cancelled orders, for the Orders page |
 | `POST /orders` | Places a previewed order: needs the preview's single-use `confirmation_token` (2 minutes, exactly that order); every check runs again first |
 | `POST /orders/{order_id}/cancel` | Cancels an open order |
@@ -281,26 +280,23 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 
 ## Trading safety
 
-Trading is built for a **paper** account and is **off by default**. Several layers have to agree
-before an order can reach IBKR:
+Trading is **on** whenever the app is connected to IB Gateway, for a **paper or live** account,
+in both the browser version and the Mac app. Orders on a live account use real money.
 
-* **Off unless you turn it on.** `TRADING_MODE` in `.env` is `off` by default, and the backend
-  then connects to IB Gateway read only. The Mac app is always read only, and its Gateway runs
-  with IBKR's own Read-Only API setting.
-* **Paper only.** With `TRADING_MODE=paper`, orders are refused unless the logged-in account is a
-  paper account (IBKR paper account IDs start with D). The toolbar badge shows which account
-  you're on.
-* **Review before sending.** Every order is previewed with IBKR's what-if check first. Placing it
-  needs a single-use confirmation token from that preview, valid for 2 minutes and only for
-  exactly that order, so a changed number or a double click can't send something you didn't review.
+* **Know which account you're on.** The toolbar always shows a badge: **Paper account** (blue) or
+  **Live account** (red). IBKR paper account IDs start with D.
+* **Review before sending.** Every order is previewed with IBKR's what-if check first (cost,
+  commission, margin), then shown on a confirmation sheet. Placing it needs a single-use
+  confirmation token from that preview, valid for 2 minutes and only for exactly that order, so a
+  changed number or a double click can't send something you didn't review.
 * **Limits checked on the server.** Each order is checked again right before it's sent: whole
   shares only, no selling more than you hold (no short selling), and a maximum order value
-  (`MAX_ORDER_VALUE`, in your base currency).
+  (`MAX_ORDER_VALUE` in `.env`, in your base currency; default 10,000).
 * **Day orders in regular hours.** New orders are day orders and don't trade outside regular
   trading hours.
 
-Test every flow on the paper account with the [paper trading checklist](docs/paper-trading-test.md)
-before relying on it.
+Test every flow on a paper account with the [paper trading checklist](docs/paper-trading-test.md)
+before using a live account.
 
 ## Project Structure
 
@@ -316,4 +312,4 @@ ibkr-portfolio-manager/
 
 ## Disclaimer
 
-This is a personal project and is not affiliated with Interactive Brokers. It is intended for use with a paper trading account. Nothing in this project is financial advice, and you use it with real money at your own risk.
+This is a personal project and is not affiliated with Interactive Brokers. It can place real orders on a live account; test with a paper account first. Nothing in this project is financial advice, and you use it with real money at your own risk.
