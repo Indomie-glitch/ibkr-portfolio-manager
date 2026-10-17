@@ -191,26 +191,16 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
             </label>
           )}
 
-          {/* New orders are day orders, so the value is shown as text; a change can switch it */}
-          {existing ? (
-            <label className="form-row">
-              <span>Time in force</span>
-              <span className="popup-button">
-                <select value={form.tif} onChange={(e) => set('tif')(e.target.value)}>
-                  <option value="DAY">Day</option>
-                  <option value="GTC">Good till cancelled</option>
-                </select>
-                <ChevronsIcon />
-              </span>
-            </label>
-          ) : (
-            <div className="form-row">
-              <span>Time in force</span>
-              <span className="form-value" title="New orders last for the trading day">
-                Day
-              </span>
-            </div>
-          )}
+          <label className="form-row">
+            <span>Time in force</span>
+            <span className="popup-button">
+              <select value={form.tif} onChange={(e) => set('tif')(e.target.value)} aria-label="Time in force">
+                <option value="DAY">Day</option>
+                <option value="GTC">Good till cancelled</option>
+              </select>
+              <ChevronsIcon />
+            </span>
+          </label>
         </div>
 
         <div className="estimates" aria-live="polite">
