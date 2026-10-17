@@ -1,4 +1,4 @@
-import { useRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 
 const MIN_WIDTH = 220
 const MAX_WIDTH = 480
@@ -85,11 +85,19 @@ export function useResizableWidth(storageKey, label) {
   const { width, collapsed, snapping } = useSyncExternalStore(subscribe, () => paneState(storageKey))
   const drag = useRef(null)
 
+  // Leaving the page mid-drag mustn't leave selection turned off
+  useEffect(() => () => document.documentElement.classList.remove('resizing-list'), [])
+
   // Dragging: remember where the pointer started, then grow/shrink by how far it moved.
   // setPointerCapture keeps sending move events to the divider even if the pointer leaves it.
+  // The Mac app's web view (WebKit) starts a text selection when the mouse moves during a drag,
+  // so the drag cancels it and turns selection off on the whole page until it ends (#182).
   function startDrag(e) {
+    if (e.button !== 0) return
+    e.preventDefault()
     drag.current = { startX: e.clientX, startWidth: collapsed ? 0 : width }
     e.currentTarget.setPointerCapture(e.pointerId)
+    document.documentElement.classList.add('resizing-list')
   }
 
   function moveDrag(e) {
@@ -110,6 +118,8 @@ export function useResizableWidth(storageKey, label) {
   function endDrag() {
     if (!drag.current) return
     drag.current = null
+    document.documentElement.classList.remove('resizing-list')
+    window.getSelection()?.removeAllRanges()
     save(storageKey)
   }
 
