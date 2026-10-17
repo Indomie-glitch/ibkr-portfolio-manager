@@ -1931,7 +1931,7 @@ button.ai-source:hover {
   flex-direction: column;
   gap: 8px;
   width: 100%;
-  max-width: 556px;
+  max-width: 552px; /* Figma "M7 / 8 Settings": groups are 552px wide */
   margin: 0 auto;
 }
 
@@ -1962,24 +1962,16 @@ button.ai-source:hover {
   border-top: 1px solid var(--group-divider);
 }
 
+/* Figma rows are 13px text with 10px padding, so a text-only row is about 36px tall; rows with a
+   button, field or toggle grow to fit it */
 .settings-row-main {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 22px;
 }
 
 .settings-row-spacer {
   flex: 1;
-}
-
-.settings-row-caption {
-  display: block;
-  max-width: 330px;
-  margin-top: 2px;
-  color: var(--text-2);
-  font-size: 11px;
-  line-height: 1.4;
 }
 
 .settings-value {
