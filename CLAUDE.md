@@ -29,7 +29,7 @@ Milestone 7 (Mac app for a friend, issues #34-#43): one branch and PR each; I me
 Backend rules
 Connect to IB Gateway via a background task started in the FastAPI lifespan (keep_connected in main.py), using await ib.connectAsync(...); it retries every 5s so the server starts without Gateway and reconnects after drops. IB endpoints use Depends(require_ib) and return 503 while disconnected. Never use ib.connect() inside the server (it conflicts with uvicorn's event loop).
 Any endpoint that touches ib must be async def, and should use the async versions of ib_async methods where they exist (e.g. accountSummaryAsync).
-Connection is read only (readonly=True). Do not add order placement until milestone 6.
+Connection is read only unless TRADING_MODE (.env, dev only) is paper or live; the Mac app is always off and its Gateway has ReadOnlyApi=yes. backend/trading.py status() is the single guardrail check (mode, account kind from managedAccounts: D... = paper, read-only connection, LIVE_TRADING_CONFIRM for live); every order endpoint must call it. GET /trading/status feeds the toolbar account badge (Figma M6 "Account Badge"). Never test against a live account.
 Connection settings (IB_HOST, IB_PORT, IB_CLIENT_ID) come from .env via python-dotenv.
 CORS allows http://localhost:5173, http://127.0.0.1:5173 and tauri://localhost (the Mac app window). GET only, except POST /summary/{con_id} and POST /portfolio-summary (generating an AI summary), which PathCORS in main.py allows from those origins only; the endpoint also checks the Origin header, since simple cross-site POSTs skip the preflight.
 After installing any Python package, run pip freeze > requirements.txt from backend/ with the venv active.

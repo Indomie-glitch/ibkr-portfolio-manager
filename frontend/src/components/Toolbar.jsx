@@ -1,7 +1,14 @@
 import { APPEARANCES } from '../appearance.js'
 import { RefreshIcon } from './icons.jsx'
 
-function Toolbar({ title, subtitle, loading, onRefresh, appearance, onAppearanceChange }) {
+// The account badge's tooltip: whether orders are possible and the order limit
+function tradingTitle(trading) {
+  if (!trading.can_trade) return trading.reason
+  const limit = trading.max_order_value.toLocaleString(undefined, { maximumFractionDigits: 0 })
+  return `Trading is on (${trading.mode}). Orders up to ${limit} in the account's currency.`
+}
+
+function Toolbar({ title, subtitle, loading, onRefresh, appearance, onAppearanceChange, trading }) {
   return (
     <header className="toolbar" data-tauri-drag-region>
       <div>
@@ -9,6 +16,11 @@ function Toolbar({ title, subtitle, loading, onRefresh, appearance, onAppearance
         <p className="toolbar-subtitle">{subtitle}</p>
       </div>
       <div className="spacer" />
+      {trading && trading.account !== 'unknown' && (
+        <div className={`badge badge-account ${trading.account}`} title={tradingTitle(trading)}>
+          <span className="badge-dot" /> {trading.account_label}
+        </div>
+      )}
       <div className="badge" title="IB prices are delayed about 15 minutes without a market data subscription">
         <span className="badge-dot" /> Delayed data
       </div>

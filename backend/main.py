@@ -16,6 +16,7 @@ import ai_summary
 import lots
 import portfolio_facts
 import portfolio_summary
+import trading
 from secrets_guard import mask_secrets
 import summary_facts
 import summary_store
@@ -85,7 +86,10 @@ async def keep_connected():
             ib.disconnect()
         if not ib.isConnected():
             try:
-                await ib.connectAsync(IB_HOST, port, clientId=connection.client_id, readonly=True)
+                # Read only unless TRADING_MODE turns trading on (checked again before every order)
+                read_only = config.trading_mode() == "off"
+                await ib.connectAsync(IB_HOST, port, clientId=connection.client_id, readonly=read_only)
+                connection.read_only = read_only
                 connected_port = port
                 connection.connected()
                 # 3 = delayed data, which is free without a market data subscription
@@ -510,6 +514,12 @@ async def portfolio_facts_for():
     previous = summary_store.latest_portfolio()
     return portfolio_facts.build_portfolio_facts(await account(), holdings, now, missing,
                                                  previous=previous["facts"] if previous else None)
+
+@app.get("/trading/status")
+def trading_status():
+    """Paper or live account, whether orders are allowed and why not, and the order limits."""
+    accounts = ib.managedAccounts() if ib.isConnected() else []
+    return trading.status(accounts, connection_read_only=connection.read_only)
 
 @app.get("/portfolio-summary/facts", dependencies=[Depends(require_ib)])
 async def portfolio_summary_facts():

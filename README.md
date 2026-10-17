@@ -181,6 +181,8 @@ cp .env.example .env
 | `IB_HOST` | IB Gateway host, usually `127.0.0.1` |
 | `IB_PORT` | IB Gateway port (`4002` for paper trading, `4001` for live) |
 | `IB_CLIENT_ID` | API client ID, `1` by default; use a different one if another app is already connected with it |
+| `TRADING_MODE` | `off` (default, read only) or `paper` (orders allowed on a paper account only; refused on a live one). Development only: the Mac app is always read only for now |
+| `MAX_ORDER_VALUE` | The largest order allowed, in the account's base currency (default 10000) |
 | `IB_FLEX_TOKEN`, `IB_FLEX_QUERY_ID` | Optional: IBKR Flex Web Service token and query ID, for purchase dates and the 12-month CGT date ([setup guide](docs/flex-query.md)); the token is a secret |
 
 ### Run
@@ -228,6 +230,7 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 
 | Endpoint | Returns |
 |---|---|
+| `GET /trading/status` | Paper or live account, whether orders are allowed (and why not), and the order limit |
 | `GET /health` | Whether the backend is connected to IB Gateway |
 | `GET /account` | Net liquidation, cash, positions value, buying power, unrealised P&L, FX rates |
 | `GET /positions` | Each holding with price, market value, unrealised P&L and company name |

@@ -30,6 +30,11 @@ export function fetchAccount() {
   return getJson('/account')
 }
 
+// Paper or live account and whether orders are allowed (Milestone 6)
+export function fetchTradingStatus() {
+  return getJson('/trading/status')
+}
+
 export function fetchPositions() {
   return getJson('/positions')
 }
