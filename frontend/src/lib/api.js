@@ -112,6 +112,16 @@ export function fetchHistory(conId, range) {
   return getJson(`/history/${conId}?range=${encodeURIComponent(range)}`)
 }
 
+// A holding's purchase lots from the Flex report, with 12-month CGT dates (backend/lots.py)
+export function fetchLots(conId) {
+  return getJson(`/lots/${conId}`)
+}
+
+// Whether Flex purchase dates are set up
+export function fetchLotsStatus() {
+  return getJson('/lots/status')
+}
+
 export function fetchProfile(conId) {
   return getJson(`/profile/${conId}`)
 }

@@ -135,3 +135,12 @@ export function formatGeneratedTime(isoDateTime, now = new Date()) {
   if (moment.toDateString() === now.toDateString()) return time
   return `${moment.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}, ${time}`
 }
+
+// "2026-09-09" -> "9 Sep 2026": the purchase and CGT date cards (Figma 79:510), which write the month
+// as three letters (en-AU's "Sept" doesn't)
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+export function formatShortDate(isoDate) {
+  if (!isoDate) return '—'
+  const [year, month, day] = isoDate.split('-').map(Number)
+  return `${day} ${SHORT_MONTHS[month - 1]} ${year}`
+}

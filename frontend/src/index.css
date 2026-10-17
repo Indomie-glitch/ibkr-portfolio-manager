@@ -1283,10 +1283,26 @@ p {
   font-weight: 600;
 }
 
+/* Two rows of four (Figma 2:433): Quantity, Average cost, Cost basis, Purchase date / Market value,
+   Unrealised P&L, Portfolio weight, 12-month CGT date */
 .position-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
+}
+
+/* Under a date card: "328 days left" in orange, or a plain extra line (Figma 79:516) */
+.position-stat-note {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.position-stat-note.warning {
+  color: var(--warning-text);
+}
+
+.position-stat-note.muted {
+  color: var(--text-2);
 }
 
 .position-stat {
@@ -1307,6 +1323,15 @@ p {
 .position-stat-value {
   font-size: 16px;
   font-weight: 600;
+  /* In a narrow panel a long value (the P&L with its %) wraps instead of overflowing the card */
+  overflow-wrap: anywhere;
+}
+
+/* Two rows of four until the detail panel is really narrow (a card is then under ~120px) */
+@container (max-width: 520px) {
+  .position-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 900px) {
