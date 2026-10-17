@@ -178,7 +178,11 @@ def order_row(trade, names, fills=()):
     avg = (sum(f.execution.shares * f.execution.price for f in fills) / shares) if shares else _number_or_none(status.avgFillPrice)
     commissions = [_number_or_none(f.commissionReport.commission) for f in fills if f.commissionReport]
     commissions = [c for c in commissions if c is not None]
-    placed = trade.log[0].time if trade.log else (min(f.execution.time for f in fills) if fills else None)
+    # IBKR's order lists have no placement time. ib_async starts the log of an order it placed itself
+    # with a PendingSubmit entry at that moment; an order learned from IBKR (TWS, mobile, an earlier
+    # session) starts with whenever the app first heard of it, so its time isn't shown (#157)
+    first = trade.log[0] if trade.log else None
+    placed = first.time if first and first.status == "PendingSubmit" else None
     return {
         "order_id": order.orderId or None, "perm_id": order.permId or None,
         "con_id": contract.conId, "symbol": contract.symbol, "name": names.get(contract.conId),
