@@ -42,7 +42,7 @@ class OrdersOverviewTest(unittest.TestCase):
         aapl = by_symbol["AAPL"]
         self.assertEqual((aapl["status"], aapl["filled"], aapl["commission"], aapl["order_type"]), ("Filled", 10, 1.0, "LMT"))
         self.assertAlmostEqual(aapl["avg_fill_price"], 339.6)
-        self.assertEqual(aapl["placed"], "2026-10-17T03:14:00+00:00")  # from the fills
+        self.assertIsNone(aapl["placed"])  # rebuilt from executions: when it was placed isn't known
         wes = by_symbol["WES"]
         self.assertEqual((wes["action"], wes["quantity"], wes["avg_fill_price"]), ("SELL", 3, 20.0))
         self.assertEqual([r["symbol"] for r in result["cancelled"]], ["CSL"])
@@ -51,6 +51,23 @@ class OrdersOverviewTest(unittest.TestCase):
         result = orders_overview([trade(1, "CBA", 101)], [], [fill(101, 4, 150.0, 0.2, con_id=1, symbol="CBA")], {})
         self.assertEqual(result["filled_today"], [])
         self.assertEqual(result["open"][0]["filled"], 4)
+
+
+class PlacedTimeTest(unittest.TestCase):
+    """#157: IBKR's lists have no placement time, so only orders the app placed itself show one."""
+
+    def test_order_placed_through_the_app_keeps_its_time(self):
+        placed_here = trade(1, "CBA", 101, status="Submitted")
+        placed_here.log.insert(0, TradeLogEntry(time=datetime(2026, 10, 17, 2, 50, tzinfo=timezone.utc), status="PendingSubmit"))
+        [row] = orders_overview([placed_here], [], [], {})["open"]
+        self.assertEqual(row["placed"], "2026-10-17T02:50:00+00:00")
+
+    def test_order_from_elsewhere_has_no_time(self):
+        # First seen in IBKR's open order list: its log starts with a status update, not the send
+        [row] = orders_overview([trade(2, "TLS", 102, status="PreSubmitted")], [], [], {})["open"]
+        self.assertIsNone(row["placed"])
+        [row] = orders_overview([trade(3, "BHP", 103, logged=False)], [], [], {})["open"]
+        self.assertIsNone(row["placed"])
 
 
 if __name__ == "__main__":

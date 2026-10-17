@@ -29,7 +29,11 @@ function OrderRow({ order, canTrade, tradeReason, onModify, onCancel, cancelling
         <span className="holding-symbol">{order.symbol}</span>
         {order.name && <span className="company">{order.name}</span>}
       </div>
-      <span className="orders-placed" role="cell">
+      <span
+        className="orders-placed"
+        role="cell"
+        title={order.placed ? undefined : 'IBKR doesn’t say when this order was placed (it wasn’t placed from this app session)'}
+      >
         {placedTime(order.placed)}
       </span>
       <span className="orders-side" role="cell">
