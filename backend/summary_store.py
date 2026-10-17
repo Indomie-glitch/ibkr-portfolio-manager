@@ -118,10 +118,30 @@ def save_portfolio(created_at, model, facts, summary, warnings):
         return cursor.lastrowid
 
 
+def portfolio_history():
+    """Every saved portfolio summary, newest first, without the full text."""
+    with _connect() as conn:
+        rows = conn.execute("""
+            SELECT id, created_at, model, json_extract(facts, '$."D:portfolio".net_liquidation') AS net_liquidation
+            FROM portfolio_summaries ORDER BY created_at DESC, id DESC
+        """).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_portfolio(summary_id):
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM portfolio_summaries WHERE id = ?", (summary_id,)).fetchone()
+    return _portfolio_record(row)
+
+
 def latest_portfolio():
     """The most recent portfolio summary as a dict, or None."""
     with _connect() as conn:
         row = conn.execute("SELECT * FROM portfolio_summaries ORDER BY created_at DESC, id DESC LIMIT 1").fetchone()
+    return _portfolio_record(row)
+
+
+def _portfolio_record(row):
     if row is None:
         return None
     return {

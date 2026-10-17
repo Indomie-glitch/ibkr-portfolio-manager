@@ -122,5 +122,34 @@ class PortfolioFactsTest(unittest.TestCase):
         self.assertAlmostEqual(move["explained_by_market_pct"], round(1.5 * move["benchmark_pct"], 2), places=1)
 
 
+class SinceLastTest(unittest.TestCase):
+    def test_first_summary(self):
+        facts = build_portfolio_facts(ACCOUNT, HOLDINGS, NOW)
+        self.assertEqual(facts["D:since_last"]["note"], "This is the first portfolio summary")
+
+    def test_changes_since_previous(self):
+        # Then: CBA and BHP only, worth less; now AAPL is added and CBA's weight fell
+        sold = {**HOLDINGS[2], "position": position(4, "WES", "AUD", 500.0, 0.0)}
+        previous = build_portfolio_facts({**ACCOUNT, "net_liquidation": 6500.0}, [HOLDINGS[0], HOLDINGS[2], sold],
+                                         NOW - timedelta(days=7))
+        since = build_portfolio_facts(ACCOUNT, HOLDINGS, NOW, previous=previous)["D:since_last"]
+        self.assertEqual(since["previous_summary"], "10 Oct 2026, 10:30am AEDT")
+        self.assertIn("5,500.00", since["net_liquidation"]["change"])   # 12000 − 6500
+        self.assertTrue(since["net_liquidation"]["change"].startswith("+"))
+        self.assertEqual(since["holdings_added"], [{"holding": "H:2", "symbol": "AAPL"}])
+        self.assertEqual(since["holdings_sold"], ["WES"])
+        self.assertEqual(since["number_of_holdings"], {"then": 3, "now": 3})
+        # CBA 3000/4500 = 66.7% -> 30.0%; BHP 1000/4500 = 22.2% -> 10.0%
+        self.assertEqual([(c["holding"], c["weight_then_pct"], c["weight_now_pct"]) for c in since["weight_changes"]],
+                         [("H:1", 66.7, 30.0), ("H:3", 22.2, 10.0)])
+        self.assertIsNone(since["note"])
+
+    def test_base_currency_change_skips_money(self):
+        previous = build_portfolio_facts({**ACCOUNT, "currency": "USD", "fx_rates": {"AUD": 0.66}}, HOLDINGS, NOW)
+        since = build_portfolio_facts(ACCOUNT, HOLDINGS, NOW, previous=previous)["D:since_last"]
+        self.assertIsNone(since["net_liquidation"])
+        self.assertIn("USD to AUD", since["note"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -507,7 +507,9 @@ async def portfolio_facts_for():
     for position in await positions():
         if position["sec_type"] == "STK":
             holdings.append(await holding_inputs(position, quote_by_id.get(position["con_id"]), today, missing))
-    return portfolio_facts.build_portfolio_facts(await account(), holdings, now, missing)
+    previous = summary_store.latest_portfolio()
+    return portfolio_facts.build_portfolio_facts(await account(), holdings, now, missing,
+                                                 previous=previous["facts"] if previous else None)
 
 @app.get("/portfolio-summary/facts", dependencies=[Depends(require_ib)])
 async def portfolio_summary_facts():
@@ -664,6 +666,19 @@ def latest_portfolio_summary():
         "model": config.ai_model(),
         "latest": saved_portfolio_response(record) if record else None,
     }
+
+@app.get("/portfolio-summary/history")
+def portfolio_summary_history():
+    """Saved portfolio summaries, newest first: id, created_at, model and net liquidation at the time."""
+    return summary_store.portfolio_history()
+
+@app.get("/portfolio-summary/history/{summary_id}")
+def past_portfolio_summary(summary_id: int):
+    """One saved portfolio summary in full, in the same shape as the latest one."""
+    record = summary_store.get_portfolio(summary_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="No saved portfolio summary with that id")
+    return saved_portfolio_response(record)
 
 portfolio_summary_lock = asyncio.Lock()
 

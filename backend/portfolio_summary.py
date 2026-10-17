@@ -58,11 +58,19 @@ Fill every section, in this order:
    stock, sector or currency, exposure to currency changes, events clustered together, holdings
    with missing data. Never general market risk (interest rates, recessions) and never risks of a
    single company's business.
-8. changes_since_last: from D:since_last. If this is the first portfolio summary, say so in one point."""
+8. changes_since_last: what changed since the previous portfolio summary (its date is
+   previous_summary), from D:since_last only. 1-4 points.
+   - If this is the first portfolio summary, say so in one point.
+   - Give the change in net liquidation and in holdings value, and the unrealised gain or loss
+     then and now, using the change figures given.
+   - Name holdings added (cite their H: ids) and sold (by symbol), if any.
+   - Mention the largest weight_changes, giving the weights then and now. Don't explain why a
+     value or weight changed: the facts don't say whether it was price moves or trades.
+   - If note says the base currency changed, say money can't be compared."""
 
 POINT_RANGES = {
     "portfolio_snapshot": (2, 3), "allocation": (2, 4), "pnl_drivers": (2, 4),
-    "concentration": (1, 3), "income": (1, 3), "key_risks": (2, 4),
+    "concentration": (1, 3), "income": (1, 3), "key_risks": (2, 4), "changes_since_last": (1, 4),
 }
 
 RULE_CHECKS = ai_summary.RULE_CHECKS + [
