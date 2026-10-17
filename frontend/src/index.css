@@ -1,5 +1,16 @@
 /* Colours, type and spacing come from the Figma design (see the Design section in CLAUDE.md). */
 :root {
+  /* Account card and menu (Figma 44:904), Settings sheet (Figma 45:558) */
+  --account-card: rgba(0, 0, 0, 0.06);
+  --account-gear: rgba(0, 0, 0, 0.05);
+  --menu-bg: rgba(255, 255, 255, 0.97);
+  --menu-border: rgba(0, 0, 0, 0.1);
+  --menu-separator: rgba(0, 0, 0, 0.1);
+  --sheet-dim: rgba(0, 0, 0, 0.12);
+  --sheet-glass: rgba(255, 255, 255, 0.58);
+  --sheet-glass-top: rgba(255, 255, 255, 0.45);
+  --sheet-border: rgba(255, 255, 255, 0.85);
+  --sheet-highlight: rgba(255, 255, 255, 0.9);
   --bg: #ffffff;
   --sidebar: #f2f2f6;
   --sidebar-border: rgba(0, 0, 0, 0.05);
@@ -43,7 +54,6 @@
   --error-bg: #fdecec;
   --error-text: #9b1c1c;
   /* Mac app screens (Figma M7) */
-  --settings-bg: #f2f2f7;
   --settings-group: #ffffff;
   --group-border: rgba(0, 0, 0, 0.06);
   --group-divider: rgba(0, 0, 0, 0.07);
@@ -72,6 +82,16 @@
 }
 
 :root[data-theme='dark'] {
+  --account-card: rgba(255, 255, 255, 0.08);
+  --account-gear: rgba(255, 255, 255, 0.08);
+  --menu-bg: rgba(44, 44, 46, 0.97);
+  --menu-border: rgba(255, 255, 255, 0.12);
+  --menu-separator: rgba(255, 255, 255, 0.12);
+  --sheet-dim: rgba(0, 0, 0, 0.32);
+  --sheet-glass: rgba(40, 40, 42, 0.62);
+  --sheet-glass-top: rgba(255, 255, 255, 0.06);
+  --sheet-border: rgba(255, 255, 255, 0.14);
+  --sheet-highlight: rgba(255, 255, 255, 0.12);
   color-scheme: dark;
   --bg: #1e1e1e;
   --sidebar: #262628;
@@ -115,7 +135,6 @@
   --chart-5: #ff375f;
   --error-bg: #3a1d1d;
   --error-text: #ffb4b4;
-  --settings-bg: #1e1e1e;
   --settings-group: #2c2c2e;
   --group-border: rgba(255, 255, 255, 0.08);
   --group-divider: rgba(255, 255, 255, 0.08);
@@ -272,27 +291,8 @@ p {
   font-weight: 500;
 }
 
-.connection {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: auto;
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--connection-card);
-}
-
-.connection-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.connection-detail {
-  color: var(--text-2);
-  font-size: 11px;
+.sidebar-spacer {
+  flex: 1;
 }
 
 .status-dot {
@@ -1921,11 +1921,6 @@ button.ai-source:hover {
 }
 
 /* Settings (Figma "M7 / 8 Settings"): grouped rows on a light grey page, like System Settings */
-.page-body.settings {
-  overflow-y: auto;
-  background: var(--settings-bg);
-}
-
 .settings-column {
   display: flex;
   flex-direction: column;
@@ -3374,4 +3369,262 @@ button.ai-source:hover {
 
 .order-result .callout {
   align-self: stretch;
+}
+
+/* ---------- Account card and menu (Figma "Overview / Light / Account menu", node 44:904) ---------- */
+
+.account {
+  position: relative;
+}
+
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--account-card);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.account-avatar {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #0a85ff, #5e5ce6);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.account-avatar-dot {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--sidebar);
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.account-avatar-dot.ok {
+  background: #34c759;
+}
+
+.account-avatar-dot.bad {
+  background: var(--pill-loss);
+}
+
+.account-avatar-dot.warn {
+  background: var(--warning-dot);
+}
+
+.account-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.account-name,
+.account-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-status {
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.account-gear {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--account-gear);
+  color: var(--text-2);
+}
+
+/* Opens upwards from the card, 232px wide like the Figma menu (a little wider than the card) */
+.account-menu {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: 232px;
+  padding: 5px;
+  border: 1px solid var(--menu-border);
+  border-radius: 10px;
+  background: var(--menu-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.account-menu-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 9px;
+}
+
+.account-menu-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.account-menu-status {
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.account-menu-separator {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--menu-separator);
+}
+
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: default;
+}
+
+.account-menu-item.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.account-menu-item:disabled {
+  color: var(--text-3);
+}
+
+.account-menu-shortcut {
+  font-size: 12px;
+}
+
+/* ---------- Settings sheet (Figma "Overview / Light / Settings overlay", node 45:389) ---------- */
+
+/* Centred in the window, over a dimmed page; a tall sheet scrolls inside itself */
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--sheet-dim);
+}
+
+.settings-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 640px;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 22px;
+  border: 1px solid var(--sheet-border);
+  border-radius: 26px;
+  /* "Liquid Glass" in Figma: a frosted, translucent panel. CSS blur here; see #93's PR for why it
+     isn't the native macOS material */
+  background: linear-gradient(180deg, var(--sheet-glass-top) 0%, transparent 50%), var(--sheet-glass);
+  box-shadow:
+    inset 0 1px 0 var(--sheet-highlight),
+    0 28px 70px rgba(0, 0, 0, 0.22);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+}
+
+.settings-sheet-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fill);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.settings-sheet-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.settings-sheet-done {
+  padding: 5px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-sheet-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Inside the sheet the content fills the panel */
+.settings-sheet-body .settings-column {
+  max-width: none;
+}
+
+.settings-sheet-body .settings-section:first-child .settings-header {
+  padding-top: 0;
 }

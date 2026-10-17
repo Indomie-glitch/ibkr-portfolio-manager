@@ -1,20 +1,40 @@
-import { GearIcon, GridIcon, ListIcon, OrdersIcon, SearchIcon, SparklesIcon } from './icons.jsx'
+import { GridIcon, ListIcon, OrdersIcon, SearchIcon, SparklesIcon } from './icons.jsx'
 import { IN_APP } from '../lib/api.js'
+import AccountCard from './AccountCard.jsx'
 
-function connectionText(health) {
-  if (health === null) return { dot: '', title: 'Checking…', detail: 'Contacting the backend' }
-  if (health === 'starting') return { dot: '', title: 'Starting…', detail: 'Starting the background service' }
-  if (health === 'offline') {
-    return IN_APP
-      ? { dot: 'bad', title: 'Not running', detail: 'Quit and reopen the app' }
-      : { dot: 'bad', title: 'Backend offline', detail: 'Start uvicorn on port 8000' }
-  }
-  if (!health.connected) return { dot: 'bad', title: 'Disconnected', detail: 'IB Gateway is not connected' }
-  return { dot: 'ok', title: 'Connected', detail: 'IB Gateway · Paper account' }
+// The connection in words for the account card, and its dot colour
+function connectionText(health, login) {
+  if (IN_APP && login?.state === 'session_ended') return { dot: 'warn', text: 'Session ended' }
+  if (health === null) return { dot: '', text: 'Checking…' }
+  if (health === 'starting') return { dot: '', text: 'Starting…' }
+  if (health === 'offline') return { dot: 'bad', text: IN_APP ? 'Not running' : 'Backend offline' }
+  if (!health.connected) return { dot: 'bad', text: 'Disconnected' }
+  return { dot: 'ok', text: 'Connected' }
 }
 
-function Sidebar({ page, onNavigate, health }) {
-  const status = connectionText(health)
+function Sidebar({ page, onNavigate, health, login, trading, username, savedMode, onOpenSettings, onReconnect, onSignOut }) {
+  const connection = connectionText(health, login)
+  // Paper or live: from the connected account (toolbar badge), else the mode last signed in with
+  const kind = trading && trading.account !== 'unknown' ? trading.account : IN_APP ? savedMode : null
+  const mode = kind === 'live' ? 'Live' : kind === 'paper' ? 'Paper' : null
+  const signedIn = ['signed_in', 'session_ended'].includes(login?.state)
+  const name = IN_APP ? (signedIn && username) || 'Not signed in' : 'IB Gateway'
+
+  // The browser version can't control the Mac app's Gateway, so its menu only has Settings
+  const items = [{ label: 'Settings…', shortcut: IN_APP ? '⌘,' : null, onSelect: onOpenSettings }]
+  if (IN_APP) {
+    items.push(
+      {
+        label: 'Reconnect',
+        // The password isn't stored, so reconnecting means signing in again: offered when the session ended
+        disabled: login?.state !== 'session_ended',
+        disabledReason: login?.state === 'session_ended' ? undefined : 'Only needed when the IBKR session has ended',
+        onSelect: onReconnect,
+      },
+      'separator',
+      { label: 'Sign Out', disabled: !signedIn, onSelect: onSignOut },
+    )
+  }
 
   return (
     <aside className="sidebar">
@@ -57,22 +77,15 @@ function Sidebar({ page, onNavigate, health }) {
           <SparklesIcon /> AI Summaries <span className="soon-pill">Soon</span>
         </button>
 
-        <div className="sidebar-section">App</div>
-        <button
-          type="button"
-          className={`sidebar-item ${page === 'settings' ? 'active' : ''}`}
-          aria-current={page === 'settings' ? 'page' : undefined}
-          onClick={() => onNavigate('settings')}
-        >
-          <GearIcon /> Settings
-        </button>
-
-        <div className="connection" role="status">
-          <div className="connection-row">
-            <span className={`status-dot ${status.dot}`} /> {status.title}
-          </div>
-          <div className="connection-detail">{status.detail}</div>
-        </div>
+        <div className="sidebar-spacer" />
+        <AccountCard
+          name={name}
+          status={mode ? `${mode} · ${connection.text}` : connection.text}
+          dot={connection.dot}
+          menuTitle={name}
+          menuStatus={mode ? `${mode} account · ${connection.text}` : connection.text}
+          items={items}
+        />
       </nav>
     </aside>
   )

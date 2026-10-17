@@ -97,7 +97,7 @@ For a Mac with Apple Silicon (M1 or later) and macOS 13 or later. You won't need
 3. Open **System Settings → Privacy & Security** and scroll down to **Security**. Next to "Portfolio Manager was blocked to protect your Mac", click **Open Anyway**, enter your Mac password, then click **Open Anyway** again. You only do this once.
 4. In the app, click **Get Started**, then **Download IB Gateway**. When IBKR's installer opens, click Continue through it and keep the suggested folder, then click **Continue** in the app.
 5. Sign in with your IBKR username and password and choose **Live** or **Paper**. With a live account, approve the login in IBKR Mobile on your phone.
-6. Optional: to turn on AI summaries, open **Settings → AI summaries** and paste an Anthropic API key.
+6. Optional: to turn on AI summaries, open Settings (click your account at the bottom of the sidebar, then **Settings…**, or press **⌘,**) and paste an Anthropic API key under **AI summaries**.
 
 The app never saves your IBKR password or your API key. You type the password each time you open the app, and the API key once per session.
 

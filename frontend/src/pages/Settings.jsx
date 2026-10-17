@@ -1,4 +1,6 @@
-// Settings, laid out like the Figma frame "M7 / 8 Settings" (macOS System Settings style groups)
+// The Settings content, laid out like the Figma frame "M7 / 8 Settings" (macOS System Settings style
+// groups). It's shown in the Settings sheet (components/SettingsSheet.jsx), in the section order of the
+// Figma "Settings overlay": Account, AI summaries, IB Gateway, Appearance.
 import { useEffect, useState } from 'react'
 import { IN_APP } from '../lib/api.js'
 import { apiKeyStatus, clearApiKey, setApiKey } from '../desktop/appApiKey.js'
@@ -363,38 +365,34 @@ function Settings({ appearance, onAppearanceChange, login, connected, onSignedOu
 
   if (!IN_APP) {
     return (
-      <div className="page-body settings">
-        <div className="settings-column">
-          <p className="settings-footnote">
-            In development, the API key, Gateway port and model come from .env (ANTHROPIC_API_KEY, IB_PORT, AI_MODEL).
-          </p>
-          <AppearanceGroup appearance={appearance} onAppearanceChange={onAppearanceChange} />
-        </div>
+      <div className="settings-column">
+        <p className="settings-footnote">
+          In development, the API key, Gateway port and model come from .env (ANTHROPIC_API_KEY, IB_PORT, AI_MODEL).
+        </p>
+        <AppearanceGroup appearance={appearance} onAppearanceChange={onAppearanceChange} />
       </div>
     )
   }
 
   return (
-    <div className="page-body settings">
-      <div className="settings-column">
-        {error && <p className="settings-footnote error-text">{error}</p>}
-        <AccountGroup
-          settings={settings}
-          username={username}
-          login={login}
-          connected={connected}
-          onSignedOut={onSignedOut}
-        />
-        {settings && <GatewayGroup settings={settings} onSave={save} />}
-        <Group
-          title="AI summaries"
-          footnote="Not saved. Enter it again after restarting. Summaries are billed to your own Anthropic account."
-        >
-          <ApiKeyRow />
-          <ModelRow settings={settings} onSave={save} />
-        </Group>
-        <AppearanceGroup appearance={appearance} onAppearanceChange={onAppearanceChange} />
-      </div>
+    <div className="settings-column">
+      {error && <p className="settings-footnote error-text">{error}</p>}
+      <AccountGroup
+        settings={settings}
+        username={username}
+        login={login}
+        connected={connected}
+        onSignedOut={onSignedOut}
+      />
+      <Group
+        title="AI summaries"
+        footnote="Not saved. Enter it again after restarting. Summaries are billed to your own Anthropic account."
+      >
+        <ApiKeyRow />
+        <ModelRow settings={settings} onSave={save} />
+      </Group>
+      {settings && <GatewayGroup settings={settings} onSave={save} />}
+      <AppearanceGroup appearance={appearance} onAppearanceChange={onAppearanceChange} />
     </div>
   )
 }
