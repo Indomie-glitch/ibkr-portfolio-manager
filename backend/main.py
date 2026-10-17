@@ -9,6 +9,7 @@ from typing import Literal
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 from ib_async import IB, Contract
 import config  # first: loads .env before other modules read settings
@@ -116,8 +117,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # Let the Vite dev server and the Mac app's window (Tauri serves the built frontend from
-# tauri://localhost) call the API. Everything is GET-only, except POST /summary/{con_id} and
-# POST /portfolio-summary (generating a summary), which only these origins may call.
+# tauri://localhost) call the API. Everything is GET-only, except POST /summary/{con_id},
+# POST /portfolio-summary (generating a summary) and POST /orders/... (trading), which only these
+# origins may call.
 ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "tauri://localhost"]
 
 class PathCORS:
@@ -130,7 +132,7 @@ class PathCORS:
                                        allow_headers=["X-App-Token"])
 
     async def __call__(self, scope, receive, send):
-        summary_path = scope["type"] == "http" and (scope["path"].startswith("/summary/")
+        summary_path = scope["type"] == "http" and (scope["path"].startswith(("/summary/", "/orders/"))
                                                     or scope["path"] == "/portfolio-summary")
         await (self.get_post if summary_path else self.get_only)(scope, receive, send)
 
@@ -574,6 +576,61 @@ def trading_status():
     accounts = ib.managedAccounts() if ib.isConnected() else []
     return trading.status(accounts, connection_read_only=connection.read_only)
 
+class OrderRequest(BaseModel):
+    con_id: int
+    action: Literal["BUY", "SELL"]
+    quantity: float = Field(gt=0)
+    order_type: Literal["MKT", "LMT"]
+    limit_price: float | None = None
+
+async def checked_order(order: OrderRequest):
+    """Everything an order needs before IB sees it: the contract, the price it's valued at, the
+    guardrail status and the problems that stop it (trading.check_order)."""
+    contract, _ = await get_contract_info(order.con_id)
+    if contract is None or contract.secType != "STK":
+        raise HTTPException(status_code=404, detail="Unknown stock")
+    if order.order_type == "LMT" and order.limit_price:
+        price = order.limit_price
+    else:
+        tickers = await fetch_tickers([contract])
+        price = (await build_quote(order.con_id, tickers.get(order.con_id)))["last"]
+    account_data = await account()
+    base = account_data["currency"]
+    fx_rate = 1 if contract.currency == base else account_data["fx_rates"].get(contract.currency)
+    held = next((item.position for item in ib.portfolio() if item.contract.conId == order.con_id), 0)
+    status = trading.status(ib.managedAccounts(), connection_read_only=connection.read_only)
+    problems, value, value_base = trading.check_order(order.model_dump(), price, fx_rate, held, status)
+    return {
+        "contract": contract, "price": price, "held": held, "status": status, "problems": problems,
+        "value": value, "value_base": value_base, "base_currency": base,
+    }
+
+@app.post("/orders/preview", dependencies=[Depends(require_ib)])
+async def preview_order(order: OrderRequest, request: Request):
+    """What an order would cost (IB's what-if: commission and margin impact), without sending it.
+    Only possible while trading is on (TRADING_MODE): IB refuses what-if orders on a read-only connection."""
+    check_origin(request)
+    checked = await checked_order(order)
+    contract = checked["contract"]
+    what_if = None
+    if not checked["problems"]:
+        try:
+            state = await asyncio.wait_for(ib.whatIfOrderAsync(contract, trading.build_order(order.model_dump())), timeout=10)
+            what_if = trading.what_if_summary(state)
+        except asyncio.TimeoutError:
+            checked["problems"].append("IB didn't answer the preview in time. Try again.")
+        except Exception as exc:
+            checked["problems"].append(f"IB couldn't preview this order ({mask_secrets(exc)}).")
+    return {
+        "con_id": order.con_id, "symbol": contract.symbol, "exchange": contract.primaryExchange,
+        "currency": contract.currency, "action": order.action, "quantity": order.quantity,
+        "order_type": order.order_type, "limit_price": order.limit_price,
+        "price_used": checked["price"], "estimated_value": checked["value"],
+        "estimated_value_base": checked["value_base"], "base_currency": checked["base_currency"],
+        "held_quantity": checked["held"], "max_order_value": checked["status"]["max_order_value"],
+        "what_if": what_if, "problems": checked["problems"], "can_submit": not checked["problems"],
+    }
+
 @app.get("/portfolio-summary/facts", dependencies=[Depends(require_ib)])
 async def portfolio_summary_facts():
     """Exactly what the model would be given for the portfolio summary. Free: no Claude call."""
@@ -637,12 +694,15 @@ def compare_summaries(con_id: int, a: int, b: int):
         "data_changes": summary_facts.compare_data(older["facts"], newer["facts"]),
     }
 
-def check_generate_request(request):
+def check_origin(request):
     # A cross-site form POST skips the CORS preflight, so check the origin here as well.
     # Requests without an Origin header come from local tools like curl, not other websites.
     origin = request.headers.get("origin")
     if origin is not None and origin not in ALLOWED_ORIGINS:
         raise HTTPException(status_code=403, detail="Origin not allowed")
+
+def check_generate_request(request):
+    check_origin(request)
     if not ai_summary.api_key_configured():
         raise HTTPException(status_code=503, detail=config.MISSING_KEY_MESSAGE)
 
