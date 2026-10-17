@@ -230,6 +230,8 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 
 | Endpoint | Returns |
 |---|---|
+| `GET /search?q=` | ASX and US stocks matching a symbol or company name (IB symbol search, cached 10 min), marked if owned |
+| `GET /prices?con_ids=` | Quotes for any stocks, same shape as `/quotes` (for search results) |
 | `GET /trading/status` | Paper or live account, whether orders are allowed (and why not), and the order limit |
 | `GET /health` | Whether the backend is connected to IB Gateway |
 | `GET /account` | Net liquidation, cash, positions value, buying power, unrealised P&L, FX rates |

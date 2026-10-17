@@ -238,52 +238,105 @@ async def quotes():
     items = ib.portfolio()
     infos = await asyncio.gather(*(get_contract_info(i.contract.conId) for i in items))
     tickers = await fetch_tickers([contract for contract, _ in infos if contract])
+    return await asyncio.gather(*(build_quote(i.contract.conId, tickers.get(i.contract.conId), clean(i.marketPrice))
+                                  for i in items))
 
-    async def quote(item):
-        con_id = item.contract.conId
-        ticker = tickers.get(con_id)
+async def build_quote(con_id, ticker, market_price=None):
+    """One /quotes item: the delayed quote if IB sent one, otherwise the day change from daily bars.
+    market_price: IB's portfolio price for a holding (None for a stock that isn't held)."""
+    def from_ticker(field):
+        return clean(getattr(ticker, field)) if ticker else None
 
-        def from_ticker(field):
-            return clean(getattr(ticker, field)) if ticker else None
+    # About 3 months of daily bars: the fallback when there's no quote, and the average volume.
+    # The last bar is the current (or most recent) session.
+    bars = await get_bars(con_id, "3 M", "1 day", max_age=15 * 60)
+    session = bars[-1] if bars else None
 
-        # About 3 months of daily bars: the fallback when there's no quote, and the average volume.
-        # The last bar is the current (or most recent) session.
-        bars = await get_bars(con_id, "3 M", "1 day", max_age=15 * 60)
-        session = bars[-1] if bars else None
+    last = from_ticker("last")
+    prev_close = from_ticker("close")
+    source = "delayed"
+    if last is None or prev_close is None:
+        # No quote (e.g. IB error 10197, a live session elsewhere blocks market data).
+        # Fall back to IB's daily history: compare the latest price with the previous session's close.
+        if len(bars) < 2:
+            return {"con_id": con_id, "last": market_price, "prev_close": None,
+                    "day_change": None, "day_change_pct": None, "source": None}
+        prev_close = bars[-2].close
+        last = market_price or session.close
+        source = "history"
 
-        last = from_ticker("last")
-        prev_close = from_ticker("close")
-        source = "delayed"
-        if last is None or prev_close is None:
-            # No quote (e.g. IB error 10197, a live session elsewhere blocks market data).
-            # Fall back to IB's daily history: compare the latest price with the previous session's close.
-            if len(bars) < 2:
-                return {"con_id": con_id, "last": clean(item.marketPrice), "prev_close": None,
-                        "day_change": None, "day_change_pct": None, "source": None}
-            prev_close = bars[-2].close
-            last = clean(item.marketPrice) or session.close
-            source = "history"
+    # Volume always comes from the bars so it matches the average (same source and units)
+    earlier = bars[:-1][-63:]  # about 3 months of complete sessions
+    change = last - prev_close
+    return {
+        "con_id": con_id,
+        "last": last,
+        "prev_close": prev_close,
+        "day_change": change,
+        "day_change_pct": change / prev_close * 100 if prev_close else None,
+        "open": from_ticker("open") or (session.open if session else None),
+        "day_high": from_ticker("high") or (session.high if session else None),
+        "day_low": from_ticker("low") or (session.low if session else None),
+        "bid": from_ticker("bid"),
+        "ask": from_ticker("ask"),
+        "volume": session.volume if session else None,
+        "avg_volume": sum(b.volume for b in earlier) / len(earlier) if earlier else None,
+        "source": source,
+    }
 
-        # Volume always comes from the bars so it matches the average (same source and units)
-        earlier = bars[:-1][-63:]  # about 3 months of complete sessions
-        change = last - prev_close
-        return {
-            "con_id": con_id,
-            "last": last,
-            "prev_close": prev_close,
-            "day_change": change,
-            "day_change_pct": change / prev_close * 100 if prev_close else None,
-            "open": from_ticker("open") or (session.open if session else None),
-            "day_high": from_ticker("high") or (session.high if session else None),
-            "day_low": from_ticker("low") or (session.low if session else None),
-            "bid": from_ticker("bid"),
-            "ask": from_ticker("ask"),
-            "volume": session.volume if session else None,
-            "avg_volume": sum(b.volume for b in earlier) / len(earlier) if earlier else None,
-            "source": source,
-        }
+# IB allows about one symbol search a second; results are cached so retyping is free
+SEARCH_EXCHANGES = {"ASX": "ASX", "NASDAQ": "US", "NYSE": "US", "ARCA": "US", "AMEX": "US", "BATS": "US", "IEX": "US"}
+SEARCH_LIMIT = 10
+search_lock = asyncio.Lock()
 
-    return await asyncio.gather(*(quote(i) for i in items))
+def search_results(descriptions, owned_ids):
+    """IB's matching symbols -> ASX and US stocks (other markets and fund types are left out)."""
+    results = []
+    for description in descriptions:
+        c = description.contract
+        market = SEARCH_EXCHANGES.get(c.primaryExchange) if c else None
+        if not c or c.secType != "STK" or market is None:
+            continue
+        name, _ = display_name(c.description, c.symbol)
+        results.append({
+            "con_id": c.conId, "symbol": c.symbol, "name": name,
+            "exchange": c.primaryExchange, "currency": c.currency, "market": market,
+            "owned": c.conId in owned_ids,
+        })
+    return results[:SEARCH_LIMIT]
+
+@app.get("/search", dependencies=[Depends(require_ib)])
+async def search(q: str):
+    """Stocks on the ASX and US exchanges matching a symbol or company name (IB's symbol search)."""
+    q = q.strip()
+    if not q:
+        return []
+    if len(q) > 40:
+        raise HTTPException(status_code=422, detail="Search text is too long")
+
+    async def lookup():
+        async with search_lock:
+            found = await ib.reqMatchingSymbolsAsync(q)
+            await asyncio.sleep(1)  # IB's pacing for symbol searches
+            return found or []
+
+    descriptions = await cached(("search", q.lower()), 10 * 60, lookup)
+    owned = {item.contract.conId for item in ib.portfolio()}
+    return search_results(descriptions, owned)
+
+@app.get("/prices", dependencies=[Depends(require_ib)])
+async def prices(con_ids: str):
+    """Quotes (same shape as /quotes) for any stocks, e.g. search results: ?con_ids=265598,4391"""
+    try:
+        ids = list(dict.fromkeys(int(part) for part in con_ids.split(",") if part.strip()))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="con_ids must be numbers separated by commas")
+    if len(ids) > SEARCH_LIMIT * 2:
+        raise HTTPException(status_code=422, detail=f"At most {SEARCH_LIMIT * 2} stocks at a time")
+    infos = await asyncio.gather(*(get_contract_info(con_id) for con_id in ids))
+    known = [(con_id, contract) for con_id, (contract, _) in zip(ids, infos) if contract]
+    tickers = await fetch_tickers([contract for _, contract in known])
+    return await asyncio.gather(*(build_quote(con_id, tickers.get(con_id)) for con_id, _ in known))
 
 # Each range maps to an IB duration and bar size
 RANGES = {

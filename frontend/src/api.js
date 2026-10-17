@@ -30,6 +30,16 @@ export function fetchAccount() {
   return getJson('/account')
 }
 
+// Any ASX or US stock by symbol or company name (Markets page)
+export function searchStocks(query) {
+  return getJson(`/search?q=${encodeURIComponent(query)}`)
+}
+
+// Quotes for any stocks (same shape as /quotes): conIds is a comma-separated string
+export function fetchPrices(conIds) {
+  return getJson(`/prices?con_ids=${conIds}`)
+}
+
 // Paper or live account and whether orders are allowed (Milestone 6)
 export function fetchTradingStatus() {
   return getJson('/trading/status')

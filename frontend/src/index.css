@@ -2846,3 +2846,45 @@ button.ai-source:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Markets (Figma M6 / 1 Markets) ---------- */
+
+.recent-header {
+  align-items: center;
+  padding-top: 18px;
+}
+
+.recent-header .link-button {
+  font-size: 11px;
+}
+
+.markets-empty {
+  flex: 1;
+}
+
+/* "You don't own …" in Your position (Figma node 33:552) */
+.not-owned {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.not-owned > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.not-owned-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.not-owned-text {
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
