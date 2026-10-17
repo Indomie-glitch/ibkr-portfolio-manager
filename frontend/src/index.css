@@ -3619,3 +3619,12 @@ button.ai-source:hover {
 .settings-sheet-body .settings-section:first-child .settings-header {
   padding-top: 0;
 }
+
+/* The side of an order being changed, in the gain / loss colours (#165) */
+.order-side.buy {
+  color: var(--gain);
+}
+
+.order-side.sell {
+  color: var(--loss);
+}

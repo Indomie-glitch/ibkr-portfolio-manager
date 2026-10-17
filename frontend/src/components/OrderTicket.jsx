@@ -116,8 +116,17 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
       <div className="sheet order-ticket" role="dialog" aria-modal="true" aria-labelledby="ticket-title">
         <div className="sheet-title-row">
           <h2 id="ticket-title" className="sheet-title">
-            {existing ? 'Change order: ' : ''}
-            {buying ? 'Buy' : 'Sell'} {stock.shortName ?? stock.symbol}
+            {existing ? (
+              <>
+                {/* A change can't switch sides, so the side is shown in colour instead of a selector (#165) */}
+                Change order: <span className={`order-side ${buying ? 'buy' : 'sell'}`}>{buying ? 'Buy' : 'Sell'}</span>
+              </>
+            ) : buying ? (
+              'Buy'
+            ) : (
+              'Sell'
+            )}{' '}
+            {stock.shortName ?? stock.symbol}
           </h2>
           <div className="spacer" />
           {trading && trading.account !== 'unknown' && (
