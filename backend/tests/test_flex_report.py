@@ -101,6 +101,20 @@ class ParseTests(unittest.TestCase):
             ("TLS", 40, date(2026, 3, 2)), ("CBA", -5, date(2026, 4, 10)), ("BHP", 10, date(2026, 5, 20)),
         ])
 
+    def test_cgt_dates_come_from_the_trade_date_not_settlement(self):
+        # Bought Tuesday 30 Jun 2026, settled (T+2) Thursday 2 Jul: the ATO counts from the
+        # contract (trade) date, so the discount applies from 1 Jul 2027, not 3 Jul 2027
+        import lots
+        report = flex.parse_report(b"""<FlexQueryResponse><FlexStatements><FlexStatement>
+<OpenPositions><OpenPosition assetCategory="STK" symbol="X" conid="1" currency="AUD" position="5" costBasisPrice="1"
+ openDateTime="20260630;150000" settleDate="20260702" levelOfDetail="LOT" /></OpenPositions>
+<Trades><Trade assetCategory="STK" symbol="X" conid="1" currency="AUD" tradeDate="20260630" settleDateTarget="20260702"
+ dateTime="20260630;150000" buySell="BUY" quantity="5" tradePrice="1" levelOfDetail="EXECUTION" /></Trades>
+</FlexStatement></FlexStatements></FlexQueryResponse>""")
+        self.assertEqual(report["lots"][0]["opened"], date(2026, 6, 30))
+        self.assertEqual(report["trades"][0]["traded"], date(2026, 6, 30))
+        self.assertEqual(lots.cgt_discount_date(report["lots"][0]["opened"]), date(2027, 7, 1))
+
     def test_date_formats(self):
         for text in ("20250115", "2025-01-15", "20250115;093000", "2025-01-15, 09:30:00", "2025-01-15 09:30:00"):
             self.assertEqual(flex.parse_date(text), date(2025, 1, 15), text)
