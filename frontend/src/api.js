@@ -22,6 +22,35 @@ async function getJson(path) {
   return response.json()
 }
 
+async function postJson(path, body) {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: { ...HEADERS, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    let detail = `${path} returned ${response.status}`
+    try {
+      const data = await response.json()
+      if (typeof data.detail === 'string') detail = data.detail
+      // FastAPI validation errors: a list of {msg}
+      else if (Array.isArray(data.detail)) detail = data.detail.map((d) => d.msg).join(' ')
+    } catch {
+      // body wasn't JSON; keep the status message
+    }
+    const error = new Error(detail)
+    error.status = response.status
+    throw error
+  }
+  return response.json()
+}
+
+// What an order would cost (IBKR what-if), without sending it; includes a confirmation token
+// when the order may be placed
+export function previewOrder(order) {
+  return postJson('/orders/preview', order)
+}
+
 export function fetchHealth() {
   return getJson('/health')
 }

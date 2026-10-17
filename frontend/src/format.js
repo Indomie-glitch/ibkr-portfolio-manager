@@ -2,7 +2,7 @@
 const CURRENCY_PREFIX = { AUD: 'A$', USD: 'US$' }
 const MINUS = '−' // a proper minus sign; lines up better than a hyphen
 
-function prefixFor(currency) {
+export function prefixFor(currency) {
   return CURRENCY_PREFIX[currency] ?? `${currency} `
 }
 

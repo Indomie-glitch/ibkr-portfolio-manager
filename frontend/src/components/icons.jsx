@@ -255,3 +255,20 @@ export function SpinnerIcon({ size = 14 }) {
     </Icon>
   )
 }
+
+// The quantity stepper's arrows (Figma order ticket)
+export function StepUpIcon({ size = 12 }) {
+  return (
+    <Icon size={size} viewBox="0 0 12 12">
+      <path d="M3.43 8.14L6 5.57L8.57 8.14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </Icon>
+  )
+}
+
+export function StepDownIcon({ size = 12 }) {
+  return (
+    <Icon size={size} viewBox="0 0 12 12">
+      <path d="M3.43 5.57L6 8.14L8.57 5.57" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </Icon>
+  )
+}

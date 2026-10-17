@@ -53,7 +53,7 @@ function StockRow({ stock, quote, selected, onSelect }) {
   )
 }
 
-function Markets({ holdings, refreshKey }) {
+function Markets({ holdings, refreshKey, trading, onTrade }) {
   const [query, setQuery] = useState('')
   const [market, setMarket] = useState('All')
   // The results belong to search.query, so old results never show under new text
@@ -186,7 +186,7 @@ function Markets({ holdings, refreshKey }) {
       </aside>
 
       {detail ? (
-        <HoldingDetail key={detail.con_id} holding={detail} refreshKey={refreshKey} />
+        <HoldingDetail key={detail.con_id} holding={detail} refreshKey={refreshKey} trading={trading} onTrade={onTrade} />
       ) : (
         <p className="empty markets-empty">Search for any stock on the ASX or US exchanges.</p>
       )}
