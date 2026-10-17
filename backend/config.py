@@ -44,6 +44,25 @@ def anthropic_api_key():
     return os.getenv("ANTHROPIC_API_KEY")
 
 
+def flex_token():
+    """The IBKR Flex Web Service token (a secret: memory only in the Mac app, IB_FLEX_TOKEN in .env in
+    development). See docs/flex-query.md."""
+    if IN_APP:
+        return SECRETS.get("flex_token")
+    return os.getenv("IB_FLEX_TOKEN") or None
+
+
+def flex_query_id():
+    """The ID of the Activity Flex Query that lists open lots and trades (not a secret)."""
+    if IN_APP:
+        return SETTINGS.get("flex_query_id")
+    return os.getenv("IB_FLEX_QUERY_ID") or None
+
+
+def flex_configured():
+    return bool(flex_token() and flex_query_id())
+
+
 # Models the Settings screen offers (structured outputs + streaming work on all of them)
 AI_MODELS = {
     "claude-haiku-4-5": "Claude Haiku 4.5",

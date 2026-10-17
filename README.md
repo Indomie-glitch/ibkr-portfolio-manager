@@ -181,6 +181,7 @@ cp .env.example .env
 | `IB_HOST` | IB Gateway host, usually `127.0.0.1` |
 | `IB_PORT` | IB Gateway port (`4002` for paper trading, `4001` for live) |
 | `IB_CLIENT_ID` | API client ID, `1` by default; use a different one if another app is already connected with it |
+| `IB_FLEX_TOKEN`, `IB_FLEX_QUERY_ID` | Optional: IBKR Flex Web Service token and query ID, for purchase dates and the 12-month CGT date ([setup guide](docs/flex-query.md)); the token is a secret |
 
 ### Run
 
