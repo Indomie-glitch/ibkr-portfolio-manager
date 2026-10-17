@@ -1161,6 +1161,15 @@ p {
   outline: none;
 }
 
+/* While a list divider is dragged: no text selection anywhere (WebKit starts one, #182) and the
+   resize cursor even where the pointer runs ahead of the divider */
+.resizing-list,
+.resizing-list * {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: col-resize !important;
+}
+
 /* Holding detail */
 .detail {
   display: flex;
