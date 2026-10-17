@@ -683,6 +683,46 @@ async def place_order(order: PlaceOrderRequest, request: Request):
             await asyncio.sleep(0.2)
         return trade_summary(trade)
 
+# ---------- order status stream ----------
+
+# One queue per open stream; IB's order events are copied into every queue
+order_listeners = set()
+STREAM_HEARTBEAT_S = 15
+
+def publish_trade(trade, *_):
+    """Called by ib_async for every order status change and fill."""
+    if not order_listeners:
+        return
+    update = trade_summary(trade)
+    for queue in list(order_listeners):
+        queue.put_nowait(update)
+
+ib.orderStatusEvent += publish_trade
+ib.execDetailsEvent += publish_trade
+
+@app.get("/orders/stream", dependencies=[Depends(require_ib)])
+async def order_stream(request: Request):
+    """Server-Sent Events: "orders" (every order this connection knows, at the start), then "order"
+    whenever one is submitted, filled or cancelled. A comment every 15 s keeps the connection open."""
+    queue = asyncio.Queue()
+    order_listeners.add(queue)
+
+    async def events():
+        try:
+            yield sse("orders", [trade_summary(t) for t in ib.trades()])
+            while not await request.is_disconnected():
+                try:
+                    update = await asyncio.wait_for(queue.get(), timeout=STREAM_HEARTBEAT_S)
+                except asyncio.TimeoutError:
+                    yield ": still here\n\n"
+                    continue
+                yield sse("order", update)
+        finally:
+            order_listeners.discard(queue)
+
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
 @app.get("/portfolio-summary/facts", dependencies=[Depends(require_ib)])
 async def portfolio_summary_facts():
     """Exactly what the model would be given for the portfolio summary. Free: no Claude call."""
