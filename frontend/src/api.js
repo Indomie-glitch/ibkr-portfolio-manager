@@ -51,6 +51,18 @@ export function previewOrder(order) {
   return postJson('/orders/preview', order)
 }
 
+// Place a previewed order: order + the preview's confirmation_token
+export function placeOrder(order) {
+  return postJson('/orders', order)
+}
+
+// Follow order updates until signal aborts: onEvent('orders', [...]) first, then onEvent('order', {...})
+export async function watchOrders(onEvent, signal) {
+  const response = await fetch(`${API_URL}/orders/stream`, { headers: HEADERS, signal })
+  if (!response.ok) throw new Error(`/orders/stream returned ${response.status}`)
+  await readEvents(response, onEvent)
+}
+
 export function fetchHealth() {
   return getJson('/health')
 }
@@ -137,6 +149,11 @@ export async function generateSummary(conId, onEvent) {
     throw error
   }
 
+  await readEvents(response, onEvent)
+}
+
+// Reads a Server-Sent Events response, calling onEvent(name, data) for each event
+async function readEvents(response, onEvent) {
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
   let buffer = ''
   for (;;) {

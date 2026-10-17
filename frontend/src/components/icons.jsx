@@ -272,3 +272,12 @@ export function StepDownIcon({ size = 12 }) {
     </Icon>
   )
 }
+
+// The large check in the "Order filled" sheet
+export function CheckIcon({ size = 30 }) {
+  return (
+    <Icon size={size} viewBox="0 0 30 30">
+      <path d="M7.5 15.625L12.5 20.625L22.5 9.375" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </Icon>
+  )
+}

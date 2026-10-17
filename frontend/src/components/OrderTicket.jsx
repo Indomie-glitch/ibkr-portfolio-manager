@@ -43,7 +43,7 @@ function Line({ label, value, total = false }) {
 
 // The order ticket sheet (Figma "M6 / 2 Order ticket"). Nothing is sent from here: Review Order
 // hands the preview (with its confirmation token) to the confirmation sheet.
-function OrderTicket({ stock, side, trading, account, onClose, onReview }) {
+function OrderTicket({ stock, side, trading, account, onClose, onReview, hidden = false, previewNonce = 0 }) {
   const [form, setForm] = useState(() => ({
     side,
     orderType: 'LMT',
@@ -58,25 +58,27 @@ function OrderTicket({ stock, side, trading, account, onClose, onReview }) {
   const key = order ? JSON.stringify(order) : null
 
   useEffect(() => {
+    if (hidden) return
     quantityRef.current?.focus()
     const onKey = (e) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, hidden])
 
   useEffect(() => {
-    if (!key) return
+    if (!key || hidden) return
     let ignore = false
     const timer = setTimeout(() => {
       previewOrder(JSON.parse(key))
-        .then((data) => !ignore && setPreview({ key, data, error: null }))
-        .catch((err) => !ignore && setPreview({ key, data: null, error: err.message }))
+        .then((data) => !ignore && setPreview({ key, nonce: previewNonce, data, error: null }))
+        .catch((err) => !ignore && setPreview({ key, nonce: previewNonce, data: null, error: err.message }))
     }, PREVIEW_DELAY_MS)
     return () => {
       ignore = true
       clearTimeout(timer)
     }
-  }, [key])
+    // previewNonce: back from the review sheet, its token may be used up, so ask again
+  }, [key, hidden, previewNonce])
 
   const set = (field) => (value) => setForm((old) => ({ ...old, [field]: value }))
   function step(by) {
@@ -84,7 +86,7 @@ function OrderTicket({ stock, side, trading, account, onClose, onReview }) {
     set('quantity')(String(next))
   }
 
-  const current = preview.key === key ? preview : { data: null, error: null }
+  const current = preview.key === key && preview.nonce === previewNonce ? preview : { data: null, error: null }
   const data = current.data
   const c = stock.currency
   const buying = form.side === 'BUY'
@@ -103,7 +105,7 @@ function OrderTicket({ stock, side, trading, account, onClose, onReview }) {
   const canReview = Boolean(data?.can_submit && data.confirmation_token && onReview)
 
   return (
-    <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="sheet-backdrop" hidden={hidden} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet order-ticket" role="dialog" aria-modal="true" aria-labelledby="ticket-title">
         <div className="sheet-title-row">
           <h2 id="ticket-title" className="sheet-title">
