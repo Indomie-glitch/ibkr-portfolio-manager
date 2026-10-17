@@ -52,12 +52,17 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 3:** Minimal React UI
 * [x] **Milestone 4:** Polished UI
 * [x] **Milestone 4.5:** Expanded stock detail (key statistics, company profile, news, performance via yfinance)
-* [x] **Milestone 5:** AI stock summaries via the Claude API
-* [x] **Milestone 5.1:** Summary history and compare
-* [ ] **Purchase dates (Flex Query):** lots and CGT dates done in the backend and AI summary; Settings rows, manual entry and the Your position section wait for a design
-* [ ] **Milestone 5.2:** AI portfolio summary: facts sheet, prompt, streaming endpoint and history done; the Overview card waits for a design
-* [ ] **Milestone 6:** Trade placement: built for paper trading; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
-* [x] **Milestone 7:** Mac app (Tauri): bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
+* [x] **Milestone 5:** AI stock summaries via the Claude API, with summary history and compare, and explanations of price moves since the last summary
+* [ ] **Milestone 5.1:** Purchase dates per lot from an IBKR Flex Query, each with its 12-month CGT date: done in the backend and the AI summary; Settings rows, manual entry and the Your position section wait for a design
+* [ ] **Milestone 5.2: AI portfolio summary:** facts sheet, prompt, streaming endpoint and history done; the Overview card waits for a design
+* [ ] **Milestone 6: Trade placement:** built for paper trading; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
+* [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
+* [ ] **Milestone 8:** Risk analysis
+* [ ] **Milestone 9:** Company connections
+* [ ] **Milestone 10:** Supply chain graph foundation
+* [ ] **Milestone 11:** Extraction agents
+* [ ] **Milestone 12:** Supply chain explorer
+* [ ] **Milestone 13:** Analyst agent and shared graph
 
 ## Tech Stack
 
