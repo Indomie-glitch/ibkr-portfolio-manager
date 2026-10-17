@@ -18,6 +18,7 @@ function orderFrom(stock, form) {
     quantity,
     order_type: form.orderType,
     limit_price: form.orderType === 'LMT' ? limitPrice : null,
+    tif: form.tif,
   }
 }
 
@@ -52,8 +53,9 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
           orderType: existing.order_type,
           quantity: String(existing.quantity),
           limitPrice: existing.limit_price != null ? existing.limit_price.toFixed(2) : '',
+          tif: existing.tif === 'GTC' ? 'GTC' : 'DAY',
         }
-      : { side, orderType: 'LMT', quantity: '1', limitPrice: stock.last != null ? stock.last.toFixed(2) : '' },
+      : { side, orderType: 'LMT', quantity: '1', limitPrice: stock.last != null ? stock.last.toFixed(2) : '', tif: 'DAY' },
   )
   // The preview belongs to `key`, so an old estimate never shows for changed numbers
   const [preview, setPreview] = useState({ key: null, data: null, error: null })
@@ -143,7 +145,7 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
           <label className="form-row">
             <span>Order type</span>
             <span className="popup-button">
-              <select value={form.orderType} disabled={Boolean(existing)} onChange={(e) => set('orderType')(e.target.value)}>
+              <select value={form.orderType} onChange={(e) => set('orderType')(e.target.value)}>
                 <option value="LMT">Limit</option>
                 <option value="MKT">Market</option>
               </select>
@@ -189,16 +191,26 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
             </label>
           )}
 
-          <label className="form-row">
-            <span>Time in force</span>
-            <span className="popup-button" title={existing ? 'A change keeps the order’s time in force' : 'Orders last for the trading day'}>
-              <select value={existing?.tif === 'GTC' ? 'GTC' : 'DAY'} disabled>
-                <option value="DAY">Day</option>
-                <option value="GTC">Good till cancelled</option>
-              </select>
-              <ChevronsIcon />
-            </span>
-          </label>
+          {/* New orders are day orders, so the value is shown as text; a change can switch it */}
+          {existing ? (
+            <label className="form-row">
+              <span>Time in force</span>
+              <span className="popup-button">
+                <select value={form.tif} onChange={(e) => set('tif')(e.target.value)}>
+                  <option value="DAY">Day</option>
+                  <option value="GTC">Good till cancelled</option>
+                </select>
+                <ChevronsIcon />
+              </span>
+            </label>
+          ) : (
+            <div className="form-row">
+              <span>Time in force</span>
+              <span className="form-value" title="New orders last for the trading day">
+                Day
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="estimates" aria-live="polite">
@@ -230,7 +242,9 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
             type="button"
             className="pill-button primary"
             disabled={!canReview}
-            onClick={() => onReview(existing ? { ...data, modify_order_id: existing.order_id } : data)}
+            onClick={() =>
+              onReview(existing ? { ...data, modify_order_id: existing.order_id, original_order_type: existing.order_type } : data)
+            }
             title={onReview ? undefined : 'The confirmation sheet arrives with issue #31'}
           >
             Review Order

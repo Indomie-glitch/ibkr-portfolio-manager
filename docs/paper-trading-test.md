@@ -18,7 +18,8 @@ only thing that keeps this test on paper money is logging in to the paper accoun
 |---|---|---|
 | 1 | Markets → search a stock → **Buy** → limit order 1 share well **below** the price → Review Order | Estimates show IBKR's commission; review sheet shows the limit callout |
 | 2 | **Place Buy Order** | Result sheet "Order placed"; Orders → Open lists it as Working |
-| 3 | Orders → **Modify** → change the quantity to 2 → Review → **Change Order** | Order now shows 2 shares; still Working |
+| 3 | Orders → **Modify** → change the quantity to 2 and the time in force to Good till cancelled → Review → **Change Order** | Order now shows 2 shares and GTC; still Working |
+| 3b | Modify a **market** order → change it to **Limit** → Review → **Change Order** | IBKR refuses this change in place: the result sheet says the original was cancelled and placed again as a new order; Orders shows the new limit order |
 | 4 | Orders → **Cancel** | Moves to the Cancelled tab |
 | 5 | Buy 1 share with a **market** order | Result sheet goes to "Order filled" with the average price and total incl. commission; Positions shows the holding after Done |
 | 6 | Positions → that holding → **Sell** 1 share (market) | Fills; holding disappears or drops by 1 |

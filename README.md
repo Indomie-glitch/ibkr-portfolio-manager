@@ -245,7 +245,7 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 | `GET /orders` | Open orders (from every client), and today's filled and cancelled orders, for the Orders page |
 | `POST /orders` | Places a previewed order: needs the preview's single-use `confirmation_token` (2 minutes, exactly that order); every check runs again first |
 | `POST /orders/{order_id}/cancel` | Cancels an open order |
-| `POST /orders/{order_id}/modify` | Changes an open order's quantity or limit price; needs a `confirmation_token` from a preview of the changed order |
+| `POST /orders/{order_id}/modify` | Changes an open order's quantity, limit price, order type or time in force (Day / GTC); needs a `confirmation_token` from a preview of the changed order. If IBKR can't make the change in place (e.g. market to limit), the order is cancelled and placed again, and the response's `replaced` says so |
 | `GET /orders/stream` | Server-Sent Events: every known order at the start (`orders`), then each status change or fill (`order`) |
 | `GET /trading/status` | Paper or live account, whether orders are allowed (and why not), and the order limit |
 | `GET /health` | Whether the backend is connected to IB Gateway |

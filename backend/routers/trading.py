@@ -29,6 +29,7 @@ class OrderRequest(BaseModel):
     quantity: float = Field(gt=0)
     order_type: Literal["MKT", "LMT"]
     limit_price: float | None = None
+    tif: Literal["DAY", "GTC"] = "DAY"
 
 async def checked_order(order: OrderRequest):
     """Everything an order needs before IB sees it: the contract, the price it's valued at, the
@@ -74,7 +75,7 @@ async def preview_order(order: OrderRequest, request: Request):
     return {
         "con_id": order.con_id, "symbol": contract.symbol, "exchange": contract.primaryExchange,
         "currency": contract.currency, "action": order.action, "quantity": order.quantity,
-        "order_type": order.order_type, "limit_price": order.limit_price,
+        "order_type": order.order_type, "limit_price": order.limit_price, "tif": order.tif,
         "price_used": checked["price"], "estimated_value": checked["value"],
         "estimated_value_base": checked["value_base"], "base_currency": checked["base_currency"],
         "held_quantity": checked["held"], "max_order_value": checked["status"]["max_order_value"],
@@ -103,6 +104,7 @@ def trade_summary(trade):
         "order_id": trade.order.orderId, "perm_id": trade.order.permId or None,
         "con_id": trade.contract.conId, "symbol": trade.contract.symbol,
         "action": trade.order.action, "quantity": trade.order.totalQuantity, "order_type": trade.order.orderType,
+        "tif": trade.order.tif or "DAY",
         "limit_price": clean(trade.order.lmtPrice) if trade.order.orderType == "LMT" else None,
         "status": status.status, "filled": status.filled, "remaining": status.remaining,
         "avg_fill_price": clean(status.avgFillPrice) or None,
@@ -166,33 +168,89 @@ async def cancel_order(order_id: int, request: Request):
 class ModifyOrderRequest(BaseModel):
     quantity: float = Field(gt=0)
     limit_price: float | None = None
+    # None keeps the order's current type / time in force
+    order_type: Literal["MKT", "LMT"] | None = None
+    tif: Literal["DAY", "GTC"] | None = None
     confirmation_token: str
+
+# IBKR messages that aren't a rejection (399: "won't be placed until the market opens")
+WARNING_CODES = {399}
+# How long to listen for IBKR rejecting a change made in place
+MODIFY_CHECK_S = 2.0
+CANCELLED_STATUSES = {"Cancelled", "ApiCancelled"}
+
+async def change_rejection(trade, log_before):
+    """IBKR's reason if it refused the change just sent (e.g. error 329 "Cannot change to the new
+    order type"), or None if it accepted it."""
+    waited = 0.0
+    while waited < MODIFY_CHECK_S:
+        for entry in trade.log[log_before:]:
+            if entry.errorCode and entry.errorCode not in WARNING_CODES:
+                return entry.message or f"IBKR error {entry.errorCode}"
+        await asyncio.sleep(0.1)
+        waited += 0.1
+    return None
+
+async def cancel_and_replace(trade, details, reason):
+    """When IBKR won't change an order in place: cancel it, then place the changed order as a new one."""
+    if trade.orderStatus.filled:
+        raise HTTPException(status_code=409, detail=(
+            f"IBKR can't make this change to the order ({reason}). Part of it has already filled, so it "
+            "wasn't cancelled and replaced. Cancel it and place a new order for the rest."))
+    ib.cancelOrder(trade.order)
+    for _ in range(25):
+        if trade.orderStatus.status in CANCELLED_STATUSES:
+            break
+        await asyncio.sleep(0.2)
+    else:
+        raise HTTPException(status_code=409, detail=(
+            f"IBKR can't make this change to the order ({reason}), and the original order couldn't be "
+            "cancelled, so nothing was changed."))
+    replacement = ib.placeOrder(trade.contract, trading.build_order(details))
+    print(f"Order {trade.order.orderId} ({trade.contract.symbol}) replaced by order {replacement.order.orderId}: {reason}")
+    result = await settled(replacement, {"PendingSubmit", "ApiPending"})
+    result["replaced"] = {"order_id": trade.order.orderId, "reason": reason}
+    return result
 
 @router.post("/orders/{order_id}/modify", dependencies=[Depends(require_ib)])
 async def modify_order(order_id: int, change: ModifyOrderRequest, request: Request):
-    """Change an open order's quantity or limit price. The changed order must be previewed first
-    (POST /orders/preview with the new numbers) and its token passed here; side and type stay."""
+    """Change an open order's quantity, limit price, type or time in force (the side stays). The
+    changed order must be previewed first (POST /orders/preview with the new values) and its token
+    passed here. The change is made in place when IBKR allows it; when IBKR refuses (e.g. market to
+    limit), the order is cancelled and placed again, and the response's "replaced" says so."""
     check_origin(request)
     async with order_lock:
         trade = open_trade(order_id)
+        if trade.order.orderType not in trading.ORDER_TYPES:
+            raise HTTPException(status_code=409, detail="Only market and limit orders placed here can be changed.")
+        order_type = change.order_type or trade.order.orderType
         details = {
             "con_id": trade.contract.conId, "action": trade.order.action, "quantity": change.quantity,
-            "order_type": trade.order.orderType, "limit_price": change.limit_price if trade.order.orderType == "LMT" else None,
+            "order_type": order_type, "limit_price": change.limit_price if order_type == "LMT" else None,
+            "tif": change.tif or trade.order.tif or "DAY",
         }
-        if details["order_type"] not in trading.ORDER_TYPES:
-            raise HTTPException(status_code=409, detail="Only market and limit orders placed here can be changed.")
         problem = confirmation_tokens.redeem(change.confirmation_token, details["con_id"], details, time.monotonic())
         if problem:
             raise HTTPException(status_code=409, detail=problem)
         checked = await checked_order(OrderRequest(**details))
         if checked["problems"]:
             raise HTTPException(status_code=409, detail=" ".join(checked["problems"]))
+
+        original = {field: getattr(trade.order, field) for field in ("totalQuantity", "orderType", "lmtPrice", "tif")}
         trade.order.totalQuantity = change.quantity
-        if details["order_type"] == "LMT":
-            trade.order.lmtPrice = round(change.limit_price, 4)
+        trade.order.orderType = order_type
+        trade.order.lmtPrice = round(change.limit_price, 4) if order_type == "LMT" else 0.0
+        trade.order.tif = details["tif"]
+        log_before = len(trade.log)
         ib.placeOrder(trade.contract, trade.order)  # same order id = a change, not a new order
-        print(f"Order change requested: order {order_id} ({trade.contract.symbol}) to {change.quantity:g}")
-        return await settled(trade, {"PendingSubmit", "ApiPending"})
+        print(f"Order change requested: order {order_id} ({trade.contract.symbol}) to {change.quantity:g} {order_type} {details['tif']}")
+        reason = await change_rejection(trade, log_before)
+        if reason is None:
+            return await settled(trade, {"PendingSubmit", "ApiPending"})
+        # IBKR kept the order as it was: put our copy back before deciding what to do
+        for field, value in original.items():
+            setattr(trade.order, field, value)
+        return await cancel_and_replace(trade, details, reason)
 
 ORDER_LISTS = {"open": "your open orders", "completed": "today's completed orders", "executions": "today's executions"}
 

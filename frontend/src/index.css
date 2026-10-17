@@ -2989,7 +2989,8 @@ button.ai-source:hover {
 }
 
 .popup-button select {
-  width: 150px;
+  width: auto;
+  min-width: 150px;
   padding-right: 28px;
   appearance: none;
   cursor: pointer;
@@ -3377,4 +3378,14 @@ button.ai-source:hover {
   border-top: 1px solid var(--row-border);
   color: var(--text-2);
   font-size: 13px;
+}
+
+/* A fixed value in a form row (shown as text, not a disabled control) */
+.form-value {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.order-result .callout {
+  align-self: stretch;
 }
