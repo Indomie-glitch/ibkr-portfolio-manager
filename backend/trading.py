@@ -37,6 +37,8 @@ def status(accounts):
 
 ACTIONS = ("BUY", "SELL")
 ORDER_TYPES = ("MKT", "LMT")
+# Time in force: good for the day, or good till cancelled
+TIFS = ("DAY", "GTC")
 # IB's "no value" for doubles
 UNSET = 1.7976931348623157e308
 
@@ -50,6 +52,8 @@ def check_order(order, price, fx_rate, held_quantity, trading_status):
         problems.append(trading_status["reason"])
     if order["action"] not in ACTIONS:
         problems.append("Choose Buy or Sell.")
+    if order.get("tif", "DAY") not in TIFS:
+        problems.append("Choose Day or Good till cancelled.")
     if order["order_type"] not in ORDER_TYPES:
         problems.append("Choose a market or limit order.")
     quantity = order["quantity"]
@@ -75,13 +79,13 @@ def check_order(order, price, fx_rate, held_quantity, trading_status):
 
 
 def build_order(order):
-    """The ib_async order: a day order, regular trading hours only."""
+    """The ib_async order: Day (default) or GTC, regular trading hours only."""
     from ib_async import LimitOrder, MarketOrder
     if order["order_type"] == "LMT":
         ib_order = LimitOrder(order["action"], order["quantity"], round(order["limit_price"], 4))
     else:
         ib_order = MarketOrder(order["action"], order["quantity"])
-    ib_order.tif = "DAY"
+    ib_order.tif = order.get("tif") or "DAY"
     ib_order.outsideRth = False
     return ib_order
 
@@ -117,7 +121,8 @@ TOKEN_LIFETIME_S = 120
 def _order_key(con_id, order):
     """The parts of an order the confirmation covers: any change needs a new preview."""
     return (con_id, order["action"], float(order["quantity"]), order["order_type"],
-            round(float(order["limit_price"]), 4) if order["order_type"] == "LMT" else None)
+            round(float(order["limit_price"]), 4) if order["order_type"] == "LMT" else None,
+            order.get("tif") or "DAY")
 
 
 class ConfirmationTokens:

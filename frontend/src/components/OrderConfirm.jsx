@@ -18,9 +18,13 @@ function Line({ label, value, total = false }) {
   )
 }
 
+const TIF_WORDS = { DAY: 'Good for today', GTC: 'Good till cancelled' }
+// When an unfilled limit order ends
+const untilWords = (order) => (order.tif === 'GTC' ? 'stays open until you cancel it' : 'is cancelled at today’s close')
+
 function orderWords(order, c) {
   const type = order.order_type === 'LMT' ? `Limit order at ${formatMoney(order.limit_price, c)}` : 'Market order'
-  return `${type} · Good for today`
+  return `${type} · ${TIF_WORDS[order.tif] ?? TIF_WORDS.DAY}`
 }
 
 // The limit-order explanation in the callout (Figma "M6 / 3 Review order")
@@ -30,8 +34,14 @@ function calloutText(order, c) {
   }
   const price = formatMoney(order.limit_price, c)
   return order.action === 'BUY'
-    ? `A limit order only fills at ${price} or lower. If the price stays above that, it won’t fill and is cancelled at today’s close.`
-    : `A limit order only fills at ${price} or higher. If the price stays below that, it won’t fill and is cancelled at today’s close.`
+    ? `A limit order only fills at ${price} or lower. If the price stays above that, it won’t fill and ${untilWords(order)}.`
+    : `A limit order only fills at ${price} or higher. If the price stays below that, it won’t fill and ${untilWords(order)}.`
+}
+
+// A change of order type may not be possible in place (IBKR refuses market -> limit, for example)
+function replaceNote(preview) {
+  if (!preview.modify_order_id || preview.order_type === preview.original_order_type) return null
+  return 'If IBKR can’t change the order type in place, the order is cancelled and placed again as a new order.'
 }
 
 // What the result sheet says for an order's state
@@ -47,7 +57,8 @@ function resultText(order, c, accountLabel) {
   if (order.filled > 0) {
     return { title: 'Order partly filled', tone: 'ok', text: `${verb} ${order.filled} of ${order.quantity} ${order.symbol} so far ${where}.` }
   }
-  return { title: 'Order placed', tone: 'ok', text: `IBKR has the order and it will fill when the price allows. It lasts until today’s close.` }
+  const lasts = order.tif === 'GTC' ? 'It stays open until it fills or you cancel it.' : 'It lasts until today’s close.'
+  return { title: 'Order placed', tone: 'ok', text: `IBKR has the order and it will fill when the price allows. ${lasts}` }
 }
 
 // Review, then follow the placed order (Figma "M6 / 3 Review order" and "M6 / 4 Order filled")
@@ -56,6 +67,8 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
   const [error, setError] = useState(null)
   const [order, setOrder] = useState(null)
   const [submittedAt, setSubmittedAt] = useState(null)
+  // Set when IBKR refused the change in place and the order was cancelled and placed again
+  const [replaced, setReplaced] = useState(null)
   // When the app first heard of the current number of filled shares
   const [fillSeen, setFillSeen] = useState(null)
   const c = preview.currency
@@ -95,6 +108,8 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
         ? await modifyOrder(preview.modify_order_id, {
             quantity: preview.quantity,
             limit_price: preview.limit_price,
+            order_type: preview.order_type,
+            tif: preview.tif,
             confirmation_token: preview.confirmation_token,
           })
         : await placeOrder({
@@ -103,9 +118,11 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
             quantity: preview.quantity,
             order_type: preview.order_type,
             limit_price: preview.limit_price,
+            tif: preview.tif,
             confirmation_token: preview.confirmation_token,
           })
       setSubmittedAt(timeNow())
+      setReplaced(placed.replaced ?? null)
       update(placed)
     } catch (err) {
       setError(err.message)
@@ -116,7 +133,12 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
 
   if (order) {
     const result = resultText(order, c, accountLabel)
-    const timeline = [{ kind: 'submitted', label: preview.modify_order_id ? 'Change sent to IBKR' : 'Submitted to IBKR', time: submittedAt }]
+    const timeline = replaced
+      ? [
+          { kind: 'cancelled', label: `Original order cancelled (IBKR couldn’t change it in place)`, time: submittedAt },
+          { kind: 'submitted', label: 'New order submitted to IBKR', time: submittedAt },
+        ]
+      : [{ kind: 'submitted', label: preview.modify_order_id ? 'Change sent to IBKR' : 'Submitted to IBKR', time: submittedAt }]
     if (fillSeen) {
       timeline.push({ kind: 'fill', label: `Filled ${fillSeen.filled} of ${order.quantity} at ${formatMoney(order.avg_fill_price, c)}`, time: fillSeen.time })
     }
@@ -133,6 +155,15 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
             {result.title}
           </h2>
           <p className="result-text">{result.text}</p>
+          {replaced && (
+            <div className="callout">
+              <InfoIcon />
+              <p>
+                IBKR couldn’t make this change to the existing order ({replaced.reason}), so it was cancelled and placed
+                again as a new order.
+              </p>
+            </div>
+          )}
           <div className="estimates timeline">
             {timeline.map((e) => (
               <div key={e.kind} className="timeline-event">
@@ -210,7 +241,7 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
 
         <div className={`callout ${error ? 'error' : ''}`} role={error ? 'alert' : undefined}>
           {error ? <WarningIcon size={16} /> : <InfoIcon />}
-          <p>{error ?? calloutText(preview, c)}</p>
+          <p>{error ?? [calloutText(preview, c), replaceNote(preview)].filter(Boolean).join(' ')}</p>
         </div>
 
         {preview.what_if?.warning && <p className="sheet-note">IBKR: {preview.what_if.warning}</p>}

@@ -48,6 +48,7 @@ class BuildOrderTest(unittest.TestCase):
         self.assertEqual((limit.orderType, limit.action, limit.totalQuantity, limit.lmtPrice, limit.tif),
                          ("LMT", "BUY", 10, 12.3457, "DAY"))
         self.assertFalse(limit.outsideRth)
+        self.assertEqual(build_order({**order(), "tif": "GTC"}).tif, "GTC")
         market = build_order(order(action="SELL", order_type="MKT"))
         self.assertEqual((market.orderType, market.action), ("MKT", "SELL"))
 
