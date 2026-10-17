@@ -117,6 +117,17 @@ function HoldingDetail({ holding, refreshKey }) {
 
       <section id="your-position">
         <h3 className="section-title">Your position</h3>
+        {holding.not_owned ? (
+          <div className="not-owned">
+            <div>
+              <p className="not-owned-title">You don’t own {shortName}</p>
+              <p className="not-owned-text">Buy shares to start tracking your cost, P&amp;L and dividends here.</p>
+            </div>
+            <button type="button" className="button-primary" disabled title="The order ticket arrives later in milestone 6">
+              Buy
+            </button>
+          </div>
+        ) : (
         <div className="position-stats">
           <PositionStat label="Quantity" value={formatNumber(holding.quantity, 0)} />
           <PositionStat label="Average cost" value={formatMoney(holding.avg_cost, c)} />
@@ -132,6 +143,7 @@ function HoldingDetail({ holding, refreshKey }) {
             value={formatPercent(holding.weight, { signed: false, decimals: 1 })}
           />
         </div>
+        )}
       </section>
 
       <DisclosureSection id="keyStats" title="Key statistics" note="Delayed 15 min">
@@ -142,7 +154,8 @@ function HoldingDetail({ holding, refreshKey }) {
         <AboutSection profile={profile.data} error={profile.error} loading={profile.loading} />
       </DisclosureSection>
 
-      <AiSummarySection holding={holding} name={shortName} />
+      {/* AI summaries are written for holdings only */}
+      {!holding.not_owned && <AiSummarySection holding={holding} name={shortName} />}
 
       <DisclosureSection id="news" title="News">
         <NewsSection holding={holding} companyName={shortName} />
