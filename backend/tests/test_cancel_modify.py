@@ -29,7 +29,6 @@ class CancelModifyTest(unittest.TestCase):
         self.trade = open_limit_order()
         patches = [
             mock.patch.object(main.ib, "openTrades", return_value=[self.trade]),
-            mock.patch.object(main.connection, "read_only", False),
             mock.patch.object(main, "settled", side_effect=lambda trade, waiting: main.trade_summary(trade)),
         ]
         for p in patches:
@@ -48,11 +47,6 @@ class CancelModifyTest(unittest.TestCase):
         self.trade.orderStatus.status = "Filled"
         with self.assertRaises(HTTPException):
             asyncio.run(main.cancel_order(9, FakeRequest()))
-
-    def test_cancel_refused_when_read_only(self):
-        with mock.patch.object(main.connection, "read_only", True), self.assertRaises(HTTPException) as caught:
-            asyncio.run(main.cancel_order(9, FakeRequest()))
-        self.assertEqual(caught.exception.status_code, 409)
 
     def change(self, token, quantity=8, limit_price=41.0):
         return main.ModifyOrderRequest(quantity=quantity, limit_price=limit_price, confirmation_token=token)
@@ -75,7 +69,7 @@ class CancelModifyTest(unittest.TestCase):
 
     def test_modify_refused_by_checks(self):
         token = main.confirmation_tokens.issue(1, {"action": "BUY", "quantity": 8, "order_type": "LMT", "limit_price": 41.0}, main.time.monotonic())
-        refused = {"problems": ["Trading is off: the app is read only."], "contract": None}
+        refused = {"problems": ["The order is worth about 20,000.00 in the account's currency, above the 10,000 limit (MAX_ORDER_VALUE)."], "contract": None}
         with mock.patch.object(main, "checked_order", return_value=refused), \
                 mock.patch.object(main.ib, "placeOrder") as place, self.assertRaises(HTTPException):
             asyncio.run(main.modify_order(9, self.change(token), FakeRequest()))

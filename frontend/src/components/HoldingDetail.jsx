@@ -67,7 +67,7 @@ function HoldingDetail({ holding, refreshKey, trading, onTrade }) {
   const shortName = profile.data?.short_name ?? holding.symbol
 
   const price = holding.last
-  // Buy and Sell open the order ticket while trading is on (TRADING_MODE); otherwise they say why not
+  // Buy and Sell open the order ticket while connected; otherwise they say why not
   const canTrade = Boolean(trading?.can_trade && onTrade)
   const tradeTitle = canTrade ? undefined : (trading?.reason ?? 'Trading is unavailable')
   const tradeStock = { con_id: holding.con_id, symbol: holding.symbol, shortName, currency: holding.currency, last: holding.last }

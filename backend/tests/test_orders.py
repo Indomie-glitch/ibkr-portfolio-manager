@@ -16,10 +16,10 @@ class CheckOrderTest(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertEqual((value, value_base), (1000.0, 1500.0))
 
-    def test_trading_off_is_a_problem(self):
-        status = {**OPEN, "can_trade": False, "reason": "Trading is off: the app is read only."}
+    def test_not_connected_is_a_problem(self):
+        status = {**OPEN, "can_trade": False, "reason": "Trading is unavailable until IB Gateway is connected."}
         problems, _, _ = check_order(order(), 100.0, 1, 0, status)
-        self.assertEqual(problems, ["Trading is off: the app is read only."])
+        self.assertEqual(problems, ["Trading is unavailable until IB Gateway is connected."])
 
     def test_limit_uses_base_currency(self):
         # 70 × 100 USD = 7,000 USD = 10,500 AUD: over a 10,000 AUD limit

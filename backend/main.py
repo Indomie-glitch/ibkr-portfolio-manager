@@ -87,10 +87,8 @@ async def keep_connected():
             ib.disconnect()
         if not ib.isConnected():
             try:
-                # Read only unless TRADING_MODE turns trading on (checked again before every order)
-                read_only = config.trading_mode() == "off"
-                await ib.connectAsync(IB_HOST, port, clientId=connection.client_id, readonly=read_only)
-                connection.read_only = read_only
+                # Not read only: the app places orders (Milestone 6); every order passes trading.py's checks
+                await ib.connectAsync(IB_HOST, port, clientId=connection.client_id, readonly=False)
                 connected_port = port
                 connection.connected()
                 # 3 = delayed data, which is free without a market data subscription
@@ -574,7 +572,7 @@ async def portfolio_facts_for():
 def trading_status():
     """Paper or live account, whether orders are allowed and why not, and the order limits."""
     accounts = ib.managedAccounts() if ib.isConnected() else []
-    return trading.status(accounts, connection_read_only=connection.read_only)
+    return trading.status(accounts)
 
 class OrderRequest(BaseModel):
     con_id: int
@@ -598,7 +596,7 @@ async def checked_order(order: OrderRequest):
     base = account_data["currency"]
     fx_rate = 1 if contract.currency == base else account_data["fx_rates"].get(contract.currency)
     held = next((item.position for item in ib.portfolio() if item.contract.conId == order.con_id), 0)
-    status = trading.status(ib.managedAccounts(), connection_read_only=connection.read_only)
+    status = trading.status(ib.managedAccounts())
     problems, value, value_base = trading.check_order(order.model_dump(), price, fx_rate, held, status)
     return {
         "contract": contract, "price": price, "held": held, "status": status, "problems": problems,
@@ -608,7 +606,7 @@ async def checked_order(order: OrderRequest):
 @app.post("/orders/preview", dependencies=[Depends(require_ib)])
 async def preview_order(order: OrderRequest, request: Request):
     """What an order would cost (IB's what-if: commission and margin impact), without sending it.
-    Only possible while trading is on (TRADING_MODE): IB refuses what-if orders on a read-only connection."""
+    A preview that passes every check comes with the confirmation token POST /orders needs."""
     check_origin(request)
     checked = await checked_order(order)
     contract = checked["contract"]
@@ -711,8 +709,6 @@ async def settled(trade, waiting_for):
 async def cancel_order(order_id: int, request: Request):
     """Cancel an open order. No confirmation token: cancelling only reduces what can happen."""
     check_origin(request)
-    if connection.read_only:
-        raise HTTPException(status_code=409, detail="The connection to IB Gateway is read only, so orders can't be changed.")
     trade = open_trade(order_id)
     ib.cancelOrder(trade.order)
     print(f"Order cancel requested: order {order_id} ({trade.contract.symbol})")

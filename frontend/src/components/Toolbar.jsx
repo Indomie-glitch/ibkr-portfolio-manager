@@ -5,7 +5,8 @@ import { RefreshIcon } from './icons.jsx'
 function tradingTitle(trading) {
   if (!trading.can_trade) return trading.reason
   const limit = trading.max_order_value.toLocaleString(undefined, { maximumFractionDigits: 0 })
-  return `Trading is on (${trading.mode}). Orders up to ${limit} in the account's currency.`
+  const real = trading.account === 'live' ? ' Orders use real money.' : ''
+  return `Connected to your ${trading.account_label.toLowerCase()}.${real} Orders up to ${limit} in the account's currency.`
 }
 
 function Toolbar({ title, subtitle, loading, onRefresh, appearance, onAppearanceChange, trading }) {

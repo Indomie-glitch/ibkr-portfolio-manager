@@ -1,16 +1,15 @@
 # Paper trading test run (Milestone 6, issue #33)
 
-A checklist for testing every order flow end to end on the **paper** account before Milestone 6
-is called done. Run it in development (the Mac app is always read only).
+A checklist for testing every order flow end to end on a **paper** account before using a live
+one. Trading is on whenever the app is connected, in the browser version and the Mac app, so the
+only thing that keeps this test on paper money is logging in to the paper account.
 
 ## Before you start
 
-1. Log IB Gateway in to the **paper** account (port 4002). Check the toolbar badge says
-   **Paper account**. If it says Live account, stop.
-2. In `.env`: `TRADING_MODE=paper` and, for the limit test, `MAX_ORDER_VALUE=10000`.
-3. Restart the backend (the connection is only opened without read only at start), then check
-   `GET /trading/status` says `"can_trade": true`.
-4. Pick a cheap, liquid stock during market hours (e.g. an ASX 200 stock in the morning, or a
+1. Log IB Gateway (or the Mac app) in to the **paper** account. Check the toolbar badge says
+   **Paper account** (blue). If it says **Live account** (red), stop and sign in to paper instead.
+2. For the limit test, set `MAX_ORDER_VALUE=10000` in `.env` (the default) and restart the backend.
+3. Pick a cheap, liquid stock during market hours (e.g. an ASX 200 stock in the morning, or a
    US large cap at night).
 
 ## Flows
@@ -27,9 +26,9 @@ is called done. Run it in development (the Mac app is always read only).
 | 8 | Buy an order worth more than `MAX_ORDER_VALUE` | Ticket lists the limit problem; Review Order disabled |
 | 9 | Open the ticket, wait over 2 minutes on the review sheet, then Place | Error: the confirmation expired; Edit → Review again works |
 | 10 | Double-click **Place Buy Order** | Only one order is placed |
-| 11 | Set `TRADING_MODE=off`, restart | Buy/Sell/Modify/Cancel are disabled with "Trading is off" |
+| 11 | Repeat 1–2 in the **Mac app** | Same results (its Gateway now allows API orders) |
+| 12 | Quit IB Gateway | Buy/Sell/Modify/Cancel are disabled with "Trading is unavailable until IB Gateway is connected" |
 
 ## After the run
 
-- Note anything that behaved differently in issue #33, with the order ids from the Orders page.
-- Set `TRADING_MODE` back to `off` if you don't want trading on day to day.
+Note anything that behaved differently in issue #33, with the order ids from the Orders page.
