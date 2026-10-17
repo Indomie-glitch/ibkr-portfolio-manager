@@ -15,12 +15,14 @@ import OrderTicket from './components/OrderTicket.jsx'
 import Markets from './pages/Markets.jsx'
 import Orders from './pages/Orders.jsx'
 import Positions from './pages/Positions.jsx'
-import Settings from './pages/Settings.jsx'
+import SettingsSheet from './components/SettingsSheet.jsx'
+import { onOpenSettingsMenu } from './desktop/appMenu.js'
+import { savedLogin, signOut } from './desktop/appSession.js'
 import Setup, { Startup } from './pages/Setup.jsx'
 import { useLogin } from './hooks/useLogin.js'
 
 const AUTO_REFRESH_MS = 60_000
-const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', markets: 'Markets', orders: 'Orders', settings: 'Settings' }
+const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', markets: 'Markets', orders: 'Orders' }
 // /health is a cheap local request, so check it often to notice drops and recoveries quickly
 const HEALTH_CHECK_MS = 5_000
 
@@ -50,6 +52,12 @@ function connectionState(health) {
 
 function App() {
   const [page, setPage] = useState('overview')
+  // Settings opens as a sheet over the current page (from the account menu, or ⌘, in the Mac app)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const openSettings = useCallback(() => setSettingsOpen(true), [])
+  const closeSettings = useCallback(() => setSettingsOpen(false), [])
+  // The IBKR username and mode last signed in with, for the account card (Mac app only)
+  const [savedAccount, setSavedAccount] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [account, setAccount] = useState(null)
   const [positions, setPositions] = useState([])
@@ -175,6 +183,24 @@ function App() {
     setNeedSignIn(true)
   }
 
+  useEffect(() => {
+    if (!IN_APP || !signedIn) return
+    savedLogin()
+      .then(setSavedAccount)
+      .catch(() => {}) // the card then says "Not signed in" only until the next sign-in
+  }, [signedIn])
+
+  // ⌘, (the app menu's Settings… item) opens the sheet
+  useEffect(() => (IN_APP ? onOpenSettingsMenu(openSettings) : undefined), [openSettings])
+
+  async function signOutFromMenu() {
+    try {
+      await signOut()
+    } finally {
+      refreshLogin()
+    }
+  }
+
   const { holdings } = buildHoldings(positions, quotes, account)
   const updated = updatedAt ? `Updated ${formatTime(updatedAt)}` : 'Loading…'
   let subtitle =
@@ -185,7 +211,6 @@ function App() {
   if (connection === 'stopped') subtitle = 'Not running'
   if (page === 'orders' && connected) subtitle = updated
   if (page === 'markets' && connected) subtitle = 'Search stocks on the ASX and US exchanges'
-  if (page === 'settings') subtitle = IN_APP ? 'Saved on this Mac' : 'Development: most settings come from .env'
   // Only show the cards when the data is current; never stale numbers while disconnected, except
   // dimmed under the "session ended" banner, which says how old they are
   const showData = account && (connected || sessionEnded)
@@ -217,7 +242,18 @@ function App() {
     <>
       {updates}
       <div className="app">
-        <Sidebar page={page} onNavigate={setPage} health={health} />
+        <Sidebar
+          page={page}
+          onNavigate={setPage}
+          health={health}
+          login={login}
+          trading={connected ? trading : null}
+          username={savedAccount?.username}
+          savedMode={savedAccount?.mode}
+          onOpenSettings={openSettings}
+          onReconnect={reconnectSession}
+          onSignOut={signOutFromMenu}
+        />
 
         <main className="content">
           <Toolbar
@@ -234,25 +270,29 @@ function App() {
           />
 
           {/* Settings works without a connection: it's where you'd fix one */}
-          {page === 'settings' && (
-            <Settings
+          {settingsOpen && (
+            <SettingsSheet
+              onClose={closeSettings}
               appearance={appearance}
               onAppearanceChange={setAppearance}
               login={login}
               connected={connected}
-              onSignedOut={refreshLogin}
+              onSignedOut={() => {
+                closeSettings()
+                refreshLogin()
+              }}
             />
           )}
 
-          {page !== 'settings' && sessionEnded && (
+          {sessionEnded && (
             <SessionBanner reason={login.reason} lastUpdated={updatedAt} onReconnect={reconnectSession} />
           )}
 
-          {page !== 'settings' && !sessionEnded && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
+          {!sessionEnded && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
             <ConnectionMessage state={connection} health={health} lastUpdated={updatedAt} />
           )}
 
-          {page !== 'settings' && connected && error && (
+          {connected && error && (
             <div className="page-message">
               <div className="error" role="alert">
                 <strong>Could not load data.</strong> Make sure the backend is running on port 8000 and IB

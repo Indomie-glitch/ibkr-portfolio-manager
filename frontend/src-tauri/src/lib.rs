@@ -343,19 +343,26 @@ pub(crate) fn shutdown_for_update(app: &AppHandle) {
     }
 }
 
-/// The macOS menu: the default one plus "Check for Updates…" under the app name, after About.
-/// Choosing it tells the page to check (and to say so if there's no update).
-fn add_update_menu_item(app: &AppHandle) -> tauri::Result<()> {
-    use tauri::menu::{Menu, MenuItem};
+/// The macOS menu: the default one plus, under the app name after About, "Check for Updates…" and
+/// "Settings…" (⌘,). Choosing one tells the page: to check for an update (and to say so if there's
+/// none), or to open the Settings sheet.
+fn add_app_menu_items(app: &AppHandle) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
     let menu = Menu::default(app)?;
     if let Some(app_menu) = menu.items()?.first().and_then(|item| item.as_submenu().cloned()) {
         let check = MenuItem::with_id(app, "check_for_updates", "Check for Updates…", true, None::<&str>)?;
         app_menu.insert(&check, 1)?;
+        let separator = PredefinedMenuItem::separator(app)?;
+        app_menu.insert(&separator, 2)?;
+        let settings = MenuItem::with_id(app, "open_settings", "Settings…", true, Some("CmdOrCtrl+,"))?;
+        app_menu.insert(&settings, 3)?;
     }
     app.set_menu(menu)?;
     app.on_menu_event(|app, event| {
         if event.id() == "check_for_updates" {
             let _ = app.emit("check-for-updates", ());
+        } else if event.id() == "open_settings" {
+            let _ = app.emit("open-settings", ());
         }
     });
     Ok(())
@@ -397,7 +404,7 @@ pub fn run() {
             app.manage(GatewaySetup(Mutex::new(gateway::Progress::default())));
             app.manage::<SharedSession>(Arc::new(session::Session::default()));
             updater::manage(app.handle());
-            add_update_menu_item(app.handle())?;
+            add_app_menu_items(app.handle())?;
             open_main_window(app.handle(), connection.as_ref())?;
             remove_old_keychain_items(app.handle().clone());
             Ok(())

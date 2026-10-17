@@ -124,10 +124,20 @@ export function DisclosureIcon({ size = 14 }) {
 
 // Not in the Figma file: an 8-tooth gear drawn to match the other icons
 export function GearIcon({ size = 16 }) {
+  // Figma "icon/gear" (account card, node 44:971)
   return (
     <Icon size={size} viewBox="0 0 16 16">
-      <path d="M13.07 6.83 L14.63 7.07 L14.63 8.93 L13.07 9.17 L12.41 10.76 L13.35 12.03 L12.03 13.35 L10.76 12.41 L9.17 13.07 L8.93 14.63 L7.07 14.63 L6.83 13.07 L5.24 12.41 L3.97 13.35 L2.65 12.03 L3.59 10.76 L2.93 9.17 L1.37 8.93 L1.37 7.07 L2.93 6.83 L3.59 5.24 L2.65 3.97 L3.97 2.65 L5.24 3.59 L6.83 2.93 L7.07 1.37 L8.93 1.37 L9.17 2.93 L10.76 3.59 L12.03 2.65 L13.35 3.97 L12.41 5.24 Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-      <circle cx="8" cy="8" r="2.1" stroke="currentColor" strokeWidth="1.3" />
+      <path
+        d="M8 1.4L10.53 1.9L9.99 3.2L11.68 4.32L12.67 3.33L14.1 5.47L12.8 6.01L13.2 8H14.6L14.1 10.53L12.8 9.99L11.68 11.68L12.67 12.67L10.53 14.1L9.99 12.8L8 13.2V14.6L5.47 14.1L6.01 12.8L4.32 11.68L3.33 12.67L1.9 10.53L3.2 9.99L2.8 8H1.4L1.9 5.47L3.2 6.01L4.32 4.32L3.33 3.33L5.47 1.9L6.01 3.2L8 2.8V1.4Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10.1 8C10.1 9.1598 9.1598 10.1 8 10.1C6.8402 10.1 5.9 9.1598 5.9 8C5.9 6.8402 6.8402 5.9 8 5.9C9.1598 5.9 10.1 6.8402 10.1 8Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
     </Icon>
   )
 }
@@ -278,6 +288,15 @@ export function OrdersIcon({ size = 16 }) {
         strokeWidth="1.4"
       />
       <path d="M5.5 5.5H10.5M5.5 8H10.5M5.5 10.5H8.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </Icon>
+  )
+}
+
+// The Settings sheet's close button (Figma "icon/close", node 45:561)
+export function CloseIcon({ size = 14 }) {
+  return (
+    <Icon size={size} viewBox="0 0 14 14">
+      <path d="M4.375 4.375L7 7M7 7L9.625 9.625M7 7L9.625 4.375M7 7L4.375 9.625" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </Icon>
   )
 }
