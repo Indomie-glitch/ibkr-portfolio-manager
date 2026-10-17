@@ -17,3 +17,6 @@ build/
 .vscode/
 # Local app data (saved AI summaries)
 data/
+
+# Tauri updater signing key: never commit it (keep it in ~/.tauri and your password manager)
+*.key

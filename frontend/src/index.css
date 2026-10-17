@@ -2543,6 +2543,96 @@ button.ai-source:hover {
   }
 }
 
+/* Update dialog (Mac app): a small Apple-style alert over whatever screen shows */
+.update-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.update-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 340px;
+  max-height: calc(100vh - 32px);
+  padding: 20px 20px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  text-align: center;
+}
+
+.update-icon {
+  margin: -8px; /* the icon image has macOS's margin built in */
+}
+
+.update-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.update-text,
+.update-status {
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.update-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.update-notes {
+  width: 100%;
+  max-height: 140px;
+  padding: 8px 10px;
+  overflow-y: auto;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.update-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.update-error {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-buttons {
+  display: flex;
+  flex-wrap: wrap; /* two long buttons go on two lines rather than past the edge */
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+}
+
 /* Session ended (Figma "M7 / 9 Session ended"): banner above the last figures, dimmed */
 .session-banner {
   display: flex;

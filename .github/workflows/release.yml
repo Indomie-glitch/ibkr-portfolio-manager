@@ -1,0 +1,103 @@
+# Builds the Mac app when a version tag is pushed, signs the update with the Tauri updater key,
+# and creates a DRAFT GitHub Release with the DMG, the update package and latest.json. Nothing
+# reaches anyone until the draft is published (the app only sees published releases).
+#
+# Release: bump "version" in frontend/package.json, commit, then
+#   git tag -a v0.2.1 -m "What changed, in a line or two"   (the message becomes the release notes)
+#   git push origin main v0.2.1
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write # create the release and upload its files
+
+jobs:
+  release:
+    runs-on: macos-14 # Apple Silicon, like the app's only build target
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the tag, version and updater key
+        id: tag
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          # checkout can leave the tag lightweight; fetch the real tag object
+          git fetch --force origin "+refs/tags/${tag}:refs/tags/${tag}"
+          if [ "$(git cat-file -t "${tag}")" != "tag" ]; then
+            echo "::error::${tag} is a lightweight tag, so it has no release notes. Delete it and create an annotated tag: git tag -a ${tag} -m \"What changed\""
+            exit 1
+          fi
+          notes="$(git tag -l --format='%(contents)' "${tag}")"
+          if [ -z "$(printf '%s' "${notes}" | tr -d '[:space:]')" ]; then
+            echo "::error::${tag} has no message. The tag message becomes the release notes: git tag -a ${tag} -m \"What changed\""
+            exit 1
+          fi
+          version="$(node -p "require('./frontend/package.json').version")"
+          if [ "v${version}" != "${tag}" ]; then
+            echo "::error::The tag is ${tag} but frontend/package.json says ${version}. Bump the version, commit, and tag that commit."
+            exit 1
+          fi
+          if grep -q "REPLACE_WITH_UPDATER_PUBLIC_KEY" frontend/src-tauri/tauri.conf.json; then
+            echo "::error::Put the updater public key in frontend/src-tauri/tauri.conf.json (plugins.updater.pubkey) first."
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          {
+            echo "notes<<RELEASE_NOTES_END"
+            printf '%s\n' "${notes}"
+            echo "RELEASE_NOTES_END"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the backend's dependencies
+        run: |
+          python -m venv backend/venv
+          backend/venv/bin/pip install --quiet -r backend/requirements.txt
+
+      - uses: actions/setup-java@v4 # compiles IBC's credential launcher (Java 17)
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: frontend/src-tauri -> target
+
+      - name: Build the backend and IBC
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build:backend
+          npm run build:ibc
+
+      - name: Build, sign the update and create the draft release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: frontend
+          tagName: ${{ github.ref_name }}
+          releaseName: Portfolio Manager ${{ steps.tag.outputs.version }}
+          releaseBody: ${{ steps.tag.outputs.notes }}
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true
+          args: --bundles app,dmg --config src-tauri/tauri.release.conf.json --config src-tauri/tauri.updater.conf.json
