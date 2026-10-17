@@ -281,16 +281,6 @@ p {
   color: var(--text-3);
 }
 
-.soon-pill {
-  margin-left: auto;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--fill);
-  color: var(--text-2);
-  font-size: 10px;
-  font-weight: 500;
-}
-
 .sidebar-spacer {
   flex: 1;
 }
