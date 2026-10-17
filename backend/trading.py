@@ -127,3 +127,46 @@ def what_if_summary(state):
         "equity_with_loan_change": _number(state.equityWithLoanChange),
         "warning": state.warningText or None,
     }
+
+
+# ---------- confirmation tokens: an order is only placed after its preview was shown ----------
+
+TOKEN_LIFETIME_S = 120
+
+
+def _order_key(con_id, order):
+    """The parts of an order the confirmation covers: any change needs a new preview."""
+    return (con_id, order["action"], float(order["quantity"]), order["order_type"],
+            round(float(order["limit_price"]), 4) if order["order_type"] == "LMT" else None)
+
+
+class ConfirmationTokens:
+    """Single-use tokens issued with a preview that can submit. Placing an order needs the token
+    for exactly that order, within TOKEN_LIFETIME_S; a token works once (so a double click can't
+    place two orders). Held in memory only."""
+
+    def __init__(self, lifetime_s=TOKEN_LIFETIME_S):
+        self.lifetime_s = lifetime_s
+        self._tokens = {}
+
+    def issue(self, con_id, order, now):
+        import secrets
+        self._drop_expired(now)
+        token = secrets.token_urlsafe(24)
+        self._tokens[token] = (_order_key(con_id, order), now + self.lifetime_s)
+        return token
+
+    def redeem(self, token, con_id, order, now):
+        """Uses up the token. Returns None if it's valid for this order, otherwise the problem."""
+        self._drop_expired(now)
+        entry = self._tokens.pop(token or "", None)
+        if entry is None:
+            return "This confirmation has expired or was already used. Review the order again."
+        key, _ = entry
+        if key != _order_key(con_id, order):
+            return "The order changed after it was reviewed. Review it again."
+        return None
+
+    def _drop_expired(self, now):
+        for token in [t for t, (_, expires) in self._tokens.items() if expires <= now]:
+            del self._tokens[token]
