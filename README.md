@@ -36,10 +36,14 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * AI stock summary (Claude): a 10-part briefing on any holding, covering the business, financial health, valuation, a news digest, why the price moved, upcoming events, bull and bear case, key risks, what it means for your position, and why the price moved since your last summary (in line with the market given the stock's beta, or company specific, with any news from that window). It only uses data the app fetched, cites a source for every point, and never gives buy/sell advice
 * Summary history: reopen any of the last 20 summaries of a stock, or compare two side by side, with the exact changes in the data (price, P/E, analyst target, dividend yield, P&L, new news) and each point tagged as new, changed or no longer present
 
+* Markets: search any ASX or US stock by symbol or name, see its price, chart, statistics and news, with recently viewed stocks
+* Trading on a **paper** account (development only, off by default): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders. See [Trading safety](#trading-safety)
+* Purchase dates and 12-month CGT discount dates per lot from an IBKR Flex Query ([setup](docs/flex-query.md)), used in the AI summary
+* Mac app that sets up and runs IB Gateway itself, with nothing secret stored
+
 ### Planned
-* AI summary of the whole portfolio
-* Place trades directly from the app
-* Mac app that sets up and runs IB Gateway itself (Milestone 7, in progress)
+* AI summary of the whole portfolio on the Overview page (the backend is ready; the card needs a design)
+* Purchase dates in the app's Settings and the Your position section (the backend is ready; they need a design)
 
 ## Roadmap
 
@@ -50,8 +54,10 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 4.5:** Expanded stock detail (key statistics, company profile, news, performance via yfinance)
 * [x] **Milestone 5:** AI stock summaries via the Claude API
 * [x] **Milestone 5.1:** Summary history and compare
-* [ ] **Milestone 6:** Trade placement
-* [ ] **Milestone 7:** Mac app (Tauri): bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
+* [ ] **Purchase dates (Flex Query):** lots and CGT dates done in the backend and AI summary; Settings rows, manual entry and the Your position section wait for a design
+* [ ] **Milestone 5.2:** AI portfolio summary: facts sheet, prompt, streaming endpoint and history done; the Overview card waits for a design
+* [ ] **Milestone 6:** Trade placement: built for paper trading; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
+* [x] **Milestone 7:** Mac app (Tauri): bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
 
 ## Tech Stack
 
@@ -267,6 +273,29 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 **Note on AI summaries:** each summary costs roughly US$0.02 with Claude Haiku 4.5. Summaries are saved locally in `data/` (not committed); the last 20 per stock are kept. The purchase date for the 12-month capital gains tax discount isn't available from IB's API yet, so it shows as unknown.
 
 **Note on Yahoo Finance:** yfinance is an unofficial library and Yahoo can change or block it. If it fails, only the sections that use it show "unavailable"; the rest of the app keeps working. News comes from Yahoo's search, because yfinance's per-stock news call currently returns 404.
+
+## Trading safety
+
+Trading is built for a **paper** account and is **off by default**. Several layers have to agree
+before an order can reach IBKR:
+
+* **Off unless you turn it on.** `TRADING_MODE` in `.env` is `off` by default, and the backend
+  then connects to IB Gateway read only. The Mac app is always read only, and its Gateway runs
+  with IBKR's own Read-Only API setting.
+* **Paper only.** With `TRADING_MODE=paper`, orders are refused unless the logged-in account is a
+  paper account (IBKR paper account IDs start with D). The toolbar badge shows which account
+  you're on.
+* **Review before sending.** Every order is previewed with IBKR's what-if check first. Placing it
+  needs a single-use confirmation token from that preview, valid for 2 minutes and only for
+  exactly that order, so a changed number or a double click can't send something you didn't review.
+* **Limits checked on the server.** Each order is checked again right before it's sent: whole
+  shares only, no selling more than you hold (no short selling), and a maximum order value
+  (`MAX_ORDER_VALUE`, in your base currency).
+* **Day orders in regular hours.** New orders are day orders and don't trade outside regular
+  trading hours.
+
+Test every flow on the paper account with the [paper trading checklist](docs/paper-trading-test.md)
+before relying on it.
 
 ## Project Structure
 
