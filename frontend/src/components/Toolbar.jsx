@@ -1,4 +1,5 @@
-import { RefreshIcon } from './icons.jsx'
+import { useListCollapsed, toggleList } from '../hooks/useResizableWidth.js'
+import { RefreshIcon, SidebarIcon } from './icons.jsx'
 
 // The account badge's tooltip: whether orders are possible and the order limit
 function tradingTitle(trading) {
@@ -8,10 +9,29 @@ function tradingTitle(trading) {
   return `Connected to your ${trading.account_label.toLowerCase()}.${real} Orders up to ${limit} in the account's currency.`
 }
 
+// Shows or hides the page's list (Positions, Markets); ⌘⌥S does the same (#91)
+function ListToggle({ listKey }) {
+  const collapsed = useListCollapsed(listKey)
+  const label = collapsed ? 'Show list' : 'Hide list'
+  return (
+    <button
+      type="button"
+      className="button icon-only"
+      aria-label={label}
+      aria-pressed={!collapsed}
+      title={`${label} (⌘⌥S)`}
+      onClick={() => toggleList(listKey)}
+    >
+      <SidebarIcon />
+    </button>
+  )
+}
+
 // The theme is set in Settings → Appearance only (as in Figma, the toolbar has no theme control)
-function Toolbar({ title, subtitle, loading, onRefresh, trading }) {
+function Toolbar({ title, subtitle, loading, onRefresh, trading, listKey }) {
   return (
     <header className="toolbar" data-tauri-drag-region>
+      {listKey && <ListToggle listKey={listKey} />}
       <div>
         <h1 className="toolbar-title">{title}</h1>
         <p className="toolbar-subtitle">{subtitle}</p>

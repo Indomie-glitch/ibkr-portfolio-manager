@@ -17,6 +17,8 @@ import Orders from './pages/Orders.jsx'
 import Positions from './pages/Positions.jsx'
 import SettingsSheet from './components/SettingsSheet.jsx'
 import { onOpenSettingsMenu } from './desktop/appMenu.js'
+import { toggleList } from './hooks/useResizableWidth.js'
+import { LIST_FOR_PAGE } from './lib/listPanes.js'
 import { savedLogin, signOut } from './desktop/appSession.js'
 import Setup, { Startup } from './pages/Setup.jsx'
 import { useLogin } from './hooks/useLogin.js'
@@ -190,6 +192,21 @@ function App() {
       .catch(() => {}) // the card then says "Not signed in" only until the next sign-in
   }, [signedIn])
 
+  // ⌘⌥S shows or hides the list on Positions and Markets, like macOS's "Hide Sidebar" (#91).
+  // e.code, because ⌥ changes the character (⌥S types ß)
+  const listKey = account && connected ? LIST_FOR_PAGE[page] : undefined
+  useEffect(() => {
+    if (!listKey) return
+    const onKey = (e) => {
+      if (e.metaKey && e.altKey && !e.shiftKey && !e.ctrlKey && e.code === 'KeyS') {
+        e.preventDefault()
+        toggleList(listKey)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [listKey])
+
   // ⌘, (the app menu's Settings… item) opens the sheet
   useEffect(() => (IN_APP ? onOpenSettingsMenu(openSettings) : undefined), [openSettings])
 
@@ -265,6 +282,7 @@ function App() {
               load()
             }}
             trading={connected ? trading : null}
+            listKey={listKey}
           />
 
           {/* Settings works without a connection: it's where you'd fix one */}
