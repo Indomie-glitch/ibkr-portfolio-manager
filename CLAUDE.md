@@ -8,7 +8,7 @@ Backend: Python 3.11, FastAPI, uvicorn, ib_async (the maintained fork of ib_insy
 Frontend: React with Vite, in frontend/
 AI summaries: Claude API, model set by AI_MODEL in .env (default claude-haiku-4-5, the single place to change it), key in .env as ANTHROPIC_API_KEY (backend only, never sent to the frontend)
 Project layout
-backend/         FastAPI app (main.py), config.py (loads .env, DATA_DIR), app_main.py + portfolio-backend.spec (PyInstaller entry for the Mac app), ibkr_hello.py, requirements.txt, venv/
+backend/         FastAPI app: main.py (app, lifespan, middleware; includes the routers), routers/ (app, positions, flex, summaries, trading: one APIRouter per area), ib_core.py (shared IB connection, caches, quotes, require_ib), web.py (allowed origins, Origin check, SSE), config.py (loads .env, DATA_DIR), app_main.py + portfolio-backend.spec (PyInstaller entry for the Mac app), ibkr_hello.py, requirements.txt, venv/
 frontend/        React app (Vite); frontend/src-tauri/ is the Mac app shell (Tauri 2, Rust)
 .env             real settings, gitignored, never commit
 .env.example     template for .env, committed
