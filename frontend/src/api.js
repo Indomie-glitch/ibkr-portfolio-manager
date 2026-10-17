@@ -56,6 +56,20 @@ export function placeOrder(order) {
   return postJson('/orders', order)
 }
 
+// Open orders and today's filled and cancelled orders: { open, filled_today, cancelled }
+export function fetchOrders() {
+  return getJson('/orders')
+}
+
+export function cancelOrder(orderId) {
+  return postJson(`/orders/${orderId}/cancel`, {})
+}
+
+// Change an open order's quantity or limit price: { quantity, limit_price, confirmation_token }
+export function modifyOrder(orderId, change) {
+  return postJson(`/orders/${orderId}/modify`, change)
+}
+
 // Follow order updates until signal aborts: onEvent('orders', [...]) first, then onEvent('order', {...})
 export async function watchOrders(onEvent, signal) {
   const response = await fetch(`${API_URL}/orders/stream`, { headers: HEADERS, signal })

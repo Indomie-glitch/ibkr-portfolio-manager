@@ -43,13 +43,18 @@ function Line({ label, value, total = false }) {
 
 // The order ticket sheet (Figma "M6 / 2 Order ticket"). Nothing is sent from here: Review Order
 // hands the preview (with its confirmation token) to the confirmation sheet.
-function OrderTicket({ stock, side, trading, account, onClose, onReview, hidden = false, previewNonce = 0 }) {
-  const [form, setForm] = useState(() => ({
-    side,
-    orderType: 'LMT',
-    quantity: '1',
-    limitPrice: stock.last != null ? stock.last.toFixed(2) : '',
-  }))
+// existing: an open order being changed (side and type stay; quantity and limit price can change)
+function OrderTicket({ stock, side, existing = null, trading, account, onClose, onReview, hidden = false, previewNonce = 0 }) {
+  const [form, setForm] = useState(() =>
+    existing
+      ? {
+          side: existing.action,
+          orderType: existing.order_type,
+          quantity: String(existing.quantity),
+          limitPrice: existing.limit_price != null ? existing.limit_price.toFixed(2) : '',
+        }
+      : { side, orderType: 'LMT', quantity: '1', limitPrice: stock.last != null ? stock.last.toFixed(2) : '' },
+  )
   // The preview belongs to `key`, so an old estimate never shows for changed numbers
   const [preview, setPreview] = useState({ key: null, data: null, error: null })
   const quantityRef = useRef(null)
@@ -109,6 +114,7 @@ function OrderTicket({ stock, side, trading, account, onClose, onReview, hidden 
       <div className="sheet order-ticket" role="dialog" aria-modal="true" aria-labelledby="ticket-title">
         <div className="sheet-title-row">
           <h2 id="ticket-title" className="sheet-title">
+            {existing ? 'Change order: ' : ''}
             {buying ? 'Buy' : 'Sell'} {stock.shortName ?? stock.symbol}
           </h2>
           <div className="spacer" />
@@ -124,7 +130,13 @@ function OrderTicket({ stock, side, trading, account, onClose, onReview, hidden 
             ['BUY', 'Buy'],
             ['SELL', 'Sell'],
           ].map(([value, label]) => (
-            <button key={value} type="button" aria-pressed={form.side === value} onClick={() => set('side')(value)}>
+            <button
+              key={value}
+              type="button"
+              aria-pressed={form.side === value}
+              disabled={Boolean(existing) && form.side !== value}
+              onClick={() => set('side')(value)}
+            >
               {label}
             </button>
           ))}
@@ -134,7 +146,7 @@ function OrderTicket({ stock, side, trading, account, onClose, onReview, hidden 
           <label className="form-row">
             <span>Order type</span>
             <span className="popup-button">
-              <select value={form.orderType} onChange={(e) => set('orderType')(e.target.value)}>
+              <select value={form.orderType} disabled={Boolean(existing)} onChange={(e) => set('orderType')(e.target.value)}>
                 <option value="LMT">Limit</option>
                 <option value="MKT">Market</option>
               </select>
@@ -182,9 +194,10 @@ function OrderTicket({ stock, side, trading, account, onClose, onReview, hidden 
 
           <label className="form-row">
             <span>Time in force</span>
-            <span className="popup-button" title="Orders last for the trading day">
-              <select value="DAY" disabled>
+            <span className="popup-button" title={existing ? 'A change keeps the order’s time in force' : 'Orders last for the trading day'}>
+              <select value={existing?.tif === 'GTC' ? 'GTC' : 'DAY'} disabled>
                 <option value="DAY">Day</option>
+                <option value="GTC">Good till cancelled</option>
               </select>
               <ChevronsIcon />
             </span>
@@ -220,7 +233,7 @@ function OrderTicket({ stock, side, trading, account, onClose, onReview, hidden 
             type="button"
             className="pill-button primary"
             disabled={!canReview}
-            onClick={() => onReview(data)}
+            onClick={() => onReview(existing ? { ...data, modify_order_id: existing.order_id } : data)}
             title={onReview ? undefined : 'The confirmation sheet arrives with issue #31'}
           >
             Review Order

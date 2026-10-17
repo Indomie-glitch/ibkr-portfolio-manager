@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { placeOrder, watchOrders } from '../api.js'
+import { modifyOrder, placeOrder, watchOrders } from '../api.js'
 import { formatMoney } from '../format.js'
 import { CheckCircleIcon, CheckIcon, InfoIcon, WarningIcon } from './icons.jsx'
 
@@ -90,14 +90,21 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
     setPlacing(true)
     setError(null)
     try {
-      const placed = await placeOrder({
-        con_id: preview.con_id,
-        action: preview.action,
-        quantity: preview.quantity,
-        order_type: preview.order_type,
-        limit_price: preview.limit_price,
-        confirmation_token: preview.confirmation_token,
-      })
+      // A change to an open order keeps its id; otherwise this places a new order
+      const placed = preview.modify_order_id
+        ? await modifyOrder(preview.modify_order_id, {
+            quantity: preview.quantity,
+            limit_price: preview.limit_price,
+            confirmation_token: preview.confirmation_token,
+          })
+        : await placeOrder({
+            con_id: preview.con_id,
+            action: preview.action,
+            quantity: preview.quantity,
+            order_type: preview.order_type,
+            limit_price: preview.limit_price,
+            confirmation_token: preview.confirmation_token,
+          })
       setSubmittedAt(timeNow())
       update(placed)
     } catch (err) {
@@ -109,7 +116,7 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
 
   if (order) {
     const result = resultText(order, c, accountLabel)
-    const timeline = [{ kind: 'submitted', label: 'Submitted to IBKR', time: submittedAt }]
+    const timeline = [{ kind: 'submitted', label: preview.modify_order_id ? 'Change sent to IBKR' : 'Submitted to IBKR', time: submittedAt }]
     if (fillSeen) {
       timeline.push({ kind: 'fill', label: `Filled ${fillSeen.filled} of ${order.quantity} at ${formatMoney(order.avg_fill_price, c)}`, time: fillSeen.time })
     }
@@ -185,6 +192,7 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
 
         <div className="review-summary">
           <p className="review-headline">
+            {preview.modify_order_id ? 'Change to ' : ''}
             {buying ? 'Buy' : 'Sell'} {preview.quantity} {preview.symbol}
           </p>
           <p className="review-words">{orderWords(preview, c)}</p>
@@ -213,7 +221,7 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
           </button>
           <div className="spacer" />
           <button type="button" className="pill-button primary" onClick={place} disabled={placing || Boolean(error)}>
-            {placing ? 'Placing…' : `Place ${buying ? 'Buy' : 'Sell'} Order`}
+            {placing ? 'Sending…' : preview.modify_order_id ? 'Change Order' : `Place ${buying ? 'Buy' : 'Sell'} Order`}
           </button>
         </div>
       </div>
