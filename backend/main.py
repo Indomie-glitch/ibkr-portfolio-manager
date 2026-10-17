@@ -648,6 +648,10 @@ def trade_summary(trade):
     """An order's state for the app (also used by the order status stream later)."""
     status = trade.orderStatus
     messages = [entry.message for entry in trade.log if entry.message]
+    # Commission is reported per fill, a moment after the fill itself
+    commissions = [clean(f.commissionReport.commission) for f in trade.fills
+                   if f.commissionReport and clean(f.commissionReport.commission) is not None
+                   and f.commissionReport.commission < trading.UNSET]
     return {
         "order_id": trade.order.orderId, "perm_id": trade.order.permId or None,
         "con_id": trade.contract.conId, "symbol": trade.contract.symbol,
@@ -656,6 +660,9 @@ def trade_summary(trade):
         "status": status.status, "filled": status.filled, "remaining": status.remaining,
         "avg_fill_price": clean(status.avgFillPrice) or None,
         "message": messages[-1] if messages else None,
+        "commission": sum(commissions) if commissions else None,
+        "commission_currency": next((f.commissionReport.currency for f in trade.fills
+                                     if f.commissionReport and f.commissionReport.currency), None),
     }
 
 @app.post("/orders", dependencies=[Depends(require_ib)])

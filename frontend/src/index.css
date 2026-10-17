@@ -3128,3 +3128,110 @@ button.ai-source:hover {
   gap: 10px;
   padding-top: 4px;
 }
+
+/* ---------- Review and result sheets (Figma M6 / 3 Review order, M6 / 4 Order filled) ---------- */
+
+.sheet-backdrop[hidden] {
+  display: none;
+}
+
+.review-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.review-headline {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.review-words {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.callout p {
+  flex: 1;
+  color: var(--text);
+}
+
+.callout.error {
+  background: var(--loss-badge-bg);
+  color: var(--loss);
+}
+
+.order-result {
+  align-items: center;
+  padding-top: 28px;
+}
+
+.result-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 32px;
+}
+
+.result-icon.ok {
+  background: rgba(52, 199, 89, 0.14);
+  color: var(--gain);
+}
+
+.result-icon.bad {
+  background: var(--loss-badge-bg);
+  color: var(--loss);
+}
+
+.result-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.result-text {
+  max-width: 360px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.order-result .estimates,
+.order-result .sheet-footer {
+  align-self: stretch;
+}
+
+.timeline {
+  gap: 10px;
+}
+
+.timeline-event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.timeline-event svg {
+  color: var(--pill-gain);
+}
+
+.timeline-time {
+  color: var(--text-2);
+  font-weight: 400;
+}

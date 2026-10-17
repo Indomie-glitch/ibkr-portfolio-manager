@@ -10,6 +10,7 @@ import UpdatePrompt from './components/UpdatePrompt.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import Overview from './pages/Overview.jsx'
+import OrderConfirm from './components/OrderConfirm.jsx'
 import OrderTicket from './components/OrderTicket.jsx'
 import Markets from './pages/Markets.jsx'
 import Positions from './pages/Positions.jsx'
@@ -62,7 +63,7 @@ function App() {
   const [dataVersion, setDataVersion] = useState(0)
   // Paper or live account, for the toolbar badge (null until known)
   const [trading, setTrading] = useState(null)
-  // The open order ticket: { stock, side } or null
+  // The open order ticket: { stock, side, review (the preview being confirmed), nonce } or null
   const [ticket, setTicket] = useState(null)
   // Only the newest request may update state, in case an older one finishes later
   const latestRequest = useRef(0)
@@ -288,14 +289,31 @@ function App() {
           )}
 
           {ticket && connected && (
-            <OrderTicket
-              key={`${ticket.stock.con_id}-${ticket.side}`}
-              stock={ticket.stock}
-              side={ticket.side}
-              trading={trading}
-              account={account}
-              onClose={closeTicket}
-            />
+            <>
+              {/* Stays mounted under the review sheet, so Edit returns to the same numbers */}
+              <OrderTicket
+                key={`${ticket.stock.con_id}-${ticket.side}`}
+                stock={ticket.stock}
+                side={ticket.side}
+                trading={trading}
+                account={account}
+                onClose={closeTicket}
+                onReview={(review) => setTicket((t) => ({ ...t, review }))}
+                hidden={Boolean(ticket.review)}
+                previewNonce={ticket.nonce ?? 0}
+              />
+              {ticket.review && (
+                <OrderConfirm
+                  preview={ticket.review}
+                  trading={trading}
+                  onEdit={() => setTicket((t) => ({ ...t, review: null, nonce: (t.nonce ?? 0) + 1 }))}
+                  onDone={() => {
+                    closeTicket()
+                    load()
+                  }}
+                />
+              )}
+            </>
           )}
         </main>
       </div>
