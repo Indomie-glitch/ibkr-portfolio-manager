@@ -10,6 +10,7 @@ import UpdatePrompt from './components/UpdatePrompt.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import Overview from './pages/Overview.jsx'
+import OrderTicket from './components/OrderTicket.jsx'
 import Markets from './pages/Markets.jsx'
 import Positions from './pages/Positions.jsx'
 import Settings from './pages/Settings.jsx'
@@ -61,6 +62,8 @@ function App() {
   const [dataVersion, setDataVersion] = useState(0)
   // Paper or live account, for the toolbar badge (null until known)
   const [trading, setTrading] = useState(null)
+  // The open order ticket: { stock, side } or null
+  const [ticket, setTicket] = useState(null)
   // Only the newest request may update state, in case an older one finishes later
   const latestRequest = useRef(0)
   const [appearance, setAppearance] = useAppearance()
@@ -138,6 +141,8 @@ function App() {
     }, AUTO_REFRESH_MS)
     return () => clearInterval(timer)
   }, [connected, load])
+
+  const closeTicket = useCallback(() => setTicket(null), [])
 
   function openHolding(conId) {
     setSelectedId(conId)
@@ -267,11 +272,31 @@ function App() {
               selectedId={selectedId}
               onSelect={setSelectedId}
               refreshKey={dataVersion}
+              trading={connected ? trading : null}
+              onTrade={(stock, side) => setTicket({ stock, side })}
             />
           )}
 
           {/* Searching needs IB, so no stale view here */}
-          {showData && connected && page === 'markets' && <Markets holdings={holdings} refreshKey={dataVersion} />}
+          {showData && connected && page === 'markets' && (
+            <Markets
+              holdings={holdings}
+              refreshKey={dataVersion}
+              trading={trading}
+              onTrade={(stock, side) => setTicket({ stock, side })}
+            />
+          )}
+
+          {ticket && connected && (
+            <OrderTicket
+              key={`${ticket.stock.con_id}-${ticket.side}`}
+              stock={ticket.stock}
+              side={ticket.side}
+              trading={trading}
+              account={account}
+              onClose={closeTicket}
+            />
+          )}
         </main>
       </div>
     </>

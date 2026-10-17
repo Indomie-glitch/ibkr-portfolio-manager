@@ -37,7 +37,7 @@ function PositionStat({ label, value, className = '' }) {
   )
 }
 
-function HoldingDetail({ holding, refreshKey }) {
+function HoldingDetail({ holding, refreshKey, trading, onTrade }) {
   const [range, setRange] = useState('1M')
   // Remember which holding and range the bars belong to, so we never draw one stock's
   // history under another stock's name while the new data loads.
@@ -67,6 +67,10 @@ function HoldingDetail({ holding, refreshKey }) {
   const shortName = profile.data?.short_name ?? holding.symbol
 
   const price = holding.last
+  // Buy and Sell open the order ticket while trading is on (TRADING_MODE); otherwise they say why not
+  const canTrade = Boolean(trading?.can_trade && onTrade)
+  const tradeTitle = canTrade ? undefined : (trading?.reason ?? 'Trading is unavailable')
+  const tradeStock = { con_id: holding.con_id, symbol: holding.symbol, shortName, currency: holding.currency, last: holding.last }
   const move = rangeChange(range, current.bars, holding.quote)
   const c = holding.currency
 
@@ -80,9 +84,26 @@ function HoldingDetail({ holding, refreshKey }) {
           </p>
         </div>
         <div className="spacer" />
-        <button type="button" className="button-muted" disabled title="Trading arrives in milestone 6">
-          Trade · soon
-        </button>
+        <div className="trade-buttons">
+          <button
+            type="button"
+            className="pill-button secondary"
+            disabled={!canTrade || holding.not_owned}
+            title={holding.not_owned ? 'You don’t own this stock' : tradeTitle}
+            onClick={() => onTrade(tradeStock, 'SELL')}
+          >
+            Sell
+          </button>
+          <button
+            type="button"
+            className="pill-button primary"
+            disabled={!canTrade}
+            title={tradeTitle}
+            onClick={() => onTrade(tradeStock, 'BUY')}
+          >
+            Buy
+          </button>
+        </div>
       </div>
 
       <div className="price-row">
@@ -123,7 +144,13 @@ function HoldingDetail({ holding, refreshKey }) {
               <p className="not-owned-title">You don’t own {shortName}</p>
               <p className="not-owned-text">Buy shares to start tracking your cost, P&amp;L and dividends here.</p>
             </div>
-            <button type="button" className="button-primary" disabled title="The order ticket arrives later in milestone 6">
+            <button
+              type="button"
+              className="pill-button primary"
+              disabled={!canTrade}
+              title={tradeTitle}
+              onClick={() => onTrade(tradeStock, 'BUY')}
+            >
               Buy
             </button>
           </div>

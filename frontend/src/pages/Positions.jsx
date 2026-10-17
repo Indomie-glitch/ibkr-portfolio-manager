@@ -1,7 +1,7 @@
 import HoldingDetail from '../components/HoldingDetail.jsx'
 import HoldingsList from '../components/HoldingsList.jsx'
 
-function Positions({ holdings, selectedId, onSelect, refreshKey, stale }) {
+function Positions({ holdings, selectedId, onSelect, refreshKey, stale, trading, onTrade }) {
   // Fall back to the biggest holding if nothing (or something no longer held) is selected
   const selected = holdings.find((h) => h.con_id === selectedId) ?? holdings[0]
 
@@ -12,7 +12,7 @@ function Positions({ holdings, selectedId, onSelect, refreshKey, stale }) {
   return (
     <div className={`positions-page ${stale ? 'stale' : ''}`}>
       <HoldingsList holdings={holdings} selectedId={selected.con_id} onSelect={onSelect} />
-      <HoldingDetail holding={selected} refreshKey={refreshKey} />
+      <HoldingDetail holding={selected} refreshKey={refreshKey} trading={trading} onTrade={onTrade} />
     </div>
   )
 }

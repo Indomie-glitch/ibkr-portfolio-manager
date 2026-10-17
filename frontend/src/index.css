@@ -2888,3 +2888,243 @@ button.ai-source:hover {
   font-size: 12px;
   line-height: 1.4;
 }
+
+/* ---------- Trading: buttons and the order ticket sheet (Figma M6 / 2 Order ticket) ---------- */
+
+.trade-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.pill-button {
+  padding: 7px 18px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pill-button.primary {
+  background: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  color: #fff;
+  font-weight: 600;
+}
+
+.pill-button.secondary {
+  background: var(--fill);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.pill-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 64px 16px 16px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 460px;
+  max-width: 100%;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+  color: var(--text);
+}
+
+.sheet-title-row {
+  display: flex;
+  align-items: center;
+}
+
+.sheet-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.sheet-side button {
+  flex: 1;
+}
+
+.form-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--row-border);
+  font-size: 13px;
+}
+
+.form-row:last-child {
+  border-bottom: 0;
+}
+
+.form-field,
+.popup-button select {
+  height: 28px;
+  padding: 5px 10px;
+  border: 1px solid var(--field-border);
+  border-radius: 7px;
+  background: var(--bg);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.form-field:focus,
+.form-field:focus-within,
+.popup-button select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.popup-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  color: var(--text-2);
+}
+
+.popup-button select {
+  width: 150px;
+  padding-right: 28px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.popup-button select:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.popup-button svg {
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
+}
+
+.quantity-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quantity-stepper .form-field {
+  width: 96px;
+  text-align: right;
+}
+
+.stepper {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.stepper button {
+  display: flex;
+  padding: 1px 4px;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.price-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 150px;
+}
+
+.price-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.price-prefix {
+  color: var(--text-3);
+}
+
+.estimates {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.estimate-line {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.estimate-line .num {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.estimate-line.total,
+.estimate-line.total .num {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ticket-problems {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: -6px 0 0;
+  padding: 0 0 0 16px;
+  color: var(--loss);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.sheet-note {
+  color: var(--text-2);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.sheet-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
