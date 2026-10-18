@@ -15,6 +15,8 @@ import OrderTicket from './components/OrderTicket.jsx'
 import Markets from './pages/Markets.jsx'
 import Orders from './pages/Orders.jsx'
 import Positions from './pages/Positions.jsx'
+import Watchlist from './pages/Watchlist.jsx'
+import { useWatchlists } from './lib/watchlists.js'
 import SettingsSheet from './components/SettingsSheet.jsx'
 import { onOpenSettingsMenu } from './desktop/appMenu.js'
 import { toggleList } from './hooks/useResizableWidth.js'
@@ -61,6 +63,10 @@ function App() {
   // The IBKR username and mode last signed in with, for the account card (Mac app only)
   const [savedAccount, setSavedAccount] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
+  // The open watchlist when page is 'watchlist' (#88)
+  const [watchlistId, setWatchlistId] = useState(null)
+  const watchlists = useWatchlists()
+  const watchlist = watchlists.find((l) => l.id === watchlistId) ?? null
   const [account, setAccount] = useState(null)
   const [positions, setPositions] = useState([])
   const [quotes, setQuotes] = useState([])
@@ -156,6 +162,16 @@ function App() {
 
   const closeTicket = useCallback(() => setTicket(null), [])
 
+  function openWatchlist(id) {
+    setWatchlistId(id)
+    setPage('watchlist')
+  }
+
+  // A deleted watchlist that was open: back to Overview
+  function watchlistDeleted(id) {
+    if (id === watchlistId && page === 'watchlist') setPage('overview')
+  }
+
   function openHolding(conId) {
     setSelectedId(conId)
     setPage('positions')
@@ -228,6 +244,9 @@ function App() {
   if (connection === 'stopped') subtitle = 'Not running'
   if (page === 'orders' && connected) subtitle = updated
   if (page === 'markets' && connected) subtitle = 'Search stocks on the ASX and US exchanges'
+  if (page === 'watchlist' && watchlist && connected) {
+    subtitle = `Watchlist · ${watchlist.stocks.length} ${watchlist.stocks.length === 1 ? 'stock' : 'stocks'}`
+  }
   // Only show the cards when the data is current; never stale numbers while disconnected, except
   // dimmed under the "session ended" banner, which says how old they are
   const showData = account && (connected || sessionEnded)
@@ -262,6 +281,9 @@ function App() {
         <Sidebar
           page={page}
           onNavigate={setPage}
+          watchlistId={watchlistId}
+          onOpenWatchlist={openWatchlist}
+          onWatchlistDeleted={watchlistDeleted}
           health={health}
           login={login}
           trading={connected ? trading : null}
@@ -274,7 +296,7 @@ function App() {
 
         <main className="content">
           <Toolbar
-            title={PAGE_TITLES[page]}
+            title={page === 'watchlist' ? watchlist?.name : PAGE_TITLES[page]}
             subtitle={subtitle}
             loading={loading}
             onRefresh={() => {
@@ -339,6 +361,18 @@ function App() {
           {/* Searching needs IB, so no stale view here */}
           {showData && connected && page === 'markets' && (
             <Markets
+              holdings={holdings}
+              refreshKey={dataVersion}
+              trading={trading}
+              onTrade={(stock, side) => setTicket({ stock, side })}
+            />
+          )}
+
+          {/* Prices come from IB, so no stale view here either */}
+          {showData && connected && page === 'watchlist' && watchlist && (
+            <Watchlist
+              key={watchlist.id}
+              list={watchlist}
               holdings={holdings}
               refreshKey={dataVersion}
               trading={trading}

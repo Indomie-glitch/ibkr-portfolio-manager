@@ -11,6 +11,7 @@ import KeyStats from './detail/KeyStats.jsx'
 import NewsSection from './detail/NewsSection.jsx'
 import PerformanceSection from './detail/PerformanceSection.jsx'
 import PriceChart from './PriceChart.jsx'
+import WatchButton from './WatchButton.jsx'
 
 const RANGES = ['1D', '1W', '1M', '3M', '1Y', 'All']
 const RANGE_WORDS = { '1W': 'past week', '1M': 'past month', '3M': 'past 3 months', '1Y': 'past year' }
@@ -94,6 +95,7 @@ function HoldingDetail({ holding, refreshKey, trading, onTrade }) {
         </div>
         <div className="spacer" />
         <div className="trade-buttons">
+          <WatchButton stock={{ ...holding, name: holding.name ?? fullName }} />
           <button
             type="button"
             className="pill-button secondary"

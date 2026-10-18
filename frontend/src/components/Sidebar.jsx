@@ -1,6 +1,7 @@
 import { GridIcon, ListIcon, OrdersIcon, SearchIcon } from './icons.jsx'
 import { IN_APP } from '../lib/api.js'
 import AccountCard from './AccountCard.jsx'
+import SidebarWatchlists from './SidebarWatchlists.jsx'
 
 // The connection in words for the account card, and its dot colour
 function connectionText(health, login) {
@@ -12,7 +13,7 @@ function connectionText(health, login) {
   return { dot: 'ok', text: 'Connected' }
 }
 
-function Sidebar({ page, onNavigate, health, login, trading, username, savedMode, onOpenSettings, onReconnect, onSignOut }) {
+function Sidebar({ page, onNavigate, watchlistId, onOpenWatchlist, onWatchlistDeleted, health, login, trading, username, savedMode, onOpenSettings, onReconnect, onSignOut }) {
   const connection = connectionText(health, login)
   // Paper or live: from the connected account (toolbar badge), else the mode last signed in with
   const kind = trading && trading.account !== 'unknown' ? trading.account : IN_APP ? savedMode : null
@@ -73,6 +74,12 @@ function Sidebar({ page, onNavigate, health, login, trading, username, savedMode
         >
           <OrdersIcon /> Orders
         </button>
+
+        <SidebarWatchlists
+          activeId={page === 'watchlist' ? watchlistId : null}
+          onOpen={onOpenWatchlist}
+          onDeleted={onWatchlistDeleted}
+        />
 
         <div className="sidebar-spacer" />
         <AccountCard

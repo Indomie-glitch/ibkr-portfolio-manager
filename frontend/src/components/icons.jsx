@@ -311,3 +311,29 @@ export function SidebarIcon({ size = 16 }) {
     </Icon>
   )
 }
+
+// Watchlists (#88): the star in the sidebar, the Watch button and the empty watchlist (same shape at 14, 16 and 32px)
+export function StarIcon({ size = 16, strokeWidth = 1.3 }) {
+  return (
+    <Icon size={size} viewBox="0 0 16 16" stroke="currentColor" strokeWidth={(strokeWidth * 16) / size} strokeLinejoin="round">
+      <path d="M8 2.2L9.75 5.8L13.7 6.35L10.84 9.13L11.52 13.07L8 11.2L4.48 13.07L5.16 9.13L2.3 6.35L6.25 5.8L8 2.2Z" />
+    </Icon>
+  )
+}
+
+export function PlusIcon({ size = 14, strokeWidth = 1.5 }) {
+  return (
+    <Icon size={size} viewBox="0 0 14 14" stroke="currentColor" strokeWidth={(strokeWidth * 14) / size} strokeLinecap="round">
+      <path d="M7 3.0625V7M7 7V10.9375M7 7H3.0625M7 7H10.9375" />
+    </Icon>
+  )
+}
+
+// The tick in a menu (a watchlist that already has the stock)
+export function MenuCheckIcon({ size = 14 }) {
+  return (
+    <Icon size={size} viewBox="0 0 14 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.0625 7.4375L5.6875 10.0625L10.9375 3.9375" />
+    </Icon>
+  )
+}
