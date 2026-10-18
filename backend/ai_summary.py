@@ -101,6 +101,22 @@ Fill every section, in this order:
       say the comparison with the market isn't available.
     - At most one more point on other news in news_between_summaries."""
 
+# A stock the investor doesn't own (searched on Markets, #95): the same briefing without
+# your_position, since there's no position to explain (and no D:position in the facts)
+NOT_OWNED_SECTIONS = [name for name in SECTIONS if name != "your_position"]
+NOT_OWNED_PROMPT = SYSTEM_PROMPT.replace(
+    '9. your_position: explain the figures in D:position (gain or loss, portfolio weight, expected\n   yearly dividends, and the 12-month capital gains tax discount: when D:position has lots, which\n   lots already qualify and the date each of the others will, plus any shares whose purchase date\n   is unknown; otherwise that the purchase date is unknown). Restate the figures; give no advice.\n',
+    "9. your_position: not part of this briefing: the investor doesn't own this stock. Don't mention\n"
+    "   holding it, a position, gains or losses on it, or tax.\n",
+)
+assert NOT_OWNED_PROMPT != SYSTEM_PROMPT
+
+
+def briefing_for(owned):
+    """(sections, system prompt) for a holding or for a stock the investor doesn't own."""
+    return (SECTIONS, SYSTEM_PROMPT) if owned else (NOT_OWNED_SECTIONS, NOT_OWNED_PROMPT)
+
+
 # Expected number of points per section (the schema can't limit array lengths; checked afterwards)
 POINT_RANGES = {
     "business_snapshot": (2, 3), "financial_health": (2, 4), "valuation": (2, 3),
@@ -123,7 +139,7 @@ RULE_CHECKS = [
 ]
 
 
-def build_schema(source_ids):
+def build_schema(source_ids, sections=SECTIONS):
     """The response schema. `sources` only allows the ids in this facts sheet, so the model
     can't cite something that doesn't exist (we still check, see validate_section)."""
     point = {
@@ -139,7 +155,7 @@ def build_schema(source_ids):
         "type": "object", "additionalProperties": False, "required": ["status", "points"],
         "properties": {"status": {"$ref": "#/$defs/status"}, "points": points},
     }
-    properties = {name: {"$ref": "#/$defs/section"} for name in SECTIONS}
+    properties = {name: {"$ref": "#/$defs/section"} for name in sections}
     properties["news_digest"] = {
         "type": "object", "additionalProperties": False, "required": ["status", "themes"],
         "properties": {
@@ -155,7 +171,7 @@ def build_schema(source_ids):
         "properties": {"status": {"$ref": "#/$defs/status"}, "bull": points, "bear": points},
     }
     return {
-        "type": "object", "additionalProperties": False, "required": SECTIONS,
+        "type": "object", "additionalProperties": False, "required": list(sections),
         "$defs": {"point": point, "status": status, "section": section},
         "properties": properties,
     }
@@ -264,7 +280,7 @@ async def stream_sections(facts, source_ids, *, sections=SECTIONS, system=SYSTEM
             max_tokens=MAX_TOKENS,
             system=system,
             messages=[{"role": "user", "content": message or user_message(facts)}],
-            output_config={"format": {"type": "json_schema", "schema": schema or build_schema(source_ids)}},
+            output_config={"format": {"type": "json_schema", "schema": schema or build_schema(source_ids, sections)}},
         ) as stream:
             async for chunk in stream.text_stream:
                 text += chunk

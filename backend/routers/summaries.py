@@ -17,20 +17,37 @@ from cache import cached
 from ib_core import get_bars, get_contract_info, require_ib
 from secrets_guard import mask_secrets
 from web import check_origin, sse
-from routers.positions import account, news_items, performance_data, positions, quotes, yahoo_info
+from routers.positions import account, news_items, performance_data, positions, prices, quotes, yahoo_info
 
 router = APIRouter()
 
 # ---------- AI summary ----------
 
+def not_owned_position(contract, long_name, quote):
+    """What build_facts needs about a stock the investor doesn't own (#95): names and the price only."""
+    return {
+        "con_id": contract.conId, "symbol": contract.symbol, "name": long_name or contract.symbol,
+        "exchange": contract.primaryExchange or contract.exchange, "currency": contract.currency,
+        "market_price": (quote or {}).get("last"), "market_value": None, "owned": False,
+    }
+
 async def summary_facts_for(con_id):
-    """Gather IB and Yahoo data for one holding and build the facts sheet (no Claude call)."""
-    contract, _ = await get_contract_info(con_id)
+    """Gather IB and Yahoo data for one stock and build the facts sheet (no Claude call). Works for
+    holdings and for any stock found on Markets (then without D:position)."""
+    contract, long_name = await get_contract_info(con_id)
+    if contract is None:
+        raise HTTPException(status_code=404, detail="Unknown stock")
     all_positions = await positions()
     position = next((p for p in all_positions if p["con_id"] == con_id), None)
-    if contract is None or position is None:
-        raise HTTPException(status_code=404, detail="Not a current holding")
-    quote = next((q for q in await quotes() if q["con_id"] == con_id), None)
+    if position is None and contract.secType != "STK":
+        raise HTTPException(status_code=404, detail="AI summaries of stocks you don't own are for shares only")
+    if position is not None:
+        quote = next((q for q in await quotes() if q["con_id"] == con_id), None)
+    else:
+        found = await prices(str(con_id))
+        quote = found[0] if found else None
+        position = not_owned_position(contract, long_name, quote)
+    owned = position.get("owned", True)
     account_data = await account()
     fx_rates = account_data["fx_rates"]
     base = account_data["currency"]
@@ -68,7 +85,7 @@ async def summary_facts_for(con_id):
         "is_asx": is_asx,
         "index_symbol": index_symbol,
         # Purchase lots from the Flex report (local, never waits for IBKR); empty without one
-        "lots": lots.lots_for(con_id, position["quantity"]),
+        "lots": lots.lots_for(con_id, position["quantity"]) if owned else None,
     }
     return await summary_facts.build_facts(inputs, loaders, previous=summary_store.latest(con_id))
 
@@ -140,7 +157,10 @@ def saved_summary_response(record):
     # Re-run the citation and rule checks, so improved checks also apply to older summaries
     allowed = set(summary_facts.source_ids(facts))
     summary, warnings = {}, []
+    # A stock the investor didn't own when it was written has no your_position section (#95)
     for name in ai_summary.SECTIONS:
+        if name not in record["summary"]:
+            continue
         summary[name], section_warnings = ai_summary.validate_section(name, record["summary"][name], allowed, facts)
         warnings += section_warnings
     return {
@@ -148,6 +168,7 @@ def saved_summary_response(record):
         "created_at": record["created_at"],
         "as_of_text": facts.get("as_of_text"),
         "model": record["model"],
+        "owned": facts.get("company", {}).get("owned_by_investor", True),
         "summary": summary,
         "warnings": warnings,
         "links": facts.get("links", {}),
@@ -220,10 +241,12 @@ async def generate_summary(con_id: int, request: Request):
                 return
             facts, links = built["facts"], built["links"]
             ids = summary_facts.source_ids(facts)
+            sections, system = ai_summary.briefing_for(facts["company"]["owned_by_investor"])
             yield sse("facts", {"as_of_text": facts["as_of_text"], "links": links,
                                 "missing": facts["D:missing"], "facts": summary_facts.model_facts(facts)})
             try:
-                async for kind, *payload in ai_summary.stream_sections(summary_facts.model_facts(facts), ids):
+                async for kind, *payload in ai_summary.stream_sections(summary_facts.model_facts(facts), ids,
+                                                                       sections=sections, system=system):
                     if kind == "section":
                         name, section, warnings = payload
                         yield sse("section", {"name": name, "section": section, "warnings": warnings})

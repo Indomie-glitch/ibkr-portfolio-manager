@@ -194,8 +194,8 @@ function HoldingDetail({ holding, refreshKey, trading, onTrade }) {
         <AboutSection profile={profile.data} error={profile.error} loading={profile.loading} />
       </DisclosureSection>
 
-      {/* AI summaries are written for holdings only */}
-      {!holding.not_owned && <AiSummarySection holding={holding} name={shortName} />}
+      {/* Any stock, owned or not; one you don't own gets the briefing without Your position (#95) */}
+      <AiSummarySection holding={holding} name={shortName} owned={!holding.not_owned} />
 
       <DisclosureSection id="news" title="News">
         <NewsSection holding={holding} companyName={shortName} />

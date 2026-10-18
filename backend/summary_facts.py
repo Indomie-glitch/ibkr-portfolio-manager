@@ -137,6 +137,7 @@ async def build_facts(inputs, loaders, previous=None, now=None):
     now = now or datetime.now().astimezone()
     today = now.date()
     position = inputs["position"]
+    owned = position.get("owned", True)
     quote = inputs["quote"] or {}
     currency = position["currency"]
     base = inputs["base_currency"]
@@ -158,7 +159,9 @@ async def build_facts(inputs, loaders, previous=None, now=None):
     facts = {
         "as_of": now.isoformat(timespec="seconds"),
         "as_of_text": as_of_text(now),
-        "company": {"name": name, "symbol": position["symbol"], "exchange": position["exchange"], "currency": currency},
+        "company": {"name": name, "symbol": position["symbol"], "exchange": position["exchange"], "currency": currency,
+                    # False for a stock searched on Markets (#95): no D:position, no your_position section
+                    "owned_by_investor": owned},
     }
 
     # --- D:profile ---
@@ -328,15 +331,15 @@ async def build_facts(inputs, loaders, previous=None, now=None):
         "note": None if events else "No upcoming dated events in the data (only past dates are known)",
     }
 
-    # --- D:position (all calculated here) ---
-    quantity = position["quantity"]
+    # --- D:position (all calculated here); none for a stock the investor doesn't own ---
+    quantity = position["quantity"] if owned else 0
     market_value = position["market_value"]
     dividends_12m = None
     if dividends is not None:
         cutoff = today - timedelta(days=365)
         dividends_12m = sum(amount for day, amount in dividends if cutoff < day <= today)
     expected = dividends_12m * quantity if dividends_12m is not None else None
-    facts["D:position"] = {
+    position_facts = {
         "quantity": quantity,
         "average_cost": money(position["avg_cost"], currency),
         "cost_basis": money(position["avg_cost"] * quantity, currency),
@@ -351,7 +354,9 @@ async def build_facts(inputs, loaders, previous=None, now=None):
         "expected_yearly_dividends_in_base_currency": money(expected * fx, base) if expected is not None and currency != base else None,
         "dividend_basis": f"Dividends with ex-dividend dates in the 12 months to {long_date(today)}; future dividends may differ",
         **position_lots(inputs.get("lots")),
-    }
+    } if owned else None
+    if position_facts:
+        facts["D:position"] = position_facts
 
     # --- news with ids, and D:since_last ---
     links, news_facts = {}, []

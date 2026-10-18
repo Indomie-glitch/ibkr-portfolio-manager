@@ -1,5 +1,5 @@
 // How a summary is drawn; shared by the latest, past and compare views
-import { GROUPS } from '../../lib/summarySections.js'
+import { groupsFor } from '../../lib/summarySections.js'
 
 // Data ids the model cites -> label and the part of the page that shows that data
 const DATA_SOURCES = {
@@ -172,7 +172,10 @@ function yahooGaps(missing) {
   return (missing ?? []).filter((m) => m.includes('Yahoo Finance unavailable')).map((m) => m.replace(/ \(.*\)$/, ''))
 }
 
-export function AiSummaryBody({ view, generating, configured, missingKeyMessage, name }) {
+// owned: false for a stock found on Markets (#95), which gets the briefing without Your position
+export function AiSummaryBody({ view, generating, configured, missingKeyMessage, name, owned = true }) {
+  // A saved summary knows whether the stock was owned when it was written
+  const withPosition = view?.owned ?? owned
   if (!view) {
     if (!configured) {
       return <p className="section-unavailable">{missingKeyMessage ?? 'AI summaries are turned off.'}</p>
@@ -181,8 +184,9 @@ export function AiSummaryBody({ view, generating, configured, missingKeyMessage,
       return (
         <p className="ai-empty">
           No summary yet. Summarise writes a briefing on {name} from the data on this page: the business, its finances
-          and valuation, recent news and price moves, upcoming events, the case for and against, risks, and what it
-          means for your position.
+          and valuation, recent news and price moves, upcoming events, the case for and against{withPosition
+            ? ', risks, and what it means for your position.'
+            : ' and risks.'}
         </p>
       )
     }
@@ -193,7 +197,7 @@ export function AiSummaryBody({ view, generating, configured, missingKeyMessage,
   return (
     <div className="ai-summary">
       {gaps.length > 0 && <p className="ai-banner">Generated without: {gaps.join(', ')} (Yahoo Finance unavailable).</p>}
-      {GROUPS.map((group) => (
+      {groupsFor(withPosition).map((group) => (
         <div className="ai-group" key={group.title}>
           <p className="ai-group-title">{group.title}</p>
           {group.sections.map(([key, title]) => {
@@ -232,7 +236,7 @@ export function AiSummaryBody({ view, generating, configured, missingKeyMessage,
       <p className="section-footnote">
         Not financial advice. Generated {view?.as_of_text ? `from data as of ${view.as_of_text}` : 'from the data on this page'}
         {view?.model ? ` by ${view.model}` : ''}; it only uses the company profile, key statistics, financial
-        statements, recent news, price history and your position shown in this app.
+        statements, recent news, price history{withPosition ? ' and your position' : ''} shown in this app.
       </p>
     </div>
   )

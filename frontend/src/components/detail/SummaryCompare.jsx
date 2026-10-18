@@ -1,6 +1,6 @@
 import { formatSummaryTime } from '../../lib/format.js'
 import { diffSection } from '../../lib/summaryDiff.js'
-import { GROUPS } from '../../lib/summarySections.js'
+import { groupsFor } from '../../lib/summarySections.js'
 import { SectionBody } from './SummaryView.jsx'
 
 function heading(view) {
@@ -57,7 +57,8 @@ function SummaryCompare({ comparison }) {
         <p className="compare-heading num">Older · {heading(older)}</p>
         <p className="compare-heading num">Newer · {heading(newer)}</p>
       </div>
-      {GROUPS.map((group) => (
+      {/* Your position shows if either summary was written while the stock was owned */}
+      {groupsFor(older.owned !== false || newer.owned !== false).map((group) => (
         <div className="ai-group" key={group.title}>
           <p className="ai-group-title">{group.title}</p>
           {group.sections.map(([key, title]) => {
