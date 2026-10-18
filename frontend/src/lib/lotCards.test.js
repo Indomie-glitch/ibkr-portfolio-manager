@@ -11,7 +11,12 @@ const cases = [
   ['one purchase, eligible', lotCards({ lots: [lot('2024-03-01', '2025-03-02', 0)], unknown_quantity: 0 }, true),
     { purchase: ['1 Mar 2024', null], cgt: ['2 Mar 2025', null] }],
   ['one day split into two lots', lotCards({ lots: [lot('2026-09-17', '2027-09-18', 336, 61), lot('2026-09-17', '2027-09-18', 336, 39)], unknown_quantity: 0 }, true),
-    { purchase: ['17 Sep 2026', null], cgt: ['18 Sep 2027', '336 days left', 'warning'] }],
+    { purchase: ['17 Sep 2026', '2 purchases'], cgt: ['18 Sep 2027', '336 days left', 'warning'] }],
+  // #192: one day, several purchases, some shares undated: still one date, never a same-day range
+  ['one day, two purchases, some undated', lotCards({ lots: [lot('2026-09-17', '2027-09-18', 336, 61), lot('2026-09-17', '2027-09-18', 336, 39)], unknown_quantity: 20 }, true),
+    { purchase: ['17 Sep 2026', '2 purchases · 20 shares: date unknown'], cgt: ['18 Sep 2027', '336 days left', 'warning'] }],
+  ['two days, one with two purchases', lotCards({ lots: [lot('2026-02-04', '2027-02-05', 111, 10), lot('2026-02-04', '2027-02-05', 111, 5), lot('2026-09-09', '2027-09-10', 328, 15)], unknown_quantity: 0 }, true),
+    { purchase: ['3 purchases', '4 Feb 2026 to 9 Sep 2026'], cgt: ['5 Feb 2027', 'Next: 15 shares, 111 days left', 'warning'] }],
   ['three purchases, one waiting soonest', lotCards({ lots: [lot('2025-03-12', '2026-03-13', 0, 50), lot('2026-02-04', '2027-02-05', 111, 35), lot('2026-09-09', '2027-09-10', 328, 15)], unknown_quantity: 0 }, true),
     { purchase: ['3 purchases', '12 Mar 2025 to 9 Sep 2026'], cgt: ['5 Feb 2027', 'Next: 35 shares, 111 days left', 'warning'] }],
   ['several, all eligible', lotCards({ lots: [lot('2023-01-02', '2024-01-03', 0), lot('2024-05-06', '2025-05-07', 0)], unknown_quantity: 0 }, true),

@@ -55,5 +55,24 @@ class PositionLotsTests(unittest.TestCase):
         self.assertIsNone(facts["purchase_date"])
 
 
+def same_day(days_until):
+    """Like the paper account's AAPL: two lots bought on 17 Sep 2026 (#192)."""
+    lot = {"opened": "2026-09-17", "cgt_discount_from": "2027-09-18", "days_until_discount": days_until}
+    return {"source": "flex_lots", "report_date": "2026-10-17", "unknown_quantity": 0,
+            "lots": [{**lot, "quantity": 61.0}, {**lot, "quantity": 39.0}]}
+
+
+class SameDayLotsTests(unittest.TestCase):
+    def test_one_date_not_a_same_day_range(self):
+        facts = summary_facts.position_lots(same_day(335))
+        self.assertEqual(facts["purchase_date"], "17 Sep 2026 (2 purchases)")
+        self.assertEqual(facts["cgt_12_month_date"], "18 Sep 2027 for all shares")
+        self.assertEqual(len(facts["lots"]), 2)
+
+    def test_one_date_already_qualifying(self):
+        facts = summary_facts.position_lots(same_day(0))
+        self.assertEqual(facts["cgt_12_month_date"], "All lots qualify (since 18 Sep 2027)")
+
+
 if __name__ == "__main__":
     unittest.main()
