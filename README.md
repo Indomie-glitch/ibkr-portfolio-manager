@@ -171,6 +171,7 @@ cd backend
 python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+# To build the Mac app as well: pip install -r requirements-build.txt
 cd ..
 
 # Frontend

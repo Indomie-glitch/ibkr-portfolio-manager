@@ -60,7 +60,7 @@ jobs:
       - name: Install the backend's dependencies
         run: |
           python -m venv backend/venv
-          backend/venv/bin/pip install --quiet -r backend/requirements.txt
+          backend/venv/bin/pip install --quiet -r backend/requirements-build.txt
 
       - uses: actions/setup-java@v4 # compiles IBC's credential launcher (Java 17)
         with:

@@ -1,0 +1,8 @@
+# Only for building the Mac app's bundled backend (npm run build:backend); running the backend
+# doesn't need these. Installs requirements.txt too.
+-r requirements.txt
+altgraph==0.17.5
+macholib==1.16.4
+packaging==26.3
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.8
