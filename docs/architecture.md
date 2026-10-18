@@ -31,7 +31,7 @@ flowchart LR
     ibkr[("IBKR servers<br/>accounts, prices, orders")]
     flex[("IBKR Flex Web Service<br/>purchase history report")]
     yahoo[("Yahoo Finance<br/>key stats, news,<br/>company info")]
-    claude[("Anthropic API<br/>Claude writes the<br/>AI summaries")]
+    claude[("Anthropic API<br/>Claude writes the<br/>AI summaries and<br/>judges news sentiment")]
     gh[("GitHub Releases<br/>new app versions")]
 
     user -->|clicks, types| app
@@ -39,7 +39,7 @@ flowchart LR
     gw <-->|"encrypted session<br/>(username + password once)"| ibkr
     app -->|"daily report<br/>(Flex token)"| flex
     app -->|"public data<br/>(yfinance)"| yahoo
-    app -->|"facts sheet in,<br/>summary out (API key)"| claude
+    app -->|"facts sheet or headlines in,<br/>summary or sentiment out (API key)"| claude
     app -->|"check for update,<br/>download signed update"| gh
 ```
 
@@ -64,7 +64,7 @@ flowchart TB
     end
 
     gw["IB Gateway<br/>(installed separately,<br/>port 4012)"]
-    disk[("Application Support/<br/>settings.json, lots.sqlite,<br/>summaries.sqlite, gateway/")]
+    disk[("Application Support/<br/>settings.json, lots.sqlite,<br/>summaries.sqlite,<br/>news_sentiment.sqlite, gateway/")]
 
     shell -->|"opens window, injects<br/>backend URL + token"| ui
     ui -->|"Tauri commands<br/>(sign_in, set_api_key, ...)"| shell
@@ -128,6 +128,7 @@ flowchart TB
         ai["ai_summary.py<br/>stock prompt, calls Claude,<br/>streams + checks sections"]
         pai["portfolio_summary.py<br/>portfolio prompt + checks"]
         store["summary_store.py<br/>saved summaries (SQLite)"]
+        senti["news_sentiment.py<br/>news good/bad + strength,<br/>saved per article (SQLite)"]
     end
 
     main --> routers
@@ -135,7 +136,7 @@ flowchart TB
     main -->|"keep_refreshed task"| lots
     ib_core --> ib_conn
 
-    r_pos --> ib_core & yahoo & cache & names
+    r_pos --> ib_core & yahoo & cache & names & senti
     r_flex --> lots & ib_core
     r_trade --> trading & ib_core & web
     r_sum --> sfacts & pfacts & ai & pai & store & lots & web
@@ -150,6 +151,7 @@ flowchart TB
     yahoo -->|yfinance| YF[["Yahoo Finance"]]
     flex -->|HTTPS| FX[["Flex Web Service"]]
     ai -->|anthropic SDK| AN[["Anthropic API"]]
+    senti -->|anthropic SDK| AN
 ```
 
 **How to read it:** arrows point from the file that uses something to the file it uses. The important rule in the AI part: `summary_facts.py` and `portfolio_facts.py` calculate every number, and Claude (via `ai_summary.py`) is only allowed to explain them and must cite which fact each point comes from. That is how the summaries avoid made up numbers.
@@ -391,6 +393,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | Price history, quotes, Yahoo data | backend memory (`cache.py`) | seconds to a day, lost on quit |
 | Purchase lots and trades | `lots.sqlite` | refreshed daily |
 | Saved AI summaries | `summaries.sqlite` | last 20 per stock, last 20 portfolio |
+| News sentiment per article, AI usage log | `news_sentiment.sqlite` | judgements 90 days; usage log kept |
 | App settings (Gateway port, AI model, username) | `settings.json` | until changed |
 | Anthropic API key, Flex token | backend memory only (Mac app) or `.env` (dev) | until the app quits |
 | IBKR password | sent to Gateway once, never stored | not kept |
