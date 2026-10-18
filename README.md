@@ -1,10 +1,10 @@
 # IBKR Portfolio Manager
 
-A cleaner, more intuitive portfolio dashboard for Interactive Brokers, with AI generated stock summaries.
+A cleaner, more intuitive portfolio dashboard for Interactive Brokers, with AI summaries of your stocks and your whole portfolio.
 
-Interactive Brokers is a powerful broker, but its native interface is dense and hard to navigate. This project connects directly to IBKR through IB Gateway and presents your portfolio in a simpler, modern web interface.
+Interactive Brokers is a powerful broker, but its native interface is dense and hard to navigate. This project connects directly to IBKR through IB Gateway and presents your portfolio in a simpler, modern interface, in the browser or as a Mac app.
 
-> **Status:** Dashboard, stock detail and AI summaries work, in the browser and as a Mac app for Apple Silicon.
+> **Status:** Dashboard, stock detail, Markets search, watchlists, trading and AI summaries (per stock and for the whole portfolio) work, in the browser and as a Mac app for Apple Silicon (version 0.2.1).
 
 ## Screenshots
 
@@ -19,7 +19,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 |---|---|
 | ![Stock detail, light mode](docs/screenshots/stock-detail-light.png) | ![Stock detail, dark mode](docs/screenshots/stock-detail-dark.png) |
 
-*Paper trading account; prices delayed about 15 minutes.*
+*Paper trading account; prices delayed about 15 minutes. These screenshots predate Markets, watchlists, trading and the AI summaries.*
 
 ## Features
 
@@ -41,11 +41,12 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Watchlists: as many as you like in the sidebar, each with price and day change for any ASX or US stock; add stocks from the watchlist's search field, the Watch button on any stock, or by dragging a row onto a watchlist in the sidebar (stored on your computer only)
 * News sentiment: green or red arrows (1 to 3) on each headline, showing how good or bad it is for that company, judged by Claude once per article
 * Trading (paper or live account, in the browser and the Mac app): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders. See [Trading safety](#trading-safety)
-* Purchase dates and 12-month CGT discount dates per lot from an IBKR Flex Query ([setup](docs/flex-query.md)), used in the AI summary
+* Purchase dates and 12-month CGT discount dates per lot from an IBKR Flex Query ([setup](docs/flex-query.md)), shown in Your position and used in the AI summary (browser version; the Mac app can't take a Flex token yet)
 * Mac app that sets up and runs IB Gateway itself, with nothing secret stored
 
 ### Planned
-* Purchase dates in the app's Settings and the Your position section (the backend is ready; they need a design)
+* Flex purchase dates in the Mac app's Settings (needs a design, #89), and entering purchase dates by hand
+* Usage and cost of the AI features shown in the app (the backend already tracks it: `GET /usage`)
 
 ## Roadmap
 
@@ -55,7 +56,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 4:** Polished UI
 * [x] **Milestone 4.5:** Expanded stock detail (key statistics, company profile, news, performance via yfinance)
 * [x] **Milestone 5:** AI stock summaries via the Claude API, with summary history and compare, and explanations of price moves since the last summary
-* [ ] **Milestone 5.1:** Purchase dates per lot from an IBKR Flex Query, each with its 12-month CGT date: done in the backend and the AI summary; Settings rows, manual entry and the Your position section wait for a design
+* [ ] **Milestone 5.1:** Purchase dates per lot from an IBKR Flex Query, each with its 12-month CGT date: done in Your position and the AI summary; the Mac app's Settings rows and manual entry are still to do
 * [x] **Milestone 5.2: AI portfolio summary** on the Overview page: 8 sections, citations to the facts and holdings, history and compare
 * [ ] **Milestone 6: Trade placement:** built; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
@@ -74,19 +75,20 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 | Backend | Python 3.11, [FastAPI](https://fastapi.tiangolo.com/), [ib_async](https://github.com/ib-api-reloaded/ib_async) (the maintained successor to ib_insync) |
 | Extra market data | [yfinance](https://github.com/ranaroussi/yfinance) (Yahoo Finance) for company info, fundamentals, news and long-term performance |
 | Frontend | [React](https://react.dev/) with [Vite](https://vite.dev/), plain CSS, hand-drawn SVG charts |
-| AI summaries | Claude API (Haiku) |
-| Mac app | [Tauri 2](https://tauri.app/) (Rust) wrapping the React frontend |
+| AI | Claude API (Claude Haiku 4.5 by default; Haiku 5.5 and Sonnet 5.5 selectable) for stock and portfolio summaries and news sentiment |
+| Mac app | [Tauri 2](https://tauri.app/) (Rust) wrapping the React frontend; the backend bundled with PyInstaller |
+| Tests | Python `unittest` (backend), [Vitest](https://vitest.dev/) (frontend), `cargo test` (Mac app shell) |
 
 ## Architecture
 
 ```
-React frontend  <-->  Python REST API  <-->  IB Gateway (localhost:4002)  <-->  Interactive Brokers
-                            |
-                            v
-                        Claude API
+React frontend  <-->  Python REST API  <-->  IB Gateway (localhost)  <-->  Interactive Brokers
+                        |          |
+                        v          v
+                   Claude API   Yahoo Finance
 ```
 
-The React frontend talks only to the Python backend. The backend manages the connection to IB Gateway running locally, and calls the Claude API to generate stock summaries.
+The React frontend talks only to the Python backend. The backend manages the connection to IB Gateway running locally (account, prices, orders), fills in company data, news and long-term performance from Yahoo Finance, and calls the Claude API for the AI summaries and news sentiment.
 
 For the full picture (the Mac app's parts, every backend module and page, and step by step diagrams of sign in, AI summaries, orders and updates), see **[docs/architecture.md](docs/architecture.md)**.
 
@@ -139,14 +141,14 @@ The app only installs updates signed with your key, so keep it safe; if it's los
 The version lives in one place, `frontend/package.json` (the app reads it from there).
 
 ```bash
-# 1. Bump "version" in frontend/package.json (e.g. 0.2.1), then:
-git commit -am "chore: release 0.2.1"
+# 1. Bump "version" in frontend/package.json (e.g. 0.2.2), then:
+git commit -am "chore: release 0.2.2"
 # 2. Tag it with a message; the message becomes the release notes shown in the app
-git tag -a v0.2.1 -m "Faster price chart. Fixed the AI summary footnote in dark mode."
-git push origin main v0.2.1
+git tag -a v0.2.2 -m "AI portfolio summary on Overview. Links open in your browser."
+git push origin main v0.2.2
 ```
 
-The workflow stops with a clear error if the tag has no message (a plain `git tag v0.2.1`), if it doesn't match the version in `package.json`, or if the public key is missing. When it finishes, open **Releases** on GitHub, check the draft (the DMG, the `.app.tar.gz` update with its `.sig`, and `latest.json`), and click **Publish release**. Apps check `releases/latest/download/latest.json`, so they see it from that moment.
+The workflow stops with a clear error if the tag has no message (a plain `git tag v0.2.2`), if it doesn't match the version in `package.json`, or if the public key is missing. When it finishes, open **Releases** on GitHub, check the draft (the DMG, the `.app.tar.gz` update with its `.sig`, and `latest.json`), and click **Publish release**. Apps check `releases/latest/download/latest.json`, so they see it from that moment.
 
 The first version with updates (0.2.0) has to be installed from its DMG; after that, updates arrive in the app.
 
@@ -226,7 +228,7 @@ npm run tauri dev      # window with hot reload, using the backend you started y
 npm run build:app      # packages the backend (PyInstaller) and builds
                        # src-tauri/target/release/bundle/macos/Portfolio Manager.app
 npm run build:dmg      # the same, plus an unsigned Apple Silicon DMG to send:
-                       # src-tauri/target/release/bundle/dmg/Portfolio Manager_0.1.0_aarch64.dmg
+                       # src-tauri/target/release/bundle/dmg/Portfolio Manager_<version>_aarch64.dmg
 ```
 
 The app is ad-hoc signed (no Apple Developer ID), so on another Mac it opens only after
@@ -238,47 +240,68 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 `~/Library/Logs/com.indomieglitch.portfoliomanager/backend.log`. It sets up and signs in to IB Gateway itself
 (see Milestone 7); you never open Gateway directly.
 
+### Tests
+
+```bash
+# Backend (Claude is faked; no API calls, no IB Gateway needed)
+cd backend && venv/bin/python -m unittest discover tests
+
+# Frontend: unit tests, lint, production build
+cd frontend && npm test && npm run lint && npm run build
+
+# Mac app shell
+cd frontend/src-tauri && cargo test
+```
+
 ### API
 
 | Endpoint | Returns |
 |---|---|
-| `GET /search?q=` | ASX and US stocks matching a symbol or company name (IB symbol search, cached 10 min), marked if owned |
-| `GET /prices?con_ids=` | Quotes for any stocks, same shape as `/quotes` (for search results) |
-| `POST /orders/preview` | What an order would cost (IB what-if: commission, margin change) and any guardrail problems, without sending it; returns a `confirmation_token` when it can be placed |
-| `GET /orders` | Open orders (from every client), and today's filled and cancelled orders, for the Orders page |
-| `POST /orders` | Places a previewed order: needs the preview's single-use `confirmation_token` (2 minutes, exactly that order); every check runs again first |
-| `POST /orders/{order_id}/cancel` | Cancels an open order |
-| `POST /orders/{order_id}/modify` | Changes an open order's quantity, limit price, order type or time in force (Day / GTC); needs a `confirmation_token` from a preview of the changed order. If IBKR can't make the change in place (e.g. market to limit), the order is cancelled and placed again, and the response's `replaced` says so |
-| `GET /orders/stream` | Server-Sent Events: every known order at the start (`orders`), then each status change or fill (`order`) |
-| `GET /trading/status` | Paper or live account, whether orders are allowed (and why not), and the order limit |
-| `GET /health` | Whether the backend is connected to IB Gateway |
+| **Connection and account** | |
+| `GET /health` | Whether the backend is connected to IB Gateway (and if not, why) |
 | `GET /account` | Net liquidation, cash, positions value, buying power, unrealised P&L, FX rates |
 | `GET /positions` | Each holding with price, market value, unrealised P&L and company name |
 | `GET /quotes` | Last price and day change per holding (delayed) |
 | `GET /history/{con_id}?range=1M` | Price history for the chart (`1D`, `1W`, `1M`, `3M`, `1Y`, `All`) |
+| **Markets** | |
+| `GET /search?q=` | ASX and US stocks matching a symbol or company name (IB symbol search, cached 10 min), marked if owned |
+| `GET /prices?con_ids=` | Quotes for any stocks, same shape as `/quotes` (for search results) |
+| **Stock detail (Yahoo Finance)** | |
 | `GET /profile/{con_id}` | Company profile from Yahoo Finance (cached 1 hour) |
 | `GET /stats/{con_id}` | Market cap, P/E, EPS, beta, dividends, 52-week range, analyst target (Yahoo, cached 1 hour) |
 | `GET /news/{con_id}` | Recent headlines that name the company (Yahoo, cached 15 minutes), each with its sentiment for the company (positive / negative / neutral, strength 1-3; Claude, judged once per article) when an API key is set |
 | `GET /performance/{con_id}` | Total return YTD, 1Y, 3Y, 5Y vs a total return index (Yahoo, cached 1 day) |
+| **Purchase dates (Flex)** | |
+| `GET /lots/status` | Whether Flex purchase dates are set up, when they were last fetched, and the last error |
+| `GET /lots/{con_id}` | A holding's purchase lots with their 12-month CGT discount dates (from the Flex report) |
+| **AI stock summary** | |
 | `GET /summary/{con_id}` | The last saved AI summary for a stock (a holding, or any stock from Markets) |
 | `POST /summary/{con_id}` | Writes a new AI summary, streamed section by section (Server-Sent Events); a stock you don't own gets 9 sections, without Your position |
 | `GET /summary/{con_id}/facts` | The exact data the AI summary is based on (no API call) |
-| `GET /portfolio-summary` | The last saved AI portfolio summary, and whether AI is set up |
-| `POST /portfolio-summary` | Writes a new AI portfolio summary (8 sections), streamed like the stock summary |
-| `GET /portfolio-summary/history` | Saved portfolio summaries, newest first (id, time, model, net liquidation) |
-| `GET /portfolio-summary/history/{summary_id}` | One saved portfolio summary in full |
-| `GET /portfolio-summary/compare?a=&b=` | Two saved portfolio summaries (older first) and the exact changes between their data |
-| `GET /portfolio-summary/facts` | The data the AI portfolio summary will be based on: weights, allocation, P&L contributors, concentration, events, dividends (no API call) |
-| `GET /lots/status` | Whether Flex purchase dates are set up, when they were last fetched, and the last error |
-| `GET /lots/{con_id}` | A holding's purchase lots with their 12-month CGT discount dates (from the Flex report) |
 | `GET /summary/{con_id}/history` | Saved summaries of a holding, newest first (id, time, model, price at the time) |
 | `GET /summary/{con_id}/history/{summary_id}` | One saved summary in full |
 | `GET /summary/{con_id}/compare?a=&b=` | Two saved summaries (older first) and the exact changes between their data |
+| **AI portfolio summary** | |
+| `GET /portfolio-summary` | The last saved AI portfolio summary, and whether AI is set up |
+| `POST /portfolio-summary` | Writes a new AI portfolio summary (8 sections), streamed like the stock summary |
+| `GET /portfolio-summary/facts` | The data the AI portfolio summary will be based on: weights, allocation, P&L contributors, concentration, events, dividends (no API call) |
+| `GET /portfolio-summary/history` | Saved portfolio summaries, newest first (id, time, model, net liquidation) |
+| `GET /portfolio-summary/history/{summary_id}` | One saved portfolio summary in full |
+| `GET /portfolio-summary/compare?a=&b=` | Two saved portfolio summaries (older first) and the exact changes between their data |
+| **AI usage** | |
 | `GET /usage?month=YYYY-MM` | Tokens and estimated cost (US$) of every Claude call in a month (default this month), in total and per feature (stock summaries, portfolio summaries, news sentiment) |
+| **Trading** | |
+| `GET /trading/status` | Paper or live account, whether orders are allowed (and why not), and the order limit |
+| `POST /orders/preview` | What an order would cost (IB what-if: commission, margin change) and any guardrail problems, without sending it; returns a `confirmation_token` when it can be placed |
+| `POST /orders` | Places a previewed order: needs the preview's single-use `confirmation_token` (2 minutes, exactly that order); every check runs again first |
+| `POST /orders/{order_id}/cancel` | Cancels an open order |
+| `POST /orders/{order_id}/modify` | Changes an open order's quantity, limit price, order type or time in force (Day / GTC); needs a `confirmation_token` from a preview of the changed order. If IBKR can't make the change in place (e.g. market to limit), the order is cancelled and placed again, and the response's `replaced` says so |
+| `GET /orders` | Open orders (from every client), and today's filled and cancelled orders, for the Orders page |
+| `GET /orders/stream` | Server-Sent Events: every known order at the start (`orders`), then each status change or fill (`order`) |
 
 **Note on market data:** if your live IBKR account is logged in somewhere else (TWS, the mobile app or the web portal), IB blocks quotes on the paper account (error 10197). The app then works out day change from IB's daily price history instead.
 
-**Note on AI summaries:** each summary costs roughly US$0.02 with Claude Haiku 4.5. Summaries are saved locally in `data/` (not committed); the last 20 per stock are kept. The purchase date for the 12-month capital gains tax discount isn't available from IB's API yet, so it shows as unknown.
+**Note on AI costs:** with Claude Haiku 4.5, a stock or portfolio summary costs roughly US$0.01 to US$0.02, and news sentiment about US$0.002 per stock (each headline is judged once). Every call's tokens and estimated cost are logged locally (`GET /usage`). Summaries are saved locally in `data/` (not committed); the last 20 per stock and 20 portfolio summaries are kept. Purchase dates (for the 12-month CGT discount) need an IBKR Flex Query; without one they show as unknown.
 
 **Note on Yahoo Finance:** yfinance is an unofficial library and Yahoo can change or block it. If it fails, only the sections that use it show "unavailable"; the rest of the app keeps working. News comes from Yahoo's search, because yfinance's per-stock news call currently returns 404.
 
