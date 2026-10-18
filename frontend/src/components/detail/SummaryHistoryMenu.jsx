@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { useClickOutside, useEscapeKey } from '../../hooks/useMenu.js'
 import { formatSummaryTime } from '../../lib/format.js'
 import { ChevronIcon } from '../icons.jsx'
 
@@ -13,24 +14,15 @@ function SummaryHistoryMenu({ items, shownId, disabled, onView, onCompare }) {
   const [picked, setPicked] = useState([])
   const menuRef = useRef(null)
 
-  function close() {
+  const close = useCallback(() => {
     setOpen(false)
     setPicking(false)
     setPicked([])
-  }
+  }, [])
 
   // Close on Escape or a click anywhere outside the menu
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e) => e.key === 'Escape' && close()
-    const onClick = (e) => !menuRef.current?.contains(e.target) && close()
-    document.addEventListener('keydown', onKey)
-    document.addEventListener('mousedown', onClick)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.removeEventListener('mousedown', onClick)
-    }
-  }, [open])
+  useEscapeKey(close, open)
+  useClickOutside(menuRef, close, open)
 
   function toggle(id) {
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id].slice(-2)))
