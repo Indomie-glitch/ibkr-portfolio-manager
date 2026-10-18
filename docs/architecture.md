@@ -170,7 +170,7 @@ flowchart TB
 flowchart TB
     main["main.jsx"] --> App["App.jsx<br/>loads account, positions, quotes,<br/>trading status; picks the page"]
 
-    Sidebar --> SidebarWatchlists["SidebarWatchlists.jsx<br/>+ button, rows with counts,<br/>naming, Rename / Delete"]
+    Sidebar --> SidebarWatchlists["SidebarWatchlists.jsx<br/>+ button, rows with counts,<br/>naming, Rename / Delete,<br/>drop stock rows here"]
     App --> Sidebar & Toolbar & SessionBanner & UpdatePrompt & ConnectionMessage
     App --> Setup["pages/Setup.jsx<br/>first run + sign in (Mac app)"]
     App --> Overview["pages/Overview.jsx"]
@@ -194,7 +194,7 @@ flowchart TB
     subgraph lib["lib/ + hooks/"]
         api["lib/api.js<br/>every backend call"]
         helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js,<br/>lotCards.js, listPanes.js,<br/>watchlists.js (localStorage store)"]
-        hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, appearance"]
+        hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, useStockDrop,<br/>appearance"]
     end
 
     subgraph desktop["desktop/ (Mac app only)"]

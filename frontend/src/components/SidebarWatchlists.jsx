@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   MAX_NAME,
+  addToWatchlist,
   createWatchlist,
   deleteWatchlist,
   finishNaming,
@@ -8,6 +9,7 @@ import {
   useNamingWatchlist,
   useWatchlists,
 } from '../lib/watchlists.js'
+import { useStockDrop } from '../hooks/useStockDrop.js'
 import { PlusIcon, StarIcon } from './icons.jsx'
 import PopupMenu from './PopupMenu.jsx'
 
@@ -49,6 +51,28 @@ function NameField({ list }) {
   )
 }
 
+// One watchlist in the sidebar; stock rows dragged onto it are added to it
+function WatchlistRow({ list, active, onOpen, onMenu }) {
+  const [dropping, dropProps] = useStockDrop((stock) => addToWatchlist(list.id, stock))
+  return (
+    <button
+      type="button"
+      className={`sidebar-item ${active ? 'active' : ''} ${dropping ? 'drop-target' : ''}`}
+      aria-current={active ? 'page' : undefined}
+      onClick={() => onOpen(list.id)}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        onMenu({ id: list.id, x: e.clientX, y: e.clientY })
+      }}
+      {...dropProps}
+    >
+      <StarIcon />
+      <span className="sidebar-item-name">{list.name}</span>
+      <span className="sidebar-count">{list.stocks.length}</span>
+    </button>
+  )
+}
+
 // Watchlists in the sidebar (#88; Figma "Section Header / Watchlists" node 36:300 and M6 / 6):
 // a + button to make one, and a row per watchlist with how many stocks it has
 function SidebarWatchlists({ activeId, onOpen, onDeleted }) {
@@ -78,21 +102,7 @@ function SidebarWatchlists({ activeId, onOpen, onDeleted }) {
           l.id === naming ? (
             <NameField key={l.id} list={l} />
           ) : (
-            <button
-              key={l.id}
-              type="button"
-              className={`sidebar-item ${activeId === l.id ? 'active' : ''}`}
-              aria-current={activeId === l.id ? 'page' : undefined}
-              onClick={() => onOpen(l.id)}
-              onContextMenu={(e) => {
-                e.preventDefault()
-                setMenu({ id: l.id, x: e.clientX, y: e.clientY })
-              }}
-            >
-              <StarIcon />
-              <span className="sidebar-item-name">{l.name}</span>
-              <span className="sidebar-count">{l.stocks.length}</span>
-            </button>
+            <WatchlistRow key={l.id} list={l} active={activeId === l.id} onOpen={onOpen} onMenu={setMenu} />
           ),
         )}
       </div>

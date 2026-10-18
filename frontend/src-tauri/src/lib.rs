@@ -310,7 +310,10 @@ fn open_main_window(app: &AppHandle, connection: Option<&Connection>) -> tauri::
         .title("Portfolio Manager")
         .inner_size(1320.0, 860.0)
         .min_inner_size(960.0, 640.0)
-        .center();
+        .center()
+        // The app takes no file drops; Tauri's own drop handling would get in the way of the page's
+        // drag and drop (dragging stocks onto watchlists, #88)
+        .disable_drag_drop_handler();
     if let Some(c) = connection {
         // Starts as the small startup window; the page sizes it for each screen (appWindow.js).
         // No visible title bar, as in the Figma frames: the traffic lights sit over the content

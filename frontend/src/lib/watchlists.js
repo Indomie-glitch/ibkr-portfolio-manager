@@ -135,3 +135,35 @@ export function addToWatchlist(id, stock) {
 export function removeFromWatchlist(id, conId) {
   commit(removeStockFrom(current(), id, conId))
 }
+
+// ---------- drag and drop: stock rows onto watchlists ----------
+
+// Our own type, so text or files dragged in from elsewhere are ignored
+const DRAG_TYPE = 'application/x-portfolio-stock'
+
+// Props that make a row draggable as a stock
+export function draggableStock(stock) {
+  return {
+    draggable: true,
+    onDragStart: (e) => {
+      e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(stockEntry(stock)))
+      e.dataTransfer.setData('text/plain', stock.symbol)
+      e.dataTransfer.effectAllowed = 'copy'
+    },
+  }
+}
+
+// Whether a drag carries a stock (the data itself can only be read on drop)
+export function isStockDrag(e) {
+  return Array.from(e.dataTransfer?.types ?? []).includes(DRAG_TYPE)
+}
+
+// The dropped stock, or null if the data isn't one of ours
+export function droppedStock(e) {
+  try {
+    const stock = JSON.parse(e.dataTransfer.getData(DRAG_TYPE))
+    return Number.isInteger(stock?.con_id) && stock.symbol ? stockEntry(stock) : null
+  } catch {
+    return null
+  }
+}
