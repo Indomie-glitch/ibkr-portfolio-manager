@@ -37,6 +37,8 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Summary history: reopen any of the last 20 summaries of a stock, or compare two side by side, with the exact changes in the data (price, P/E, analyst target, dividend yield, P&L, new news) and each point tagged as new, changed or no longer present
 
 * Markets: search any ASX or US stock by symbol or name, see its price, chart, statistics and news, with recently viewed stocks
+* Watchlists: as many as you like in the sidebar, each with price and day change for any ASX or US stock; add stocks from the watchlist's search field or the Watch button on any stock (stored on your computer only)
+* News sentiment: green or red arrows (1 to 3) on each headline, showing how good or bad it is for that company, judged by Claude once per article
 * Trading (paper or live account, in the browser and the Mac app): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders. See [Trading safety](#trading-safety)
 * Purchase dates and 12-month CGT discount dates per lot from an IBKR Flex Query ([setup](docs/flex-query.md)), used in the AI summary
 * Mac app that sets up and runs IB Gateway itself, with nothing secret stored

@@ -3759,3 +3759,301 @@ button.ai-source:hover {
 .toolbar .button.icon-only {
   margin-right: 4px;
 }
+
+/* ---------- Watchlists (#88, Figma M6 / 6-10) ---------- */
+
+/* Sidebar: "Watchlists" with a + button (node 36:300), then one row per watchlist */
+.sidebar-section.with-action {
+  display: flex;
+  align-items: center;
+  padding: 14px 8px 4px 10px;
+}
+
+.sidebar-section.with-action span {
+  flex: 1;
+}
+
+.sidebar-add {
+  display: flex;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.sidebar-add:hover {
+  color: var(--text);
+}
+
+.sidebar-lists {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sidebar-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-count {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Naming a new watchlist (M6 / 7 node 42:676) */
+.sidebar-item.naming {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  background: var(--fill-active);
+  cursor: default;
+}
+
+.rename-field {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 5px;
+  border: 2px solid var(--accent);
+  border-radius: 5px;
+  outline: none;
+  background: var(--bg);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+/* Menus: the Watch menu (M6 / 9) and right-click menus, styled like the account menu */
+.popup-menu {
+  position: absolute;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  padding: 5px;
+  border: 1px solid var(--menu-border);
+  border-radius: 10px;
+  outline: none;
+  background: var(--menu-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.popup-menu.context-menu {
+  position: fixed;
+  width: auto;
+  min-width: 180px;
+}
+
+.popup-menu-header {
+  padding: 4px 8px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.popup-menu-header.indented {
+  padding-left: 28px;
+}
+
+.popup-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: default;
+}
+
+.popup-menu-item.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.popup-menu-item:disabled {
+  color: var(--text-3);
+}
+
+.popup-menu-check {
+  display: flex;
+  flex-shrink: 0;
+  width: 14px;
+}
+
+.popup-menu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popup-menu-count {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.popup-menu-item.active .popup-menu-count {
+  color: #fff;
+}
+
+/* The Watch button before Sell / Buy (M6 / 6), its menu under it, right-aligned */
+.watch-button-wrap {
+  position: relative;
+}
+
+.pill-button.watch-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+}
+
+.pill-button.watch-button.open {
+  background: var(--fill-active);
+  filter: brightness(0.94);
+}
+
+.watch-menu {
+  top: calc(100% + 6px);
+  right: 0;
+}
+
+/* Adding stocks from the watchlist's search field (M6 / 10 node 42:1357) */
+.add-stock {
+  position: relative;
+}
+
+.add-stock-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--menu-border);
+  border-radius: 10px;
+  background: var(--menu-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.add-stock-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.add-stock-result:hover {
+  background: var(--fill-subtle);
+}
+
+.add-stock-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.add-stock-symbol {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.add-stock-name {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-stock-button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--selected);
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-stock-added {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.add-stock-note {
+  padding: 8px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+/* An empty watchlist (M6 / 8 node 42:857) */
+.watchlist-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 26px 32px;
+  text-align: center;
+}
+
+.watchlist-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--selected);
+  color: var(--accent);
+}
+
+.watchlist-empty h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.watchlist-empty p {
+  max-width: 340px;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.4;
+}

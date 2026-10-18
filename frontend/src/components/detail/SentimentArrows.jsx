@@ -14,7 +14,7 @@ function chevron(tip) {
   return `M13 ${tip}L26 ${tip + 12}H20.5L13 ${tip + 5.5}L5.5 ${tip + 12}H0L13 ${tip}Z`
 }
 
-export function sentimentLabel(sentiment) {
+function sentimentLabel(sentiment) {
   if (!sentiment || sentiment.direction === 'neutral') return null
   return `${STRENGTH_WORDS[sentiment.strength]} ${sentiment.direction === 'positive' ? 'good' : 'bad'} news`
 }

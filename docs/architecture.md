@@ -170,25 +170,30 @@ flowchart TB
 flowchart TB
     main["main.jsx"] --> App["App.jsx<br/>loads account, positions, quotes,<br/>trading status; picks the page"]
 
+    Sidebar --> SidebarWatchlists["SidebarWatchlists.jsx<br/>+ button, rows with counts,<br/>naming, Rename / Delete"]
     App --> Sidebar & Toolbar & SessionBanner & UpdatePrompt & ConnectionMessage
     App --> Setup["pages/Setup.jsx<br/>first run + sign in (Mac app)"]
     App --> Overview["pages/Overview.jsx"]
     App --> Positions["pages/Positions.jsx"]
     App --> Markets["pages/Markets.jsx"]
     App --> Orders["pages/Orders.jsx"]
+    App --> Watchlist["pages/Watchlist.jsx<br/>one watchlist: its stocks,<br/>add from search, empty state"]
     App --> Settings["SettingsSheet.jsx + pages/Settings.jsx<br/>(opened from the account menu)"]
     App --> Ticket["OrderTicket.jsx<br/>buy/sell form, live preview"] --> Confirm["OrderConfirm.jsx<br/>review sheet, then 'Order filled'"]
 
     Overview --> StatCard & PositionsTable & AllocationCard & AiSummaryCard["AiSummaryCard<br/>(placeholder until #22)"]
     Positions --> HoldingsList & HoldingDetail
     Markets --> HoldingDetail
+    Watchlist --> HoldingDetail
+    Markets & Watchlist --> StockRow["StockRow.jsx"]
+    HoldingDetail --> WatchButton["WatchButton.jsx<br/>Watch menu (PopupMenu)"]
 
     HoldingDetail["HoldingDetail.jsx<br/>price, chart, your position<br/>(incl. purchase and CGT dates)"] --> PriceChart
     HoldingDetail --> detail["components/detail/<br/>KeyStats, About, News<br/>(with sentiment arrows),<br/>Performance, AI summary<br/>(collapsible sections)"]
 
     subgraph lib["lib/ + hooks/"]
         api["lib/api.js<br/>every backend call"]
-        helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js,<br/>lotCards.js, listPanes.js"]
+        helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js,<br/>lotCards.js, listPanes.js,<br/>watchlists.js (localStorage store)"]
         hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, appearance"]
     end
 
@@ -196,7 +201,7 @@ flowchart TB
         tauri["appSession, appGateway,<br/>appApiKey, appSettings,<br/>appUpdater, appWindow"]
     end
 
-    App & Markets & Orders & HoldingDetail & Ticket & Confirm & Settings --> api
+    App & Markets & Watchlist & Orders & HoldingDetail & Ticket & Confirm & Settings --> api
     api -->|"HTTP / streams"| BE[["Python backend"]]
     Setup & Settings & UpdatePrompt --> tauri
     tauri -->|Tauri commands| RS[["Rust shell"]]
@@ -398,5 +403,6 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | Anthropic API key, Flex token | backend memory only (Mac app) or `.env` (dev) | until the app quits |
 | IBKR password | sent to Gateway once, never stored | not kept |
 | UI preferences (theme, open sections, recent stocks) | browser localStorage | until cleared |
+| Watchlists (names and stocks) | browser localStorage (`watchlists`) | until deleted |
 
 In the Mac app the files live in `~/Library/Application Support/` under the app's id; in dev they live in `data/` at the top of the repo.
