@@ -255,7 +255,7 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 | `GET /history/{con_id}?range=1M` | Price history for the chart (`1D`, `1W`, `1M`, `3M`, `1Y`, `All`) |
 | `GET /profile/{con_id}` | Company profile from Yahoo Finance (cached 1 hour) |
 | `GET /stats/{con_id}` | Market cap, P/E, EPS, beta, dividends, 52-week range, analyst target (Yahoo, cached 1 hour) |
-| `GET /news/{con_id}` | Recent headlines that name the company (Yahoo, cached 15 minutes) |
+| `GET /news/{con_id}` | Recent headlines that name the company (Yahoo, cached 15 minutes), each with its sentiment for the company (positive / negative / neutral, strength 1-3; Claude, judged once per article) when an API key is set |
 | `GET /performance/{con_id}` | Total return YTD, 1Y, 3Y, 5Y vs a total return index (Yahoo, cached 1 day) |
 | `GET /summary/{con_id}` | The last saved AI summary for a holding |
 | `POST /summary/{con_id}` | Writes a new AI summary, streamed section by section (Server-Sent Events) |

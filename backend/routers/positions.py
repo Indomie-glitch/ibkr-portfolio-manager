@@ -4,6 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 
+import news_sentiment
 import yahoo
 from cache import cached
 from ib_core import build_quote, clean, fetch_tickers, get_bars, get_contract_info, ib, require_ib
@@ -219,10 +220,13 @@ async def performance_data(contract, symbol):
 
 @router.get("/news/{con_id}", dependencies=[Depends(require_ib)])
 async def news(con_id: int):
-    """Recent headlines that mention the company, newest first (cached 15 minutes)."""
+    """Recent headlines that mention the company, newest first (cached 15 minutes), each with its
+    sentiment for this company when an API key is set (#170; null otherwise)."""
     contract, symbol = await yahoo_target(con_id)
     items = await call_yahoo(lambda: news_items(contract, symbol))
-    return {"items": items}
+    info = await call_yahoo(lambda: yahoo_info(symbol))
+    company = info.get("longName") or info.get("shortName") or contract.symbol
+    return {"items": await news_sentiment.with_sentiment(con_id, company, contract.symbol, items)}
 
 @router.get("/performance/{con_id}", dependencies=[Depends(require_ib)])
 async def performance(con_id: int):
