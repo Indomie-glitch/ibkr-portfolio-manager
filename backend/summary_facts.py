@@ -95,14 +95,27 @@ def position_lots(holding_lots):
         })
     first, last = lots[0], lots[-1]
     waiting = [lot for lot in lots if not lot["discount_applies_now"]]
+    # Lots bought on one day share their dates: say that date once, never a same-day range (#192)
+    one_day = first["purchase_date"] == last["purchase_date"]
+    if len(lots) == 1:
+        purchase_date = first["purchase_date"]
+    elif one_day:
+        purchase_date = f"{first['purchase_date']} ({len(lots)} purchases)"
+    else:
+        purchase_date = f"{len(lots)} lots, bought {first['purchase_date']} to {last['purchase_date']}"
+    if not waiting:
+        cgt_date = (f"All lots qualify (since {last['cgt_discount_from']})" if one_day
+                    else f"All lots qualify (the last since {last['cgt_discount_from']})")
+    elif len({lot["cgt_discount_from"] for lot in waiting}) == 1 and len(waiting) == len(lots):
+        cgt_date = f"{waiting[0]['cgt_discount_from']} for all shares"
+    else:
+        cgt_date = f"Next lot qualifies on {waiting[0]['cgt_discount_from']}"
     unknown = holding_lots.get("unknown_quantity") or 0
     source = ("IBKR's own lots in the Flex report" if holding_lots["source"] == "flex_lots"
               else "trades in the Flex report, oldest sold first")
     return {
-        "purchase_date": first["purchase_date"] if len(lots) == 1 else
-        f"{len(lots)} lots, bought {first['purchase_date']} to {last['purchase_date']}",
-        "cgt_12_month_date": (f"All lots qualify (the last since {last['cgt_discount_from']})" if not waiting
-                              else f"Next lot qualifies on {waiting[0]['cgt_discount_from']}"),
+        "purchase_date": purchase_date,
+        "cgt_12_month_date": cgt_date,
         "lots": lots,
         "shares_with_unknown_purchase_date": unknown or None,
         "cgt_note": (

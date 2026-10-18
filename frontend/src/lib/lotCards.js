@@ -7,8 +7,9 @@ const shares = (quantity) => `${quantity % 1 ? quantity : Math.round(quantity)} 
 // GET /lots/{con_id}. Each card: { value, note, noteTone: 'warning' | 'muted' }.
 // flexConfigured: from GET /lots/status (false adds the "Set up Flex" hint).
 export function lotCards(lots, flexConfigured) {
-  // IBKR can split one day's buying into several lots (one per execution); they count as one
-  // purchase, since they share a purchase date and so a CGT date
+  // Lots bought on the same day share a purchase date and so a CGT date: the dates and CGT
+  // countdown are per day, while the purchase count is IBKR's lots (#192)
+  const purchases = lots?.lots?.length ?? 0
   const byDay = new Map()
   for (const lot of lots?.lots ?? []) {
     const day = byDay.get(lot.opened)
@@ -27,9 +28,11 @@ export function lotCards(lots, flexConfigured) {
   const unknownNote = lots.unknown_quantity > 0 ? `${shares(lots.unknown_quantity)}: date unknown` : null
 
   if (known.length === 1) {
+    // One day: that date, not a same-day range, with how many purchases it was (#192)
     const [lot] = known
+    const count = purchases > 1 ? `${purchases} purchases` : null
     return {
-      purchase: { value: formatShortDate(lot.opened), note: unknownNote, noteTone: 'muted' },
+      purchase: { value: formatShortDate(lot.opened), note: [count, unknownNote].filter(Boolean).join(' · ') || null, noteTone: 'muted' },
       cgt: {
         value: formatShortDate(lot.cgt_discount_from),
         note: lot.days_until_discount > 0 ? daysLeft(lot.days_until_discount) : null,
@@ -52,7 +55,7 @@ export function lotCards(lots, flexConfigured) {
     cgt = { value: formatShortDate(latest.cgt_discount_from), note: null }
   }
   return {
-    purchase: { value: `${known.length} purchases`, note: unknownNote ? `${range} · ${unknownNote}` : range, noteTone: 'muted' },
+    purchase: { value: `${purchases} purchases`, note: unknownNote ? `${range} · ${unknownNote}` : range, noteTone: 'muted' },
     cgt,
   }
 }
