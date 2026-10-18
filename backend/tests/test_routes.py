@@ -14,6 +14,7 @@ ENDPOINTS = [
     "GET /orders/stream",
     "GET /performance/{con_id}",
     "GET /portfolio-summary",
+    "GET /portfolio-summary/compare",
     "GET /portfolio-summary/facts",
     "GET /portfolio-summary/history",
     "GET /portfolio-summary/history/{summary_id}",

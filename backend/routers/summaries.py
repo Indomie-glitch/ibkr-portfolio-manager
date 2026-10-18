@@ -337,10 +337,23 @@ def portfolio_summary_history():
 @router.get("/portfolio-summary/history/{summary_id}")
 def past_portfolio_summary(summary_id: int):
     """One saved portfolio summary in full, in the same shape as the latest one."""
+    return saved_portfolio_response(saved_portfolio_record(summary_id))
+
+def saved_portfolio_record(summary_id):
     record = summary_store.get_portfolio(summary_id)
     if record is None:
         raise HTTPException(status_code=404, detail="No saved portfolio summary with that id")
-    return saved_portfolio_response(record)
+    return record
+
+@router.get("/portfolio-summary/compare")
+def compare_portfolio_summaries(a: int, b: int):
+    """Two saved portfolio summaries (older first) and the exact changes between their facts sheets."""
+    older, newer = sorted((saved_portfolio_record(a), saved_portfolio_record(b)), key=lambda r: (r["created_at"], r["id"]))
+    return {
+        "older": saved_portfolio_response(older),
+        "newer": saved_portfolio_response(newer),
+        "data_changes": portfolio_facts.compare_data(older["facts"], newer["facts"]),
+    }
 
 portfolio_summary_lock = asyncio.Lock()
 

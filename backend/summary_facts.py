@@ -558,6 +558,29 @@ def parse_money(text):
 MINOR_CHANGE_PCT = 1
 
 
+def change_row(label, old, new, values, *, text=lambda c: f"{c:+.2f}".replace("-", MINUS), tone=False, change=None):
+    """One row of compare mode's "What changed in the data": {label, old, new, change, tone, minor}.
+    values: the raw (old, new) numbers; change defaults to new - old. Shared with the portfolio
+    summary's compare (portfolio_facts.compare_data)."""
+    old_value, new_value = values
+    if change is None and old_value is not None and new_value is not None:
+        change = new_value - old_value
+    if change is not None:
+        change = round(change, 2)
+    relative = change_pct(new_value, old_value)
+    minor = bool(change) and relative is not None and abs(relative) < MINOR_CHANGE_PCT
+    if change is None:
+        change_text = None
+    elif change == 0:
+        change_text = "No change"
+    else:
+        change_text = text(change) + (f" (under {MINOR_CHANGE_PCT}%)" if minor else "")
+    return {
+        "label": label, "old": old, "new": new, "change": change_text, "minor": minor,
+        "tone": None if minor or not tone or not change else "gain" if change > 0 else "loss",
+    }
+
+
 def compare_data(older, newer):
     """Exact changes between two saved facts sheets, for the top of compare mode.
 
@@ -568,25 +591,8 @@ def compare_data(older, newer):
     old_pos, new_pos = older.get("D:position", {}), newer.get("D:position", {})
     rows = []
 
-    def add(label, old, new, values, text=lambda c: f"{c:+.2f}".replace("-", MINUS), tone=False, change=None):
-        """values: the raw (old, new) numbers; change defaults to new - old."""
-        old_value, new_value = values
-        if change is None and old_value is not None and new_value is not None:
-            change = new_value - old_value
-        if change is not None:
-            change = round(change, 2)
-        relative = change_pct(new_value, old_value)
-        minor = bool(change) and relative is not None and abs(relative) < MINOR_CHANGE_PCT
-        if change is None:
-            change_text = None
-        elif change == 0:
-            change_text = "No change"
-        else:
-            change_text = text(change) + (f" (under {MINOR_CHANGE_PCT}%)" if minor else "")
-        rows.append({
-            "label": label, "old": old, "new": new, "change": change_text, "minor": minor,
-            "tone": None if minor or not tone or not change else "gain" if change > 0 else "loss",
-        })
+    def add(label, old, new, values, **options):
+        rows.append(change_row(label, old, new, values, **options))
 
     def as_money(change):
         return money(change, currency, signed=True)

@@ -4,7 +4,7 @@ portfolio and H:<con_id> for each holding.
 """
 from datetime import timedelta
 
-from summary_facts import as_of_text, change_pct, long_date, money, parse_money, pct
+from summary_facts import MINUS, as_of_text, change_pct, change_row, long_date, money, parse_money, pct
 
 # Concentration flags (stated in the facts, so the model can quote them)
 SINGLE_STOCK_PCT = 20
@@ -254,3 +254,33 @@ def since_last(previous, facts):
 def source_ids(facts):
     """Every id the model may cite."""
     return [key for key in facts if key.startswith(("D:", "H:"))]
+
+
+def compare_data(older, newer):
+    """Exact changes between two saved portfolio facts sheets, for compare mode (same row shape as
+    summary_facts.compare_data): value, cash, P&L, number of holdings, dividends, holdings added and
+    sold. Money is only compared when both sheets are in the same base currency."""
+    base = newer.get("base_currency")
+    same_currency = older.get("base_currency") == base
+    old_p, new_p = older.get("D:portfolio", {}), newer.get("D:portfolio", {})
+    as_money = lambda c: money(c, base, signed=True)  # noqa: E731
+    rows = []
+    for label, key, tone in (("Net liquidation", "net_liquidation", True), ("Holdings value", "holdings_value", True),
+                             ("Cash", "cash", False), ("Unrealised P&L", "unrealised_gain_or_loss", True)):
+        values = (parse_money(old_p.get(key)), parse_money(new_p.get(key))) if same_currency else (None, None)
+        rows.append(change_row(label, old_p.get(key), new_p.get(key), values, text=as_money, tone=tone))
+    count = (old_p.get("number_of_holdings"), new_p.get("number_of_holdings"))
+    rows.append(change_row("Holdings", *(None if c is None else str(c) for c in count), count,
+                           text=lambda c: f"{c:+.0f}".replace("-", MINUS)))
+    old_income, new_income = older.get("D:income", {}), newer.get("D:income", {})
+    income = ((parse_money(old_income.get("expected_yearly_total")), parse_money(new_income.get("expected_yearly_total")))
+              if same_currency else (None, None))
+    rows.append(change_row("Expected yearly dividends", old_income.get("expected_yearly_total"),
+                           new_income.get("expected_yearly_total"), income, text=as_money, tone=True))
+    held_then = {v["symbol"] for k, v in older.items() if k.startswith("H:")}
+    held_now = {v["symbol"] for k, v in newer.items() if k.startswith("H:")}
+    for label, symbols in (("Holdings added", held_now - held_then), ("Holdings sold", held_then - held_now)):
+        rows.append({"label": label, "old": None, "new": ", ".join(sorted(symbols)) or "None", "change": None,
+                     "tone": None, "minor": False})
+    return rows
+

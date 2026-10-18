@@ -34,6 +34,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Refreshes every 60 seconds, and recovers on its own if IB Gateway disconnects and comes back
 
 * AI stock summary (Claude): a 10-part briefing on any holding, covering the business, financial health, valuation, a news digest, why the price moved, upcoming events, bull and bear case, key risks, what it means for your position, and why the price moved since your last summary (in line with the market given the stock's beta, or company specific, with any news from that window). It only uses data the app fetched, cites a source for every point, and never gives buy/sell advice
+* AI portfolio summary on Overview: the same kind of briefing for the whole portfolio (value, allocation, what drove the P&L, concentration, upcoming events, dividends, key risks, changes since last time), with its own history and compare; a cited holding opens on Positions
 * Summary history: reopen any of the last 20 summaries of a stock, or compare two side by side, with the exact changes in the data (price, P/E, analyst target, dividend yield, P&L, new news) and each point tagged as new, changed or no longer present
 
 * Markets: search any ASX or US stock by symbol or name, see its price, chart, statistics, news and an AI summary (without the Your position part), with recently viewed stocks
@@ -44,7 +45,6 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Mac app that sets up and runs IB Gateway itself, with nothing secret stored
 
 ### Planned
-* AI summary of the whole portfolio on the Overview page (the backend is ready; the card needs a design)
 * Purchase dates in the app's Settings and the Your position section (the backend is ready; they need a design)
 
 ## Roadmap
@@ -56,7 +56,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 4.5:** Expanded stock detail (key statistics, company profile, news, performance via yfinance)
 * [x] **Milestone 5:** AI stock summaries via the Claude API, with summary history and compare, and explanations of price moves since the last summary
 * [ ] **Milestone 5.1:** Purchase dates per lot from an IBKR Flex Query, each with its 12-month CGT date: done in the backend and the AI summary; Settings rows, manual entry and the Your position section wait for a design
-* [ ] **Milestone 5.2: AI portfolio summary:** facts sheet, prompt, streaming endpoint and history done; the Overview card waits for a design
+* [x] **Milestone 5.2: AI portfolio summary** on the Overview page: 8 sections, citations to the facts and holdings, history and compare
 * [ ] **Milestone 6: Trade placement:** built; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
 * [ ] **Milestone 8:** Risk analysis
@@ -266,7 +266,8 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 | `GET /portfolio-summary` | The last saved AI portfolio summary, and whether AI is set up |
 | `POST /portfolio-summary` | Writes a new AI portfolio summary (8 sections), streamed like the stock summary |
 | `GET /portfolio-summary/history` | Saved portfolio summaries, newest first (id, time, model, net liquidation) |
-| `GET /portfolio-summary/history/{id}` | One saved portfolio summary in full |
+| `GET /portfolio-summary/history/{summary_id}` | One saved portfolio summary in full |
+| `GET /portfolio-summary/compare?a=&b=` | Two saved portfolio summaries (older first) and the exact changes between their data |
 | `GET /portfolio-summary/facts` | The data the AI portfolio summary will be based on: weights, allocation, P&L contributors, concentration, events, dividends (no API call) |
 | `GET /lots/status` | Whether Flex purchase dates are set up, when they were last fetched, and the last error |
 | `GET /lots/{con_id}` | A holding's purchase lots with their 12-month CGT discount dates (from the Flex report) |

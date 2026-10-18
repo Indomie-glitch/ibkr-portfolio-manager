@@ -1,11 +1,13 @@
 import { formatSummaryTime } from '../../lib/format.js'
 import { diffSection } from '../../lib/summaryDiff.js'
-import { groupsFor } from '../../lib/summarySections.js'
+import { useContext } from 'react'
+import { SummaryKind } from './summaryKinds.js'
 import { SectionBody } from './SummaryView.jsx'
 
-function heading(view) {
-  const price = view.facts?.['D:key_stats']?.last_price
-  return price ? `${formatSummaryTime(view.created_at)} · ${price}` : formatSummaryTime(view.created_at)
+// "17 Oct, 9:00am · US$231.00": when, and the stock's price or the portfolio's value then
+function heading(view, kind) {
+  const figure = kind.headline(view)
+  return figure ? `${formatSummaryTime(view.created_at)} · ${figure}` : formatSummaryTime(view.created_at)
 }
 
 // Exact changes between the two facts sheets, calculated by the backend
@@ -44,6 +46,7 @@ function Column({ side, view, name, marks }) {
 
 // Two saved summaries side by side, section by section
 function SummaryCompare({ comparison }) {
+  const kind = useContext(SummaryKind)
   const { older, newer, data_changes: dataChanges } = comparison
   return (
     <div className="ai-summary compare">
@@ -54,11 +57,11 @@ function SummaryCompare({ comparison }) {
         <span className="ai-mark removed">No longer present</span>.
       </p>
       <div className="compare-row compare-headings">
-        <p className="compare-heading num">Older · {heading(older)}</p>
-        <p className="compare-heading num">Newer · {heading(newer)}</p>
+        <p className="compare-heading num">Older · {heading(older, kind)}</p>
+        <p className="compare-heading num">Newer · {heading(newer, kind)}</p>
       </div>
       {/* Your position shows if either summary was written while the stock was owned */}
-      {groupsFor(older.owned !== false || newer.owned !== false).map((group) => (
+      {kind.groups(older.owned !== false || newer.owned !== false).map((group) => (
         <div className="ai-group" key={group.title}>
           <p className="ai-group-title">{group.title}</p>
           {group.sections.map(([key, title]) => {
@@ -67,8 +70,8 @@ function SummaryCompare({ comparison }) {
               <div className="ai-section" key={key}>
                 <p className="ai-section-title">{title}</p>
                 <div className="compare-row">
-                  <Column side={`Older · ${heading(older)}`} view={older} name={key} marks={marks.older} />
-                  <Column side={`Newer · ${heading(newer)}`} view={newer} name={key} marks={marks.newer} />
+                  <Column side={`Older · ${heading(older, kind)}`} view={older} name={key} marks={marks.older} />
+                  <Column side={`Newer · ${heading(newer, kind)}`} view={newer} name={key} marks={marks.newer} />
                 </div>
               </div>
             )

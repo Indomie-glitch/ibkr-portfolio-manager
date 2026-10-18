@@ -192,11 +192,36 @@ export function fetchSummaryComparison(conId, a, b) {
 // Start a new AI summary and call onEvent(name, data) for each Server-Sent Event the
 // backend streams: status, facts, section (one per finished section), done, error.
 // (EventSource can't send POST requests, so this reads the stream with fetch.)
-export async function generateSummary(conId, onEvent) {
-  const response = await request(`/summary/${conId}`, { method: 'POST', stream: true })
-  if (!response.ok) throw await failure(`/summary/${conId}`, response, `Summary request failed (${response.status})`)
+async function streamSummary(path, onEvent) {
+  const response = await request(path, { method: 'POST', stream: true })
+  if (!response.ok) throw await failure(path, response, `Summary request failed (${response.status})`)
 
   await readEvents(response, onEvent)
+}
+
+export function generateSummary(conId, onEvent) {
+  return streamSummary(`/summary/${conId}`, onEvent)
+}
+
+// The AI portfolio summary (Overview, #22): the same calls as a stock's summary
+export function fetchPortfolioSummary() {
+  return getJson('/portfolio-summary')
+}
+
+export function fetchPortfolioSummaryHistory() {
+  return getJson('/portfolio-summary/history')
+}
+
+export function fetchPastPortfolioSummary(summaryId) {
+  return getJson(`/portfolio-summary/history/${summaryId}`)
+}
+
+export function fetchPortfolioSummaryComparison(a, b) {
+  return getJson(`/portfolio-summary/compare?a=${a}&b=${b}`)
+}
+
+export function generatePortfolioSummary(onEvent) {
+  return streamSummary('/portfolio-summary', onEvent)
 }
 
 // Reads a Server-Sent Events response, calling onEvent(name, data) for each event

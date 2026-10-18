@@ -158,7 +158,7 @@ function AllocationCard({ holdings, currency }) {
   const formatValue = (v) => (metric.isCount ? `${formatNumber(v, 0)} sh` : formatMoney(v, currency, { decimals: 0 }))
 
   return (
-    <section className="allocation-card">
+    <section className="allocation-card" id="allocation-card">
       <div className="allocation-header">
         <div className="allocation-titles">
           <h2 className="card-title">Allocation</h2>
