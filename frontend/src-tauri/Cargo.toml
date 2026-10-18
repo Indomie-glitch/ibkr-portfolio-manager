@@ -25,6 +25,7 @@ tauri = { version = "2.12.4", features = [] }
 tauri-plugin-log = "2"
 libc = "0.2"
 tauri-plugin-updater = "2"
+tauri-plugin-opener = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # Moving the window buttons (traffic_lights.rs); the same versions Tauri already uses
