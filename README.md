@@ -292,10 +292,22 @@ in both the browser version and the Mac app. Orders on a live account use real m
   confirmation token from that preview, valid for 2 minutes and only for exactly that order, so a
   changed number or a double click can't send something you didn't review.
 * **Limits checked on the server.** Each order is checked again right before it's sent: whole
-  shares only, no selling more than you hold (no short selling), and a maximum order value
-  (`MAX_ORDER_VALUE` in `.env`, in your base currency; default 10,000).
-* **Day orders in regular hours.** New orders are day orders and don't trade outside regular
-  trading hours.
+  shares only, no selling more than you hold (no short selling), and a maximum order value in your
+  base currency (default 10,000; in the browser version set `MAX_ORDER_VALUE` in `.env`, while the
+  Mac app always uses the default).
+* **Regular trading hours only.** Orders never trade before the open or after the close.
+* **You choose how long an order lasts.** **Day** orders end at today's close if they haven't
+  filled. **Good till cancelled** orders stay open on later days until they fill or you cancel them,
+  so check the Orders page for any that are still open.
+* **Ordering by amount rounds down.** When you enter an amount of money instead of a number of
+  shares, the ticket works out the whole number of shares it buys (rounded down) and the review
+  sheet shows that number before anything is sent.
+* **Changing an order is reviewed too.** Modify can change the quantity, limit price, order type
+  and time in force (not Buy or Sell), with a fresh preview and confirmation. If IBKR won't change
+  an order in place (for example market to limit), the app cancels it and places a new one with the
+  new details, and the result sheet says so; it won't do this once part of the order has filled.
+* **Cancel is immediate.** Cancel on the Orders page sends the cancellation straight away, without
+  a confirmation step.
 
 Test every flow on a paper account with the [paper trading checklist](docs/paper-trading-test.md)
 before using a live account.
