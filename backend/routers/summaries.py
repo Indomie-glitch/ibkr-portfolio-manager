@@ -2,7 +2,7 @@
 import asyncio
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 import ai_summary
@@ -12,6 +12,7 @@ import portfolio_facts
 import portfolio_summary
 import summary_facts
 import summary_store
+import usage_store
 import yahoo
 from cache import cached
 from ib_core import get_bars, get_contract_info, require_ib
@@ -253,12 +254,15 @@ async def generate_summary(con_id: int, request: Request):
                     else:
                         summary, warnings, usage = payload
                         saved_facts = {**facts, "links": links}
+                        usage_store.record("stock_summary", config.ai_model(), usage, con_id)
                         summary_store.save(con_id, facts["company"]["symbol"], facts["as_of"],
                                            config.ai_model(), saved_facts, summary, warnings)
                         print(f"Summary for {facts['company']['symbol']}: {usage['input_tokens']} in, "
                               f"{usage['output_tokens']} out, {len(warnings)} warnings")
                         yield sse("done", saved_summary_response(summary_store.latest(con_id)))
             except ai_summary.SummaryError as exc:
+                if exc.usage:
+                    usage_store.record("stock_summary", config.ai_model(), exc.usage, con_id, outcome=exc.code)
                 yield sse("error", {"code": exc.code, "message": exc.message})
             except Exception as exc:
                 print(f"Summary failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
@@ -343,11 +347,14 @@ async def generate_portfolio_summary(request: Request):
                         yield sse("section", {"name": name, "section": section, "warnings": warnings})
                     else:
                         summary, warnings, usage = payload
+                        usage_store.record("portfolio_summary", config.ai_model(), usage)
                         summary_store.save_portfolio(facts["as_of"], config.ai_model(), facts, summary, warnings)
                         print(f"Portfolio summary: {usage['input_tokens']} in, {usage['output_tokens']} out, "
                               f"{len(warnings)} warnings")
                         yield sse("done", saved_portfolio_response(summary_store.latest_portfolio()))
             except ai_summary.SummaryError as exc:
+                if exc.usage:
+                    usage_store.record("portfolio_summary", config.ai_model(), exc.usage, outcome=exc.code)
                 yield sse("error", {"code": exc.code, "message": exc.message})
             except Exception as exc:
                 print(f"Portfolio summary failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
@@ -355,3 +362,12 @@ async def generate_portfolio_summary(request: Request):
 
     return StreamingResponse(events(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+# ---------- Claude API usage and cost (#86) ----------
+
+@router.get("/usage")
+def usage(month: str | None = Query(None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$")):
+    """Tokens and estimated cost (US$) of every Claude call in a month (default this month): stock
+    summaries, portfolio summaries and news sentiment. Works without IB Gateway."""
+    return usage_store.monthly(month)

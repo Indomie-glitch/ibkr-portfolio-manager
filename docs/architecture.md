@@ -64,7 +64,7 @@ flowchart TB
     end
 
     gw["IB Gateway<br/>(installed separately,<br/>port 4012)"]
-    disk[("Application Support/<br/>settings.json, lots.sqlite,<br/>summaries.sqlite,<br/>news_sentiment.sqlite, gateway/")]
+    disk[("Application Support/<br/>settings.json, lots.sqlite,<br/>summaries.sqlite, news_sentiment.sqlite,<br/>usage.sqlite, gateway/")]
 
     shell -->|"opens window, injects<br/>backend URL + token"| ui
     ui -->|"Tauri commands<br/>(sign_in, set_api_key, ...)"| shell
@@ -104,7 +104,7 @@ flowchart TB
         r_app["app.py<br/>/health"]
         r_pos["positions.py<br/>/positions /account /quotes<br/>/search /prices /history<br/>/profile /stats /news /performance"]
         r_flex["flex.py<br/>/lots/status /lots/{id}"]
-        r_sum["summaries.py<br/>/summary/... /portfolio-summary/..."]
+        r_sum["summaries.py<br/>/summary/... /portfolio-summary/...<br/>/usage"]
         r_trade["trading.py<br/>/trading/status /orders<br/>/orders/preview /stream<br/>cancel, modify"]
     end
 
@@ -129,6 +129,7 @@ flowchart TB
         pai["portfolio_summary.py<br/>portfolio prompt + checks"]
         store["summary_store.py<br/>saved summaries (SQLite)"]
         senti["news_sentiment.py<br/>news good/bad + strength,<br/>saved per article (SQLite)"]
+        usage["usage_store.py<br/>tokens + cost of every<br/>Claude call (SQLite)"]
     end
 
     main --> routers
@@ -139,7 +140,7 @@ flowchart TB
     r_pos --> ib_core & yahoo & cache & names & senti
     r_flex --> lots & ib_core
     r_trade --> trading & ib_core & web
-    r_sum --> sfacts & pfacts & ai & pai & store & lots & web
+    r_sum --> sfacts & pfacts & ai & pai & store & lots & web & usage
     r_sum -.->|reuses| r_pos
 
     lots --> flex
@@ -152,6 +153,7 @@ flowchart TB
     flex -->|HTTPS| FX[["Flex Web Service"]]
     ai -->|anthropic SDK| AN[["Anthropic API"]]
     senti -->|anthropic SDK| AN
+    senti --> usage
 ```
 
 **How to read it:** arrows point from the file that uses something to the file it uses. The important rule in the AI part: `summary_facts.py` and `portfolio_facts.py` calculate every number, and Claude (via `ai_summary.py`) is only allowed to explain them and must cite which fact each point comes from. That is how the summaries avoid made up numbers.
@@ -398,7 +400,8 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | Price history, quotes, Yahoo data | backend memory (`cache.py`) | seconds to a day, lost on quit |
 | Purchase lots and trades | `lots.sqlite` | refreshed daily |
 | Saved AI summaries | `summaries.sqlite` | last 20 per stock, last 20 portfolio |
-| News sentiment per article, AI usage log | `news_sentiment.sqlite` | judgements 90 days; usage log kept |
+| News sentiment per article | `news_sentiment.sqlite` | 90 days |
+| Claude API usage: tokens and estimated cost per call | `usage.sqlite` | kept (`GET /usage` totals a month) |
 | App settings (Gateway port, AI model, username) | `settings.json` | until changed |
 | Anthropic API key, Flex token | backend memory only (Mac app) or `.env` (dev) | until the app quits |
 | IBKR password | sent to Gateway once, never stored | not kept |

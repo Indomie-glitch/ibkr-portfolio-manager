@@ -3,8 +3,7 @@ and how strongly, for the sentiment arrows in the News section (#97).
 
 The headlines for a stock that haven't been judged yet go to Claude in one call with a fixed
 answer shape (structured outputs). Each answer is saved in news_sentiment.sqlite by stock and
-article, so a headline is only judged once. Every call's token counts are logged in the same file
-(ai_usage) so they can be priced with the summaries' usage (#86).
+article, so a headline is only judged once. Every call's tokens and cost go to usage_store (#86).
 
 Without an API key, or if the call fails, the news is returned without sentiment: the arrows are
 extra, never a reason for the news list to fail.
@@ -18,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 import anthropic
 
 import config
+import usage_store
 from config import DATA_DIR
 from secrets_guard import mask_secrets
 
@@ -72,19 +72,15 @@ def _connect():
             PRIMARY KEY (con_id, url)
         )
     """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS ai_usage (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at TEXT NOT NULL,
-            feature TEXT NOT NULL,       -- 'news_sentiment'
-            model TEXT NOT NULL,
-            con_id INTEGER,
-            items INTEGER NOT NULL,      -- headlines judged in the call
-            input_tokens INTEGER NOT NULL,
-            output_tokens INTEGER NOT NULL
-        )
-    """)
+    move_old_usage(conn)
     return conn
+
+
+def move_old_usage(conn):
+    """Calls logged here before usage_store existed move there once (#86)."""
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ai_usage'").fetchone():
+        usage_store.import_rows([dict(r) for r in conn.execute("SELECT * FROM ai_usage ORDER BY id")])
+        conn.execute("DROP TABLE ai_usage")
 
 
 def saved_sentiments(con_id, urls):
@@ -99,8 +95,8 @@ def saved_sentiments(con_id, urls):
     return {r["url"]: {"direction": r["direction"], "strength": r["strength"], "reason": r["reason"]} for r in rows}
 
 
-def save_sentiments(con_id, judged, model, usage):
-    """judged: list of (item, sentiment). Also logs the call's tokens and drops old judgements."""
+def save_sentiments(con_id, judged, model):
+    """judged: list of (item, sentiment). Also drops old judgements."""
     now = datetime.now(timezone.utc)
     with _connect() as conn:
         conn.executemany(
@@ -109,18 +105,7 @@ def save_sentiments(con_id, judged, model, usage):
             [(con_id, item["url"], item["title"], s["direction"], s["strength"], s["reason"], model, now.isoformat())
              for item, s in judged],
         )
-        conn.execute(
-            "INSERT INTO ai_usage (created_at, feature, model, con_id, items, input_tokens, output_tokens) "
-            "VALUES (?, 'news_sentiment', ?, ?, ?, ?, ?)",
-            (now.isoformat(), model, con_id, len(judged), usage["input_tokens"], usage["output_tokens"]),
-        )
         conn.execute("DELETE FROM sentiments WHERE created_at < ?", ((now - timedelta(days=KEEP_DAYS)).isoformat(),))
-
-
-def usage_log():
-    """Every logged call, oldest first (for cost tracking, #86)."""
-    with _connect() as conn:
-        return [dict(r) for r in conn.execute("SELECT * FROM ai_usage ORDER BY id").fetchall()]
 
 
 def build_schema(ids):
@@ -173,8 +158,9 @@ def clean_answer(answer, ids):
     return result
 
 
-async def judge(company, symbol, items, client):
-    """Ask Claude about items (all new); returns ({url: sentiment}, usage). Raises on API errors."""
+async def judge(con_id, company, symbol, items, client):
+    """Ask Claude about items (all new); returns {url: sentiment}. Logs the call's usage (even when
+    the answer can't be used, since it was still paid for). Raises on API errors."""
     numbered = {f"N{i}": item for i, item in enumerate(items, start=1)}
     response = await client.messages.create(
         model=config.ai_model(),
@@ -184,11 +170,14 @@ async def judge(company, symbol, items, client):
         output_config={"format": {"type": "json_schema", "schema": build_schema(numbered)}},
     )
     usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
-    if response.stop_reason != "end_turn":
+    ok = response.stop_reason == "end_turn"
+    await asyncio.to_thread(usage_store.record, "news_sentiment", config.ai_model(), usage, con_id,
+                            "ok" if ok else response.stop_reason)
+    if not ok:
         raise RuntimeError(f"stopped early ({response.stop_reason})")
     text = next(b.text for b in response.content if b.type == "text")
     by_id = clean_answer(json.loads(text), numbered)
-    return {numbered[news_id]["url"]: s for news_id, s in by_id.items()}, usage
+    return {numbered[news_id]["url"]: s for news_id, s in by_id.items()}
 
 
 _locks = {}  # con_id -> asyncio.Lock, so two requests for one stock make one call
@@ -213,9 +202,9 @@ async def with_sentiment(con_id, company, symbol, items, client=None):
                 # The key never leaves the backend
                 client = client or anthropic.AsyncAnthropic(api_key=config.anthropic_api_key(),
                                                             timeout=TIMEOUT_S, max_retries=1)
-                judged, usage = await judge(company, symbol, new, client)
+                judged = await judge(con_id, company, symbol, new, client)
                 await asyncio.to_thread(save_sentiments, con_id, [(i, judged[i["url"]]) for i in new if i["url"] in judged],
-                                        config.ai_model(), usage)
+                                        config.ai_model())
                 known.update(judged)
                 _failed_at.pop(con_id, None)
             except Exception as exc:
