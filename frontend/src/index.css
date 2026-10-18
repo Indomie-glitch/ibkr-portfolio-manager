@@ -39,6 +39,9 @@
   --pill-gain: #34c759;
   --pill-loss: #ff3b30;
   --status-ok: #34c759;
+  --status-gain-bg: rgba(52, 199, 89, 0.14);
+  --status-loss-bg: rgba(255, 59, 48, 0.14);
+  --status-accent-bg: rgba(0, 122, 255, 0.14);
   --warning-bg: rgba(255, 149, 0, 0.12);
   --warning-text: #b25f00;
   --warning-dot: #ff9500;
@@ -121,6 +124,9 @@
   --pill-gain: #30d158;
   --pill-loss: #ff453a;
   --status-ok: #30d158;
+  --status-gain-bg: rgba(48, 209, 88, 0.18);
+  --status-loss-bg: rgba(255, 69, 58, 0.18);
+  --status-accent-bg: rgba(10, 132, 255, 0.2);
   --warning-bg: rgba(255, 159, 10, 0.12);
   --warning-text: #ff9f0a;
   --warning-dot: #ff9f0a;
@@ -3405,17 +3411,17 @@ button.ai-source:hover {
 }
 
 .status-pill.gain {
-  background: rgba(52, 199, 89, 0.14);
+  background: var(--status-gain-bg);
   color: var(--gain);
 }
 
 .status-pill.loss {
-  background: rgba(255, 59, 48, 0.14);
+  background: var(--status-loss-bg);
   color: var(--loss);
 }
 
 .status-pill.accent {
-  background: rgba(0, 122, 255, 0.14);
+  background: var(--status-accent-bg);
   color: var(--accent);
 }
 
@@ -3508,7 +3514,7 @@ button.ai-source:hover {
 }
 
 .account-avatar-dot.ok {
-  background: #34c759;
+  background: var(--status-ok);
 }
 
 .account-avatar-dot.bad {
@@ -3825,7 +3831,7 @@ button.ai-source:hover {
   border-radius: 5px;
   outline: none;
   background: var(--bg);
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+  box-shadow: 0 0 0 3px var(--focus-ring);
   color: var(--text);
   font: inherit;
   font-size: 13px;
