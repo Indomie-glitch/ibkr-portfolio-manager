@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import news_sentiment
+import usage_store
 
 
 def headline(n, title):
@@ -61,10 +62,14 @@ class NewsSentimentTest(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.original = news_sentiment.DB_PATH
         news_sentiment.DB_PATH = Path(self.folder.name) / "news_sentiment.sqlite"
+        # Never log test calls in the real usage file
+        self.original_usage = usage_store.DB_PATH
+        usage_store.DB_PATH = Path(self.folder.name) / "usage.sqlite"
         news_sentiment._failed_at.clear()
 
     def tearDown(self):
         news_sentiment.DB_PATH = self.original
+        usage_store.DB_PATH = self.original_usage
         self.folder.cleanup()
 
     def test_positive_negative_and_neutral(self):
@@ -142,9 +147,27 @@ class NewsSentimentTest(unittest.TestCase):
 
     def test_usage_is_logged_per_call(self):
         run(news_sentiment.with_sentiment(1, "Acme Corp", "ACME", ITEMS, client=FakeClient(ANSWER)))
-        [row] = news_sentiment.usage_log()
-        self.assertEqual((row["feature"], row["con_id"], row["items"], row["input_tokens"], row["output_tokens"]),
-                         ("news_sentiment", 1, 3, 500, 120))
+        month = usage_store.monthly()
+        self.assertEqual(month["by_feature"]["news_sentiment"],
+                         {"calls": 1, "input_tokens": 500, "output_tokens": 120, "cost_usd": 0.0011})
+
+    def test_a_cut_off_answer_is_still_logged(self):
+        run(news_sentiment.with_sentiment(1, "Acme Corp", "ACME", ITEMS, client=FakeClient(ANSWER, stop_reason="max_tokens")))
+        self.assertEqual(usage_store.monthly()["calls"], 1)
+
+    def test_old_usage_rows_move_to_the_usage_store(self):
+        import sqlite3
+        conn = sqlite3.connect(news_sentiment.DB_PATH)
+        conn.execute("CREATE TABLE ai_usage (id INTEGER PRIMARY KEY, created_at TEXT, feature TEXT, model TEXT, "
+                     "con_id INTEGER, items INTEGER, input_tokens INTEGER, output_tokens INTEGER)")
+        conn.execute("INSERT INTO ai_usage VALUES (1, '2026-10-18T10:00:00+11:00', 'news_sentiment', "
+                     "'claude-haiku-4-5', 7, 3, 1000, 200)")
+        conn.commit()
+        conn.close()
+        news_sentiment.saved_sentiments(7, ["x"])  # any use of the file moves them
+        news_sentiment.saved_sentiments(7, ["x"])  # and only once
+        self.assertEqual(usage_store.monthly("2026-10")["by_feature"]["news_sentiment"]["calls"], 1)
+        self.assertAlmostEqual(usage_store.monthly("2026-10")["cost_usd"], 0.002)
 
     def test_no_news_makes_no_call(self):
         client = FakeClient(ANSWER)

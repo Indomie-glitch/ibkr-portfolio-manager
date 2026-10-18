@@ -272,6 +272,7 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 | `GET /summary/{con_id}/history` | Saved summaries of a holding, newest first (id, time, model, price at the time) |
 | `GET /summary/{con_id}/history/{summary_id}` | One saved summary in full |
 | `GET /summary/{con_id}/compare?a=&b=` | Two saved summaries (older first) and the exact changes between their data |
+| `GET /usage?month=YYYY-MM` | Tokens and estimated cost (US$) of every Claude call in a month (default this month), in total and per feature (stock summaries, portfolio summaries, news sentiment) |
 
 **Note on market data:** if your live IBKR account is logged in somewhere else (TWS, the mobile app or the web portal), IB blocks quotes on the paper account (error 10197). The app then works out day change from IB's daily price history instead.
 

@@ -29,6 +29,7 @@ ENDPOINTS = [
     "GET /summary/{con_id}/history",
     "GET /summary/{con_id}/history/{summary_id}",
     "GET /trading/status",
+    "GET /usage",
     "POST /orders",
     "POST /orders/preview",
     "POST /orders/{order_id}/cancel",

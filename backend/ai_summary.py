@@ -248,10 +248,12 @@ def validate_section(name, section, allowed_ids, facts=None, *, point_ranges=POI
 class SummaryError(Exception):
     """A failure the UI should explain: code is machine-readable, message is for people."""
 
-    def __init__(self, code, message):
+    def __init__(self, code, message, usage=None):
         super().__init__(message)
         self.code = code
         self.message = message
+        # Tokens the failed call still used (a refused or cut-off answer is paid for), else None
+        self.usage = usage
 
 
 def api_key_configured():
@@ -315,10 +317,11 @@ async def stream_sections(facts, source_ids, *, sections=SECTIONS, system=SYSTEM
     except anthropic.APIConnectionError:
         raise SummaryError("network", "Couldn't reach the Anthropic API. Check your internet connection.")
 
+    usage = {"input_tokens": final.usage.input_tokens, "output_tokens": final.usage.output_tokens}
     if final.stop_reason == "refusal":
-        raise SummaryError("refused", "The model declined to write this summary.")
+        raise SummaryError("refused", "The model declined to write this summary.", usage)
     if final.stop_reason == "max_tokens":
-        raise SummaryError("incomplete", "The summary was cut off before it finished.")
+        raise SummaryError("incomplete", "The summary was cut off before it finished.", usage)
 
     summary = json.loads(next(b.text for b in final.content if b.type == "text"))
     for name in sections:
@@ -327,5 +330,4 @@ async def stream_sections(facts, source_ids, *, sections=SECTIONS, system=SYSTEM
             sent[name] = cleaned
             warnings += section_warnings
             yield ("section", name, cleaned, section_warnings)
-    usage = {"input_tokens": final.usage.input_tokens, "output_tokens": final.usage.output_tokens}
     yield ("final", {name: sent[name] for name in sections}, warnings, usage)
