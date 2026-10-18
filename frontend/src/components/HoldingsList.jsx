@@ -4,8 +4,7 @@ import { SearchIcon } from './icons.jsx'
 import { useResizableWidth } from '../hooks/useResizableWidth.js'
 import { HOLDINGS_LIST } from '../lib/listPanes.js'
 import { draggableStock } from '../lib/watchlists.js'
-
-const MARKETS = ['All', 'ASX', 'US']
+import MarketFilter from './MarketFilter.jsx'
 
 function HoldingsList({ holdings, selectedId, onSelect }) {
   const [query, setQuery] = useState('')
@@ -33,15 +32,7 @@ function HoldingsList({ holdings, selectedId, onSelect }) {
             />
           </label>
 
-          <div className="list-filter">
-            <div className="segmented" role="group" aria-label="Market">
-              {MARKETS.map((m) => (
-                <button key={m} type="button" aria-pressed={market === m} onClick={() => setMarket(m)}>
-                  {m}
-                </button>
-              ))}
-            </div>
-          </div>
+          <MarketFilter market={market} onChange={setMarket} />
 
           <div className="list-meta">
             <span>{visible.length} holdings</span>

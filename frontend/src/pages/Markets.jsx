@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react'
-import { fetchPrices, searchStocks } from '../lib/api.js'
+import { useState } from 'react'
+import { stockDetail } from '../lib/holdings.js'
+import { usePrices } from '../hooks/usePrices.js'
 import { useResizableWidth } from '../hooks/useResizableWidth.js'
+import { useStockSearch } from '../hooks/useStockSearch.js'
 import { MARKETS_LIST } from '../lib/listPanes.js'
 import HoldingDetail from '../components/HoldingDetail.jsx'
+import MarketFilter from '../components/MarketFilter.jsx'
 import StockRow from '../components/StockRow.jsx'
 import { SearchIcon } from '../components/icons.jsx'
 
-const MARKETS = ['All', 'ASX', 'US']
 const RECENT_KEY = 'recentStocks'
 const RECENT_LIMIT = 5
-// Wait for a pause in typing before asking IB (it allows about one search a second)
-const SEARCH_DELAY_MS = 350
 
 function loadRecent() {
   try {
@@ -32,53 +32,17 @@ function saveRecent(items) {
 function Markets({ holdings, refreshKey, trading, onTrade }) {
   const [query, setQuery] = useState('')
   const [market, setMarket] = useState('All')
-  // The results belong to search.query, so old results never show under new text
-  const [search, setSearch] = useState({ query: '', items: [], error: null })
-  const [prices, setPrices] = useState({})
   const [recent, setRecent] = useState(loadRecent)
   const [selected, setSelected] = useState(null)
   const { paneProps, handleProps } = useResizableWidth(MARKETS_LIST, 'Resize search list')
 
   const q = query.trim()
-  useEffect(() => {
-    if (!q) return
-    let ignore = false
-    const timer = setTimeout(() => {
-      searchStocks(q)
-        .then((items) => !ignore && setSearch({ query: q, items, error: null }))
-        .catch((err) => !ignore && setSearch({ query: q, items: [], error: err.message }))
-    }, SEARCH_DELAY_MS)
-    return () => {
-      ignore = true
-      clearTimeout(timer)
-    }
-  }, [q])
+  const search = useStockSearch(q)
+  const searching = search.searching
+  const results = search.items.filter((s) => market === 'All' || s.market === market)
 
-  const searching = q !== '' && search.query !== q
-  const results = q && !searching ? search.items.filter((s) => market === 'All' || s.market === market) : []
-
-  // Prices for the rows on screen that don't have one yet (refreshed with the rest of the app)
-  const shown = [...results, ...recent]
-  const missingIds = [...new Set(shown.map((s) => s.con_id))].filter((id) => !(id in prices)).join(',')
-  useEffect(() => {
-    if (!missingIds) return
-    let ignore = false
-    fetchPrices(missingIds)
-      .then((quotes) => {
-        if (ignore) return
-        setPrices((old) => ({ ...old, ...Object.fromEntries(quotes.map((p) => [p.con_id, p])) }))
-      })
-      .catch(() => {}) // rows just show no price
-    return () => {
-      ignore = true
-    }
-  }, [missingIds])
-
-  useEffect(() => {
-    // New figures on Refresh: fetch the prices again
-    // oxlint-disable-next-line react/set-state-in-effect
-    setPrices({})
-  }, [refreshKey])
+  // Prices for the rows on screen (refreshed with the rest of the app)
+  const prices = usePrices([...results, ...recent].map((s) => s.con_id), refreshKey)
 
   function select(stock) {
     setSelected(stock)
@@ -97,11 +61,7 @@ function Markets({ holdings, refreshKey, trading, onTrade }) {
   const owned = new Map(holdings.map((h) => [h.con_id, h]))
   const withOwned = (stock) => ({ ...stock, owned: owned.has(stock.con_id) })
   // A holding shows its full detail; any other stock shows the same detail without a position
-  let detail = null
-  if (selected) {
-    const quote = prices[selected.con_id] ?? null
-    detail = owned.get(selected.con_id) ?? { ...selected, quote, last: quote?.last, not_owned: true }
-  }
+  const detail = stockDetail(selected, owned, prices)
 
   return (
     <div className="positions-page">
@@ -118,15 +78,7 @@ function Markets({ holdings, refreshKey, trading, onTrade }) {
             />
           </label>
 
-          <div className="list-filter">
-            <div className="segmented" role="group" aria-label="Market">
-              {MARKETS.map((m) => (
-                <button key={m} type="button" aria-pressed={market === m} onClick={() => setMarket(m)}>
-                  {m}
-                </button>
-              ))}
-            </div>
-          </div>
+          <MarketFilter market={market} onChange={setMarket} />
 
           {q && (
             <>

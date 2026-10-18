@@ -188,6 +188,7 @@ flowchart TB
     Markets --> HoldingDetail
     Watchlist --> HoldingDetail
     Markets & Watchlist --> StockRow["StockRow.jsx"]
+    Markets & Watchlist & Positions --> MarketFilter["MarketFilter.jsx<br/>All / ASX / US"]
     HoldingDetail --> WatchButton["WatchButton.jsx<br/>Watch menu (PopupMenu)"]
 
     HoldingDetail["HoldingDetail.jsx<br/>price, chart, your position<br/>(incl. purchase and CGT dates)"] --> PriceChart
@@ -196,7 +197,7 @@ flowchart TB
     subgraph lib["lib/ + hooks/"]
         api["lib/api.js<br/>every backend call"]
         helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js,<br/>lotCards.js, listPanes.js,<br/>watchlists.js (localStorage store),<br/>orderTicket.js (ticket maths)"]
-        hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, useStockDrop,<br/>appearance"]
+        hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, useStockDrop,<br/>usePrices, useStockSearch,<br/>appearance"]
     end
 
     subgraph desktop["desktop/ (Mac app only)"]
