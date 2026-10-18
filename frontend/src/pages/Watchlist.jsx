@@ -1,37 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchPrices, searchStocks } from '../lib/api.js'
+import { stockDetail } from '../lib/holdings.js'
 import { addToWatchlist, removeFromWatchlist, useNamingWatchlist } from '../lib/watchlists.js'
+import { usePrices } from '../hooks/usePrices.js'
 import { useResizableWidth } from '../hooks/useResizableWidth.js'
+import { useStockSearch } from '../hooks/useStockSearch.js'
 import { WATCHLIST_LIST } from '../lib/listPanes.js'
 import HoldingDetail from '../components/HoldingDetail.jsx'
+import MarketFilter from '../components/MarketFilter.jsx'
 import PopupMenu from '../components/PopupMenu.jsx'
 import StockRow from '../components/StockRow.jsx'
 import { PlusIcon, SearchIcon, StarIcon } from '../components/icons.jsx'
 
-const MARKETS = ['All', 'ASX', 'US']
-// Wait for a pause in typing before asking IB (it allows about one search a second)
-const SEARCH_DELAY_MS = 350
-
 // Search results under the field, each with an Add button (Figma M6 / 10 node 42:1357)
 function AddStockPopover({ query, list, onAdded }) {
-  const [search, setSearch] = useState({ query: '', items: [], error: null })
-
-  useEffect(() => {
-    let ignore = false
-    const timer = setTimeout(() => {
-      searchStocks(query)
-        .then((items) => !ignore && setSearch({ query, items, error: null }))
-        .catch((err) => !ignore && setSearch({ query, items: [], error: err.message }))
-    }, SEARCH_DELAY_MS)
-    return () => {
-      ignore = true
-      clearTimeout(timer)
-    }
-  }, [query])
+  const search = useStockSearch(query)
 
   const inList = new Set(list.stocks.map((s) => s.con_id))
   let body
-  if (search.query !== query) body = <p className="add-stock-note">Searching…</p>
+  if (search.searching) body = <p className="add-stock-note">Searching…</p>
   else if (search.error) body = <p className="add-stock-note">{search.error}</p>
   else if (search.items.length === 0) body = <p className="add-stock-note">No ASX or US stocks found.</p>
   else {
@@ -65,7 +51,6 @@ function AddStockPopover({ query, list, onAdded }) {
 function Watchlist({ list, holdings, refreshKey, trading, onTrade }) {
   const [query, setQuery] = useState('')
   const [market, setMarket] = useState('All')
-  const [prices, setPrices] = useState({})
   const [selectedId, setSelectedId] = useState(null)
   // Right-click menu on a row: { stock, x, y } or null
   const [menu, setMenu] = useState(null)
@@ -81,37 +66,14 @@ function Watchlist({ list, holdings, refreshKey, trading, onTrade }) {
     if (empty && !naming) searchRef.current?.focus()
   }, [empty, naming, list.id])
 
-  // Prices for the stocks that don't have one yet (refreshed with the rest of the app)
-  const missingIds = list.stocks.map((s) => s.con_id).filter((id) => !(id in prices)).join(',')
-  useEffect(() => {
-    if (!missingIds) return
-    let ignore = false
-    fetchPrices(missingIds)
-      .then((quotes) => {
-        if (ignore) return
-        setPrices((old) => ({ ...old, ...Object.fromEntries(quotes.map((p) => [p.con_id, p])) }))
-      })
-      .catch(() => {}) // rows just show no price
-    return () => {
-      ignore = true
-    }
-  }, [missingIds])
-
-  useEffect(() => {
-    // New figures on Refresh: fetch the prices again
-    // oxlint-disable-next-line react/set-state-in-effect
-    setPrices({})
-  }, [refreshKey])
+  // Prices for the watchlist's stocks (refreshed with the rest of the app)
+  const prices = usePrices(list.stocks.map((s) => s.con_id), refreshKey)
 
   const owned = new Map(holdings.map((h) => [h.con_id, h]))
   const visible = list.stocks.filter((s) => market === 'All' || s.market === market)
   // The selected stock, or the first one, so the detail is never blank while the list has stocks
   const selected = visible.find((s) => s.con_id === selectedId) ?? visible[0] ?? null
-  let detail = null
-  if (selected) {
-    const quote = prices[selected.con_id] ?? null
-    detail = owned.get(selected.con_id) ?? { ...selected, quote, last: quote?.last, not_owned: true }
-  }
+  const detail = stockDetail(selected, owned, prices)
 
   function add(stock) {
     addToWatchlist(list.id, stock)
@@ -141,15 +103,7 @@ function Watchlist({ list, holdings, refreshKey, trading, onTrade }) {
             {q && <AddStockPopover query={q} list={list} onAdded={add} />}
           </div>
 
-          <div className="list-filter">
-            <div className="segmented" role="group" aria-label="Market">
-              {MARKETS.map((m) => (
-                <button key={m} type="button" aria-pressed={market === m} onClick={() => setMarket(m)}>
-                  {m}
-                </button>
-              ))}
-            </div>
-          </div>
+          <MarketFilter market={market} onChange={setMarket} />
 
           <div className="list-meta">
             <span>{market === 'All' ? count : `${visible.length} of ${count}`}</span>

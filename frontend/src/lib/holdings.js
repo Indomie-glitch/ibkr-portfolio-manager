@@ -40,3 +40,14 @@ export function buildHoldings(positions, quotes, account) {
 export function benchmarkName(holding) {
   return holding.market === 'ASX' ? 'S&P/ASX 200' : 'S&P 500'
 }
+
+// The market filter above stock lists (components/MarketFilter.jsx)
+export const MARKETS = ['All', 'ASX', 'US']
+
+// What the detail pane shows for a stock in a list (Markets, watchlists): the holding itself when
+// it's owned, otherwise the stock with its latest price and no position (#206)
+export function stockDetail(stock, holdingsById, prices) {
+  if (!stock) return null
+  const quote = prices[stock.con_id] ?? null
+  return holdingsById.get(stock.con_id) ?? { ...stock, quote, last: quote?.last, not_owned: true }
+}
