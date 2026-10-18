@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { useClickOutside, useMenuKeys } from '../hooks/useMenu.js'
 import { GearIcon } from './icons.jsx'
 
 // "JS" for jsmith_app: the first two letters of the name
@@ -8,17 +9,10 @@ const initials = (name) => (name.replace(/[^a-z0-9]/gi, '').slice(0, 2) || '?').
 // menu", node 44:904). items: [{ label, shortcut?, disabled?, onSelect }] or 'separator'.
 function AccountCard({ name, status, dot, menuTitle, menuStatus, items }) {
   const [open, setOpen] = useState(false)
-  const [active, setActive] = useState(-1)
   const rootRef = useRef(null)
   const buttonRef = useRef(null)
-  const choices = items.map((item, i) => (item !== 'separator' && !item.disabled ? i : -1)).filter((i) => i >= 0)
-
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e) => !rootRef.current?.contains(e.target) && setOpen(false)
-    window.addEventListener('mousedown', onDown)
-    return () => window.removeEventListener('mousedown', onDown)
-  }, [open])
+  const { active, setActive, choices, moveKey } = useMenuKeys(items, choose)
+  useClickOutside(rootRef, useCallback(() => setOpen(false), []), open)
 
   function close() {
     setOpen(false)
@@ -42,19 +36,11 @@ function AccountCard({ name, status, dot, menuTitle, menuStatus, items }) {
       }
       return
     }
-    const at = choices.indexOf(active)
     if (e.key === 'Escape') {
       e.preventDefault()
       close()
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActive(choices[(at + 1) % choices.length])
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActive(choices[(at - 1 + choices.length) % choices.length])
-    } else if ((e.key === 'Enter' || e.key === ' ') && active >= 0) {
-      e.preventDefault()
-      choose(items[active])
+    } else {
+      moveKey(e)
     }
   }
 
