@@ -1,5 +1,4 @@
 aeventkit==2.1.0
-altgraph==0.17.5
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anthropic==1.14.0
@@ -20,12 +19,10 @@ ib_async==2.1.0
 idna==3.20
 jiter==0.17.0
 lxml==6.1.3
-macholib==1.16.4
 multitasking==0.0.13
 nest-asyncio==1.6.0
 numpy==2.4.6
 opentelemetry-api==1.45.1
-packaging==26.3
 pandas==3.0.6
 peewee==4.5.3
 platformdirs==4.13.0
@@ -33,8 +30,6 @@ protobuf==7.36.2
 pycparser==3.11
 pydantic==2.13.5
 pydantic_core==2.46.5
-pyinstaller==6.22.3
-pyinstaller-hooks-contrib==2026.8
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.3
 pytz==2026.5

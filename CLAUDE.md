@@ -15,7 +15,7 @@ Stack
 - AI: Claude API. The model is config.ai_model(): AI_MODEL in .env in development, the Settings model picker in the app; only config.AI_MODELS are accepted; default claude-haiku-4-5. A model added to config.AI_MODELS also needs a price in backend/usage_store.PRICES.
 
 Project layout
-- backend/: main.py (app, lifespan tasks, middleware; includes the routers), routers/ (app, positions, flex, summaries, trading: one APIRouter per area), config.py (.env, DATA_DIR, app settings), app_main.py + portfolio-backend.spec (PyInstaller entry for the Mac app), tests/, requirements.txt, venv/. The other modules and what each does: docs/architecture.md section 3.
+- backend/: main.py (app, lifespan tasks, middleware; includes the routers), routers/ (app, positions, flex, summaries, trading: one APIRouter per area), config.py (.env, DATA_DIR, app settings), app_main.py + portfolio-backend.spec (PyInstaller entry for the Mac app), tests/, requirements.txt (runtime), requirements-build.txt (adds PyInstaller), venv/. The other modules and what each does: docs/architecture.md section 3.
 - frontend/src/: App.jsx, main.jsx, index.css, components/ (detail/ holds the stock detail sections), pages/, lib/ (api.js is every backend call; formatting and data helpers), hooks/, desktop/ (Mac app bridges to Tauri commands; switched off in the browser).
 - docs/: architecture.md, flex-query.md (Flex setup guide), paper-trading-test.md (trading checklist), portfolio-summary-spec.md, code reviews.
 - .env (real settings, gitignored, never commit), .env.example (template, committed). Local data (SQLite files) lives in data/ in development (gitignored) and in Application Support in the Mac app.
@@ -32,7 +32,7 @@ Git workflow
 - One GitHub issue per change, one branch and PR per issue (feature/<name>, fix/<name> or docs/<name>), merged with "Closes #<issue>" in the PR body. Tiny docs changes can go straight to main.
 - Small commits with conventional messages: feat:, fix:, refactor:, docs:, chore:, test:.
 - Never commit .env, venv/, node_modules/, data/ or *.key. Use the gh CLI for issues and PRs.
-- After installing a Python package, run pip freeze > requirements.txt from backend/ with the venv active.
+- After installing a Python package, update requirements.txt from backend/ with the venv active: pip freeze --exclude pyinstaller --exclude pyinstaller-hooks-contrib --exclude altgraph --exclude macholib --exclude packaging > requirements.txt. Those build-only packages (for the Mac app's bundled backend) are pinned in requirements-build.txt, which CI installs.
 
 Backend rules
 - Connect to IB Gateway from the keep_connected background task started in the FastAPI lifespan (ib_core.py), with await ib.connectAsync(..., readonly=False); it retries every 5 s, so the server starts without Gateway and reconnects after drops. Never use ib.connect() inside the server (it conflicts with uvicorn's event loop). IB endpoints use Depends(require_ib) and return 503 while disconnected.
