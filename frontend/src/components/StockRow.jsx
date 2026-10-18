@@ -1,7 +1,9 @@
 import { formatNumber, formatPercent, trendClass } from '../lib/format.js'
+import { draggableStock } from '../lib/watchlists.js'
 
 // One stock in a list (Markets, watchlists): the Positions list's row style, with "Owned" after the
 // exchange for holdings. onContextMenu is for right-click menus (e.g. Remove from a watchlist).
+// Rows can be dragged onto a watchlist (#88).
 function StockRow({ stock, quote, selected, onSelect, onContextMenu }) {
   const pct = quote?.day_change_pct
   return (
@@ -11,6 +13,7 @@ function StockRow({ stock, quote, selected, onSelect, onContextMenu }) {
       aria-current={selected ? 'true' : undefined}
       onClick={() => onSelect(stock)}
       onContextMenu={onContextMenu}
+      {...draggableStock(stock)}
     >
       <div className="holding-names">
         <div className="holding-symbol">{stock.symbol}</div>

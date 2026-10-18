@@ -4057,3 +4057,9 @@ button.ai-source:hover {
   font-size: 13px;
   line-height: 1.4;
 }
+
+/* Dragging a stock row over a watchlist in the sidebar (#88) */
+.sidebar-item.drop-target {
+  background: var(--selected);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}

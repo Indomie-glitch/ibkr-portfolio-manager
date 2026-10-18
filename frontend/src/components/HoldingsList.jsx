@@ -3,6 +3,7 @@ import { companyName, formatNumber, formatPercent, trendClass } from '../lib/for
 import { SearchIcon } from './icons.jsx'
 import { useResizableWidth } from '../hooks/useResizableWidth.js'
 import { HOLDINGS_LIST } from '../lib/listPanes.js'
+import { draggableStock } from '../lib/watchlists.js'
 
 const MARKETS = ['All', 'ASX', 'US']
 
@@ -56,6 +57,8 @@ function HoldingsList({ holdings, selectedId, onSelect }) {
                 className={`holding-item ${h.con_id === selectedId ? 'selected' : ''}`}
                 aria-current={h.con_id === selectedId ? 'true' : undefined}
                 onClick={() => onSelect(h.con_id)}
+                // Can be dragged onto a watchlist in the sidebar (#88)
+                {...draggableStock(h)}
               >
                 <div className="holding-names">
                   <div className="holding-symbol">{h.symbol}</div>
