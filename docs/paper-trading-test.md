@@ -8,7 +8,8 @@ only thing that keeps this test on paper money is logging in to the paper accoun
 
 1. Log IB Gateway (or the Mac app) in to the **paper** account. Check the toolbar badge says
    **Paper account** (blue). If it says **Live account** (red), stop and sign in to paper instead.
-2. For the limit test, set `MAX_ORDER_VALUE=10000` in `.env` (the default) and restart the backend.
+2. For the limit test in the browser version, set `MAX_ORDER_VALUE=10000` in `.env` (the default)
+   and restart the backend. The Mac app always uses 10,000.
 3. Pick a cheap, liquid stock during market hours (e.g. an ASX 200 stock in the morning, or a
    US large cap at night).
 
