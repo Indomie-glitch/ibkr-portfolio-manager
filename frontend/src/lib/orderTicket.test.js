@@ -5,6 +5,7 @@ import {
   commissionText,
   estimates,
   orderFrom,
+  outcomeUnknown,
   parseMoney,
   parseShares,
   sharesForAmount,
@@ -137,4 +138,14 @@ describe('estimates', () => {
     expect(commissionText({ commission_currency: 'USD' })).toBe('—')
     expect(commissionText(null)).toBe('—')
   })
+})
+
+test('after a failed Place, only a refusal before sending means the order surely wasn\'t placed', () => {
+  // The backend refused: expired confirmation, a guardrail, bad input
+  for (const status of [400, 404, 409, 422]) expect(outcomeUnknown({ status }), status).toBe(false)
+  // No answer (network, timeout) or a server error: IBKR may have it
+  expect(outcomeUnknown({ code: 'timeout' })).toBe(true)
+  expect(outcomeUnknown({ code: 'network' })).toBe(true)
+  expect(outcomeUnknown({ status: 500 })).toBe(true)
+  expect(outcomeUnknown({ status: 503 })).toBe(true)
 })

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { modifyOrder, placeOrder, watchOrders } from '../lib/api.js'
 import { formatMoney } from '../lib/format.js'
+import { outcomeUnknown } from '../lib/orderTicket.js'
 import { CheckCircleIcon, CheckIcon, InfoIcon, WarningIcon } from './icons.jsx'
 
 // IB statuses after which nothing more will happen to an order
@@ -71,14 +72,19 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
   const [replaced, setReplaced] = useState(null)
   // When the app first heard of the current number of filled shares
   const [fillSeen, setFillSeen] = useState(null)
+  // Sending failed in a way that leaves it unclear whether IBKR has the order (#200): the error text
+  const [unknown, setUnknown] = useState(null)
+  // The live updates stopped before the order reached a final status (#200)
+  const [updatesLost, setUpdatesLost] = useState(false)
   const c = preview.currency
   const accountLabel = trading?.account_label ?? 'Account'
 
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && !placing && (order ? onDone() : onEdit())
+    // Escape never goes back to the ticket once the order may have been sent
+    const onKey = (e) => e.key === 'Escape' && !placing && (order || unknown ? onDone() : onEdit())
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [placing, order, onDone, onEdit])
+  }, [placing, order, unknown, onDone, onEdit])
 
   function update(next) {
     setOrder(next)
@@ -91,11 +97,17 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
   useEffect(() => {
     if (orderId == null || finished) return
     const controller = new AbortController()
+    // The stream only ends on its own when it breaks (the backend stopped, the network dropped): the
+    // sheet then says its status may be out of date. Closing the sheet aborts it, which isn't a loss.
+    const lost = () => !controller.signal.aborted && setUpdatesLost(true)
     watchOrders((name, data) => {
       const updates = name === 'orders' ? data : [data]
       const mine = updates.filter((u) => u.order_id === orderId).at(-1)
-      if (mine) update(mine)
-    }, controller.signal).catch(() => {}) // closed or unavailable: the sheet keeps the last state
+      if (mine) {
+        setUpdatesLost(false)
+        update(mine)
+      }
+    }, controller.signal).then(lost, lost)
     return () => controller.abort()
   }, [orderId, finished])
 
@@ -125,10 +137,46 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
       setReplaced(placed.replaced ?? null)
       update(placed)
     } catch (err) {
-      setError(err.message)
+      // Never placed again automatically: the user checks Orders first
+      if (outcomeUnknown(err)) setUnknown(err.message)
+      else setError(err.message)
     } finally {
       setPlacing(false)
     }
+  }
+
+  if (unknown) {
+    const change = Boolean(preview.modify_order_id)
+    return (
+      <div className="sheet-backdrop">
+        <div className="sheet order-result" role="alertdialog" aria-modal="true" aria-labelledby="result-title" aria-describedby="result-text">
+          <div className="result-icon bad">
+            <WarningIcon size={30} />
+          </div>
+          <h2 id="result-title" className="result-title">
+            {change ? 'We couldn’t confirm your change' : 'We couldn’t confirm your order'}
+          </h2>
+          <p id="result-text" className="result-text">
+            {change
+              ? 'The connection dropped while the change was being sent, so IBKR may have made it.'
+              : 'The connection dropped while the order was being sent, so IBKR may have placed it.'}{' '}
+            Check the Orders page before you try again.
+          </p>
+          <p className="sheet-note">{unknown}</p>
+          <div className="sheet-footer">
+            <button type="button" className="pill-button secondary" onClick={onDone}>
+              Close
+            </button>
+            <div className="spacer" />
+            {onViewOrders && (
+              <button type="button" className="pill-button primary" onClick={onViewOrders} autoFocus>
+                View Orders
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (order) {
@@ -155,6 +203,12 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
             {result.title}
           </h2>
           <p className="result-text">{result.text}</p>
+          {updatesLost && !FINAL.has(order.status) && (
+            <div className="callout error" role="status">
+              <WarningIcon size={16} />
+              <p>Live updates stopped, so this may not be the latest status. Check the Orders page for where the order is now.</p>
+            </div>
+          )}
           {replaced && (
             <div className="callout">
               <InfoIcon />
