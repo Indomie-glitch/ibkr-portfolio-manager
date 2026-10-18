@@ -2,7 +2,7 @@
 // Run with: npm test
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { lotCards } from './lotCards.js'
+import { FLEX_GUIDE_URL, lotCards } from './lotCards.js'
 
 const lot = (opened, cgt, days, quantity = 100) => ({ quantity, opened, cgt_discount_from: cgt, days_until_discount: days })
 const cases = [
@@ -22,7 +22,10 @@ const cases = [
   ['several, all eligible', lotCards({ lots: [lot('2023-01-02', '2024-01-03', 0), lot('2024-05-06', '2025-05-07', 0)], unknown_quantity: 0 }, true),
     { purchase: ['2 purchases', '2 Jan 2023 to 6 May 2024'], cgt: ['7 May 2025', null] }],
   ['no Flex report', lotCards({ lots: [], unknown_quantity: 100 }, false),
-    { purchase: ['Unknown', 'Set up Flex in Settings'], cgt: ['Unknown', null] }],
+    { purchase: ['Unknown', 'Set up an IBKR Flex Query'], cgt: ['Unknown', null] }],
+  // #199: the Mac app has no Flex settings yet, so it doesn't send people looking for them
+  ['no Flex report, Mac app', lotCards({ lots: [], unknown_quantity: 100 }, false, { inApp: true }),
+    { purchase: ['Unknown', 'Not available in the app yet'], cgt: ['Unknown', null] }],
   ['Flex set up, shares not covered', lotCards({ lots: [], unknown_quantity: 100 }, true),
     { purchase: ['Unknown', null], cgt: ['Unknown', null] }],
   ['request failed', lotCards(null, undefined), { purchase: ['Unknown', null], cgt: ['Unknown', null] }],
@@ -35,3 +38,9 @@ for (const [name, got, want] of cases) {
   assert.deepEqual([got.cgt.value, got.cgt.note ?? null, ...(want.cgt[2] ? [got.cgt.noteTone] : [])], want.cgt, name)
   })
 }
+
+test('the browser hint links to the Flex setup guide; the app one has no link', () => {
+  assert.equal(lotCards(null, false).purchase.noteHref, FLEX_GUIDE_URL)
+  assert.equal(lotCards(null, false, { inApp: true }).purchase.noteHref, undefined)
+  assert.equal(lotCards(null, true).purchase.noteHref, undefined)
+})

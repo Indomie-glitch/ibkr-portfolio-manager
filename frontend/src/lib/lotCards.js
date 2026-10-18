@@ -4,9 +4,19 @@ const daysLeft = (days) => `${days} ${days === 1 ? 'day' : 'days'} left`
 const shares = (quantity) => `${quantity % 1 ? quantity : Math.round(quantity)} ${quantity === 1 ? 'share' : 'shares'}`
 
 // What the Purchase date and 12-month CGT date cards in Your position show (#17), from
-// GET /lots/{con_id}. Each card: { value, note, noteTone: 'warning' | 'muted' }.
-// flexConfigured: from GET /lots/status (false adds the "Set up Flex" hint).
-export function lotCards(lots, flexConfigured) {
+// GET /lots/{con_id}. Each card: { value, note, noteTone: 'warning' | 'muted', noteHref? }.
+// flexConfigured: from GET /lots/status (false adds a hint on how to get purchase dates).
+// inApp: the Mac app can't take a Flex token yet (its Settings rows are #89), so the hint says so
+// instead of pointing to the setup guide, which is for the browser version (#199).
+export const FLEX_GUIDE_URL = 'https://github.com/Indomie-glitch/ibkr-portfolio-manager/blob/main/docs/flex-query.md'
+
+function flexHint(inApp) {
+  return inApp
+    ? { note: 'Not available in the app yet', noteTone: 'muted' }
+    : { note: 'Set up an IBKR Flex Query', noteTone: 'muted', noteHref: FLEX_GUIDE_URL }
+}
+
+export function lotCards(lots, flexConfigured, { inApp = false } = {}) {
   // Lots bought on the same day share a purchase date and so a CGT date: the dates and CGT
   // countdown are per day, while the purchase count is IBKR's lots (#192)
   const purchases = lots?.lots?.length ?? 0
@@ -19,7 +29,7 @@ export function lotCards(lots, flexConfigured) {
   const known = [...byDay.values()]
   if (!known.length) {
     return {
-      purchase: { value: 'Unknown', note: flexConfigured === false ? 'Set up Flex in Settings' : null, noteTone: 'muted' },
+      purchase: { value: 'Unknown', ...(flexConfigured === false ? flexHint(inApp) : { note: null, noteTone: 'muted' }) },
       cgt: { value: 'Unknown', note: null },
     }
   }

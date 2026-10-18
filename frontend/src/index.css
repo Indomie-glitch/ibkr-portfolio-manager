@@ -1333,6 +1333,15 @@ p {
   font-weight: 500;
 }
 
+.position-stat-note a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.position-stat-note a:hover {
+  text-decoration: underline;
+}
+
 .position-stat-note.warning {
   color: var(--warning-text);
 }

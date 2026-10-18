@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchHistory, fetchLots, fetchLotsStatus, fetchProfile } from '../lib/api.js'
+import { IN_APP, fetchHistory, fetchLots, fetchLotsStatus, fetchProfile } from '../lib/api.js'
 import { lotCards } from '../lib/lotCards.js'
 import { companyName, formatMoney, formatNumber, formatPercent, trendClass } from '../lib/format.js'
 import { benchmarkName } from '../lib/holdings.js'
@@ -30,12 +30,22 @@ function rangeChange(range, bars, quote) {
   return { change: last - first, pct: ((last - first) / first) * 100, words }
 }
 
-function PositionStat({ label, value, className = '', note = null, noteTone = 'muted' }) {
+function PositionStat({ label, value, className = '', note = null, noteTone = 'muted', noteHref = null }) {
   return (
     <div className="position-stat">
       <p className="position-stat-label">{label}</p>
       <p className={`position-stat-value num ${className}`}>{value}</p>
-      {note && <p className={`position-stat-note ${noteTone}`}>{note}</p>}
+      {note && (
+        <p className={`position-stat-note ${noteTone}`}>
+          {noteHref ? (
+            <a href={noteHref} target="_blank" rel="noopener noreferrer">
+              {note}
+            </a>
+          ) : (
+            note
+          )}
+        </p>
+      )}
     </div>
   )
 }
@@ -74,7 +84,7 @@ function HoldingDetail({ holding, refreshKey, trading, onTrade }) {
   const lots = useFetch(() => (owned ? fetchLots(holding.con_id) : Promise.resolve(null)), holding.con_id)
   const lotsStatus = useFetch(() => (owned ? fetchLotsStatus() : Promise.resolve(null)), holding.con_id)
   const lotsLoading = owned && (lots.loading || lotsStatus.loading)
-  const dates = lotCards(lots.data, lotsStatus.data?.configured)
+  const dates = lotCards(lots.data, lotsStatus.data?.configured, { inApp: IN_APP })
 
   const price = holding.last
   // Buy and Sell open the order ticket while connected; otherwise they say why not
