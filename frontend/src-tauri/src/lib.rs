@@ -12,7 +12,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde_json::json;
-use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State, Url, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_opener::OpenerExt;
 
 /// The bundled Python backend (PyInstaller build in Resources/backend), while it runs, and the
 /// pipe to its stdin: one JSON message per line (see watch_parent in backend/app_main.py).
@@ -314,6 +315,22 @@ fn open_main_window(app: &AppHandle, connection: Option<&Connection>) -> tauri::
         // The app takes no file drops; Tauri's own drop handling would get in the way of the page's
         // drag and drop (dragging stocks onto watchlists, #88)
         .disable_drag_drop_handler();
+    // Links to websites (news, company sites, citations, the Flex guide) open in the default browser:
+    // a link that asks for a new window (target="_blank") or would take the app's page away (#202)
+    let for_new_window = app.clone();
+    let for_navigation = app.clone();
+    window = window
+        .on_new_window(move |url, _features| {
+            open_in_browser(&for_new_window, &url);
+            tauri::webview::NewWindowResponse::Deny
+        })
+        .on_navigation(move |url| {
+            if is_app_page(url) {
+                return true;
+            }
+            open_in_browser(&for_navigation, url);
+            false
+        });
     if let Some(c) = connection {
         // Starts as the small startup window; the page sizes it for each screen (appWindow.js).
         // No visible title bar, as in the Figma frames: the traffic lights sit over the content
@@ -337,6 +354,31 @@ fn open_main_window(app: &AppHandle, connection: Option<&Connection>) -> tauri::
 
 /// Before an update replaces the app bundle: stops IB Gateway (ending the IBKR session) and the
 /// backend, both of which run from inside the bundle, and waits for them to exit.
+/// The app's own page: the bundled frontend (tauri://localhost), or the Vite dev server during
+/// `npm run tauri dev`. Anything else is a link out.
+fn is_app_page(url: &Url) -> bool {
+    url.scheme() == "tauri"
+        || url.scheme() == "about"
+        || (tauri::is_dev() && url.scheme() == "http" && matches!(url.host_str(), Some("localhost") | Some("127.0.0.1")))
+}
+
+/// Only http and https links leave the app: never a file, another app's URL scheme or javascript:
+/// (a news headline's link comes from Yahoo).
+fn is_web_link(url: &Url) -> bool {
+    matches!(url.scheme(), "http" | "https")
+}
+
+/// Opens a web link in the default browser.
+fn open_in_browser(app: &AppHandle, url: &Url) {
+    if !is_web_link(url) {
+        log::warn!("Not opening a link with the {} scheme", url.scheme());
+        return;
+    }
+    if let Err(e) = app.opener().open_url(url.as_str(), None::<&str>) {
+        log::warn!("Couldn't open a link in the browser: {e}");
+    }
+}
+
 pub(crate) fn shutdown_for_update(app: &AppHandle) {
     app.state::<SharedSession>().stop(session::LoginState::SignedOut);
     let backend = app.state::<Backend>();
@@ -391,6 +433,7 @@ fn stop_backend(child: &mut Child) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -444,4 +487,31 @@ pub fn run() {
                 }
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn url(text: &str) -> Url {
+        text.parse().unwrap()
+    }
+
+    #[test]
+    fn only_web_links_leave_the_app() {
+        assert!(is_web_link(&url("https://www.reuters.com/markets/story")));
+        assert!(is_web_link(&url("http://example.com")));
+        assert!(!is_web_link(&url("file:///etc/passwd")));
+        assert!(!is_web_link(&url("javascript:alert(1)")));
+        assert!(!is_web_link(&url("tauri://localhost/index.html")));
+        assert!(!is_web_link(&url("mailto:someone@example.com")));
+    }
+
+    #[test]
+    fn the_apps_own_page_stays_in_the_window() {
+        assert!(is_app_page(&url("tauri://localhost/index.html")));
+        assert!(is_app_page(&url("about:blank")));
+        assert!(!is_app_page(&url("https://finance.yahoo.com/news/story")));
+        assert!(!is_app_page(&url("https://localhost.evil.example/")));
+    }
 }

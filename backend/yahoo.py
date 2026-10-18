@@ -90,8 +90,16 @@ async def fetch_info(symbol):
     return await _run(_fetch_info, symbol)
 
 
+def web_link(url):
+    """The URL if it's an http(s) link, else None: links from Yahoo are shown in the app and opened in
+    the browser, so nothing else (javascript:, file:, …) gets through (#202)."""
+    if isinstance(url, str) and re.match(r"https?://[^\s/]+", url.strip(), re.IGNORECASE):
+        return url.strip()
+    return None
+
+
 def profile_from_info(info):
-    website = info.get("website")
+    website = web_link(info.get("website"))
     return {
         "long_name": info.get("longName") or info.get("shortName"),
         "description": info.get("longBusinessSummary"),
@@ -177,14 +185,14 @@ def _fetch_news(symbol, ib_symbol, long_name, short_name, is_asx, bare_ticker_ok
         title = (n.get("title") or "").strip()
         key = _normalise_title(title)
         # Related tickers are too loosely tagged to trust on their own, so the headline must name the company
-        if not title or not n.get("link") or key in seen or not any(p.search(title) for p in patterns):
+        if not title or not web_link(n.get("link")) or key in seen or not any(p.search(title) for p in patterns):
             continue
         seen.add(key)
         published = n.get("providerPublishTime")
         items.append({
             "title": title,
             "publisher": n.get("publisher"),
-            "url": n["link"],
+            "url": web_link(n["link"]),
             "published": datetime.fromtimestamp(published, tz=timezone.utc).isoformat() if published else None,
         })
     items.sort(key=lambda i: i["published"] or "", reverse=True)

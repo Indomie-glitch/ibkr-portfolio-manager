@@ -57,7 +57,7 @@ The separate programs running on your Mac, and how they connect. There are two w
 flowchart TB
     subgraph bundle["Portfolio Manager.app"]
         direction TB
-        shell["Tauri shell (Rust)<br/>src-tauri/src/<br/>window, menus, sign in,<br/>settings, updates"]
+        shell["Tauri shell (Rust)<br/>src-tauri/src/<br/>window, menus, sign in,<br/>settings, updates,<br/>links to the browser"]
         ui["React frontend<br/>frontend/src/<br/>everything you see"]
         be["Python backend<br/>backend/ (packed by PyInstaller)<br/>FastAPI on a random free port"]
         ibc["IBC + StdinLauncher (Java)<br/>starts Gateway and types<br/>the login for you"]

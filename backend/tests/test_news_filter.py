@@ -71,6 +71,21 @@ class NewsFilterTests(unittest.TestCase):
     def test_items_without_a_title_or_link_are_skipped(self):
         self.assertEqual(fetch([item("", 1), item("BHP Group news", 2, link=False)]), [])
 
+    def test_only_web_links_are_kept(self):
+        odd = [dict(item("BHP Group news A", 1), link="javascript:alert(1)"), dict(item("BHP Group news B", 2), link="file:///etc/passwd"),
+               dict(item("BHP Group news C", 3), link=" https://example.com/c ")]
+        FakeSearch.name, FakeSearch.by_name, FakeSearch.by_symbol = "BHP Group", odd, []
+        with mock.patch.object(yahoo.yf, "Search", FakeSearch):
+            items = yahoo._fetch_news("BHP.AX", "BHP", "BHP Group Limited", "BHP", True, True)
+        self.assertEqual([(i["title"], i["url"]) for i in items], [("BHP Group news C", "https://example.com/c")])
+
+    def test_web_link(self):
+        self.assertEqual(yahoo.web_link("https://www.bhp.com"), "https://www.bhp.com")
+        self.assertEqual(yahoo.web_link("HTTP://BHP.COM/x"), "HTTP://BHP.COM/x")
+        for odd in ("javascript:alert(1)", "www.bhp.com", "https://", "ftp://x.com", None, 42):
+            self.assertIsNone(yahoo.web_link(odd), odd)
+        self.assertIsNone(yahoo.profile_from_info({"website": "javascript:void(0)"})["website"])
+
     def test_newest_first_and_at_most_ten(self):
         results = [item(f"BHP Group story {i}", i, published=T + i) for i in range(15)]
         titles = fetch(results)
