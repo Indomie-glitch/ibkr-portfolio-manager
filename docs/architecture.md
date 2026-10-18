@@ -195,7 +195,7 @@ flowchart TB
 
     subgraph lib["lib/ + hooks/"]
         api["lib/api.js<br/>every backend call"]
-        helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js,<br/>lotCards.js, listPanes.js,<br/>watchlists.js (localStorage store)"]
+        helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js,<br/>lotCards.js, listPanes.js,<br/>watchlists.js (localStorage store),<br/>orderTicket.js (ticket maths)"]
         hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, useStockDrop,<br/>appearance"]
     end
 

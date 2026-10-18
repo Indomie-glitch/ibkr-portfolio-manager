@@ -1,6 +1,6 @@
 // Watchlist data (#88). Run with: npm test
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 import { addList, addStockTo, draggableStock, droppedStock, isStockDrag, parseSaved, removeList, removeStockFrom, renameList, uniqueName } from './watchlists.js'
 
 const aapl = { con_id: 265598, symbol: 'AAPL', name: 'Apple Inc', exchange: 'NASDAQ', currency: 'USD', market: 'US', quote: { last: 1 } }
