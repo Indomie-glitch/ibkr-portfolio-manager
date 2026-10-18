@@ -1,26 +1,16 @@
-// How a summary is drawn; shared by the latest, past and compare views
-import { groupsFor } from '../../lib/summarySections.js'
-
-// Data ids the model cites -> label and the part of the page that shows that data
-const DATA_SOURCES = {
-  'D:profile': { label: 'About', target: 'section-about' },
-  'D:key_stats': { label: 'Key statistics', target: 'section-keyStats' },
-  'D:financials': { label: 'Financial statements' },
-  'D:valuation_history': { label: 'Past P/E' },
-  'D:price_moves': { label: 'Price chart', target: 'price-chart' },
-  'D:performance': { label: 'Performance', target: 'section-performance' },
-  'D:events': { label: 'Upcoming events' },
-  'D:position': { label: 'Your position', target: 'your-position' },
-  'D:since_last': { label: 'Previous summary' },
-  'D:missing': { label: 'Missing data' },
-}
+// How a summary is drawn; shared by the latest, past and compare views, and by stock and portfolio
+// summaries (what differs is in summaryKinds.js)
+import { useContext } from 'react'
+import { SummaryKind } from './summaryKinds.js'
 
 function scrollTo(target) {
   document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-function Sources({ ids, links }) {
+function Sources({ ids, links, facts }) {
   // News ids become numbered links to the article; data ids become chips that scroll to that data
+  // (a portfolio summary's holding chip opens that holding)
+  const kind = useContext(SummaryKind)
   const newsNumbers = Object.keys(links)
   return (
     <span className="ai-sources">
@@ -40,9 +30,10 @@ function Sources({ ids, links }) {
             </a>
           )
         }
-        const source = DATA_SOURCES[id] ?? { label: id }
-        return source.target ? (
-          <button key={id} type="button" className="ai-source" onClick={() => scrollTo(source.target)}>
+        const source = kind.source(id, facts)
+        const onClick = source.onClick ?? (source.target ? () => scrollTo(source.target) : null)
+        return onClick ? (
+          <button key={id} type="button" className="ai-source" title={source.title} onClick={onClick}>
             {source.label}
           </button>
         ) : (
@@ -58,7 +49,7 @@ function Sources({ ids, links }) {
 // Compare mode tags a point as new, changed (different numbers) or no longer present
 const MARK_LABELS = { new: 'New', removed: 'No longer present', changed: 'Changed' }
 
-function Points({ points, links, marks }) {
+function Points({ points, links, facts, marks }) {
   return (
     <ul className="ai-points">
       {points.map((point, i) => {
@@ -82,7 +73,7 @@ function Points({ points, links, marks }) {
               no source
             </span>
           ) : (
-            <Sources ids={point.sources} links={links} />
+            <Sources ids={point.sources} links={links} facts={facts} />
           )}
         </li>
         )
@@ -108,11 +99,13 @@ function FactsTable({ rows }) {
 }
 
 export function SectionBody({ name, section, links, facts, marks }) {
+  const kind = useContext(SummaryKind)
   let extra = null
-  if (name === 'upcoming_events' && facts?.['D:events']) {
+  // The stock summary's tables of calculated figures
+  if (kind.name === 'stock' && name === 'upcoming_events' && facts?.['D:events']) {
     extra = <FactsTable rows={facts['D:events'].upcoming.map((e) => [e.event, e.date])} />
   }
-  if (name === 'your_position' && facts?.['D:position']) {
+  if (kind.name === 'stock' && name === 'your_position' && facts?.['D:position']) {
     const p = facts['D:position']
     extra = (
       <FactsTable
@@ -131,7 +124,7 @@ export function SectionBody({ name, section, links, facts, marks }) {
     return section.themes.map((theme) => (
       <div className="ai-theme" key={theme.theme}>
         <p className="ai-theme-title">{theme.theme}</p>
-        <Points points={theme.points} links={links} marks={marks} />
+        <Points facts={facts} points={theme.points} links={links} marks={marks} />
       </div>
     ))
   }
@@ -140,11 +133,11 @@ export function SectionBody({ name, section, links, facts, marks }) {
       <div className="ai-bull-bear">
         <div>
           <p className="ai-theme-title gain">Bull case</p>
-          <Points points={section.bull} links={links} marks={marks} />
+          <Points facts={facts} points={section.bull} links={links} marks={marks} />
         </div>
         <div>
           <p className="ai-theme-title loss">Bear case</p>
-          <Points points={section.bear} links={links} marks={marks} />
+          <Points facts={facts} points={section.bear} links={links} marks={marks} />
         </div>
       </div>
     )
@@ -152,7 +145,7 @@ export function SectionBody({ name, section, links, facts, marks }) {
   return (
     <>
       {extra}
-      <Points points={section.points} links={links} marks={marks} />
+      <Points facts={facts} points={section.points} links={links} marks={marks} />
     </>
   )
 }
@@ -174,7 +167,8 @@ function yahooGaps(missing) {
 
 // owned: false for a stock found on Markets (#95), which gets the briefing without Your position
 export function AiSummaryBody({ view, generating, configured, missingKeyMessage, name, owned = true }) {
-  // A saved summary knows whether the stock was owned when it was written
+  const kind = useContext(SummaryKind)
+  // A saved stock summary knows whether the stock was owned when it was written
   const withPosition = view?.owned ?? owned
   if (!view) {
     if (!configured) {
@@ -182,12 +176,7 @@ export function AiSummaryBody({ view, generating, configured, missingKeyMessage,
     }
     if (!generating) {
       return (
-        <p className="ai-empty">
-          No summary yet. Summarise writes a briefing on {name} from the data on this page: the business, its finances
-          and valuation, recent news and price moves, upcoming events, the case for and against{withPosition
-            ? ', risks, and what it means for your position.'
-            : ' and risks.'}
-        </p>
+        <p className="ai-empty">{kind.intro(name, withPosition)}</p>
       )
     }
   }
@@ -197,7 +186,7 @@ export function AiSummaryBody({ view, generating, configured, missingKeyMessage,
   return (
     <div className="ai-summary">
       {gaps.length > 0 && <p className="ai-banner">Generated without: {gaps.join(', ')} (Yahoo Finance unavailable).</p>}
-      {groupsFor(withPosition).map((group) => (
+      {kind.groups(withPosition).map((group) => (
         <div className="ai-group" key={group.title}>
           <p className="ai-group-title">{group.title}</p>
           {group.sections.map(([key, title]) => {
@@ -235,8 +224,7 @@ export function AiSummaryBody({ view, generating, configured, missingKeyMessage,
       )}
       <p className="section-footnote">
         Not financial advice. Generated {view?.as_of_text ? `from data as of ${view.as_of_text}` : 'from the data on this page'}
-        {view?.model ? ` by ${view.model}` : ''}; it only uses the company profile, key statistics, financial
-        statements, recent news, price history{withPosition ? ' and your position' : ''} shown in this app.
+        {view?.model ? ` by ${view.model}` : ''}; it only uses {kind.basis(withPosition)}.
       </p>
     </div>
   )

@@ -40,7 +40,7 @@ function PositionsTable({ holdings, onOpen }) {
   }
 
   return (
-    <section className="card positions-card">
+    <section className="card positions-card" id="positions-table">
       <div className="card-header">
         <h2 className="card-title">Positions</h2>
         <div className="spacer" />

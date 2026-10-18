@@ -918,34 +918,6 @@ p {
   font-size: 10px;
 }
 
-/* AI summary placeholder */
-.ai-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px 18px;
-  border: 1px solid var(--accent-border);
-  border-radius: 14px;
-  background: var(--accent-tint);
-}
-
-.ai-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.ai-header h2 {
-  font: inherit;
-}
-
-.ai-text {
-  color: var(--text-2);
-  line-height: 1.4;
-}
-
 /* ---------- Positions page ---------- */
 
 .positions-page {

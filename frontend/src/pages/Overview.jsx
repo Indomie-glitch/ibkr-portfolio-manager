@@ -1,6 +1,6 @@
 import { formatMoney, formatPercent, trendClass } from '../lib/format.js'
-import AiSummaryCard from '../components/AiSummaryCard.jsx'
 import AllocationCard from '../components/AllocationCard.jsx'
+import PortfolioSummaryCard from '../components/PortfolioSummaryCard.jsx'
 import PositionsTable from '../components/PositionsTable.jsx'
 import StatCard from '../components/StatCard.jsx'
 
@@ -14,7 +14,8 @@ function Overview({ account, holdings, onOpenHolding }) {
 
   return (
     <>
-      <section>
+      {/* ids: where the portfolio summary's citation chips scroll to */}
+      <section id="portfolio-value">
         <p className="nlv-label">Net Liquidation Value</p>
         <p className="nlv-value num">{formatMoney(account.net_liquidation, c)}</p>
         {pnl != null && (
@@ -46,11 +47,7 @@ function Overview({ account, holdings, onOpenHolding }) {
         {holdings.length > 0 && <AllocationCard holdings={holdings} currency={c} />}
       </div>
 
-      <AiSummaryCard
-        title="AI portfolio summary"
-        buttonLabel="Summarise portfolio"
-        description="No summary yet. Get a short overview of your whole portfolio: how it is split across stocks and markets, what is driving your P&L, and anything worth keeping an eye on."
-      />
+      <PortfolioSummaryCard onOpenHolding={onOpenHolding} />
     </>
   )
 }

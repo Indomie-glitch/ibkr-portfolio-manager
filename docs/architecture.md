@@ -183,7 +183,8 @@ flowchart TB
     App --> Settings["SettingsSheet.jsx + pages/Settings.jsx<br/>(opened from the account menu)"]
     App --> Ticket["OrderTicket.jsx<br/>buy/sell form, live preview"] --> Confirm["OrderConfirm.jsx<br/>review sheet, then 'Order filled'"]
 
-    Overview --> StatCard & PositionsTable & AllocationCard & AiSummaryCard["AiSummaryCard<br/>(placeholder until #22)"]
+    Overview --> StatCard & PositionsTable & AllocationCard & PortfolioSummaryCard["PortfolioSummaryCard.jsx<br/>AI portfolio summary"]
+    PortfolioSummaryCard & detail --> SummaryPanel["detail/SummaryPanel.jsx<br/>AI summary panel shared by<br/>stocks and the portfolio"]
     Positions --> HoldingsList & HoldingDetail
     Markets --> HoldingDetail
     Watchlist --> HoldingDetail

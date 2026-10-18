@@ -41,3 +41,28 @@ export function groupsFor(owned) {
       : group,
   )
 }
+
+// The AI portfolio summary's 8 sections (docs/portfolio-summary-spec.md), in order, in three groups (#22)
+export const PORTFOLIO_GROUPS = [
+  {
+    title: 'Where your portfolio stands',
+    sections: [
+      ['portfolio_snapshot', 'Portfolio snapshot'],
+      ['allocation', 'Allocation'],
+      ['pnl_drivers', 'What drove your P&L'],
+      ['concentration', 'Concentration'],
+    ],
+  },
+  {
+    title: 'Looking ahead',
+    sections: [
+      ['upcoming_events', 'Upcoming events'],
+      ['income', 'Income'],
+      ['key_risks', 'Key risks'],
+    ],
+  },
+  {
+    title: 'Since you last looked',
+    sections: [['changes_since_last', 'Changes since last summary']],
+  },
+]
