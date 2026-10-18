@@ -1,54 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { previewOrder } from '../lib/api.js'
 import { formatMoney, prefixFor } from '../lib/format.js'
+import { amountPrice, commissionText, estimates, orderFrom, parseMoney, sharesForAmount, stepShares, switchOrderBy } from '../lib/orderTicket.js'
 import { ChevronsIcon, StepDownIcon, StepUpIcon } from './icons.jsx'
 
 // Ask IBKR for a new estimate once typing pauses
 const PREVIEW_DELAY_MS = 500
-
-// The price an amount is divided by: the limit price, or for a market order the latest price
-function amountPrice(stock, form) {
-  const price = form.orderType === 'LMT' ? Number(form.limitPrice) : stock.last
-  return price > 0 ? price : null
-}
-
-// Ordering by amount: the whole number of shares it buys or sells (orders are whole shares only,
-// so it rounds down); null until there's an amount and a price (#161)
-function sharesForAmount(stock, form) {
-  const amount = Number(form.amount)
-  const price = amountPrice(stock, form)
-  if (!(amount > 0) || !price) return null
-  // IBKR's prices carry more decimals than are shown (342.76000975), so allow for rounding noise:
-  // a millionth of a share, far less than a cent
-  return Math.floor(amount / price + 1e-6)
-}
-
-// The order the form describes, in the shape POST /orders/preview takes (null while incomplete)
-function orderFrom(stock, form) {
-  const quantity = form.by === 'amount' ? sharesForAmount(stock, form) : Number(form.quantity)
-  const limitPrice = Number(form.limitPrice)
-  if (!Number.isFinite(quantity) || quantity <= 0) return null
-  if (form.orderType === 'LMT' && !(limitPrice > 0)) return null
-  return {
-    con_id: stock.con_id,
-    action: form.side,
-    quantity,
-    order_type: form.orderType,
-    limit_price: form.orderType === 'LMT' ? limitPrice : null,
-    tif: form.tif,
-  }
-}
-
-// Commission from the preview: the exact figure, or IBKR's min–max range
-function commissionText(whatIf) {
-  if (!whatIf) return '—'
-  const currency = whatIf.commission_currency
-  if (whatIf.commission != null) return formatMoney(whatIf.commission, currency)
-  if (whatIf.min_commission != null && whatIf.max_commission != null) {
-    return `${formatMoney(whatIf.min_commission, currency)}–${formatMoney(whatIf.max_commission, currency)}`
-  }
-  return '—'
-}
 
 function Line({ label, value, total = false }) {
   return (
@@ -87,7 +44,8 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
   const [preview, setPreview] = useState({ key: null, data: null, error: null })
   const quantityRef = useRef(null)
 
-  const order = orderFrom(stock, form)
+  // The maths lives in lib/orderTicket.js (tested there); inputProblems: what's wrong with what was typed
+  const { order, problems: inputProblems } = orderFrom(stock, form)
   const key = order ? JSON.stringify(order) : null
 
   useEffect(() => {
@@ -115,45 +73,26 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
 
   const set = (field) => (value) => setForm((old) => ({ ...old, [field]: value }))
   function step(by) {
-    const next = Math.max(1, Math.floor(Number(form.quantity) || 0) + by)
-    set('quantity')(String(next))
+    set('quantity')(stepShares(form.quantity, by))
   }
 
   // Switching keeps the order about the same size: shares × price becomes the amount, and back
   function orderBy(by) {
-    setForm((old) => {
-      if (old.by === by) return old
-      const price = amountPrice(stock, old)
-      if (by === 'amount') {
-        // Rounded up to the cent, so switching back gives the same number of shares
-        const amount = price && Number(old.quantity) > 0 ? (Math.ceil(Number(old.quantity) * price * 100) / 100).toFixed(2) : ''
-        return { ...old, by, amount }
-      }
-      const shares = sharesForAmount(stock, old)
-      return { ...old, by, quantity: shares > 0 ? String(shares) : old.quantity }
-    })
+    setForm((old) => switchOrderBy(old, by, stock.last))
   }
 
   const byAmount = form.by === 'amount'
-  const amountShares = byAmount ? sharesForAmount(stock, form) : null
-  const unitPrice = amountPrice(stock, form)
+  const unitPrice = amountPrice(stock.last, form)
+  const amountShares = byAmount ? sharesForAmount(parseMoney(form.amount).value, unitPrice) : null
 
   const current = preview.key === key && preview.nonce === previewNonce ? preview : { data: null, error: null }
   const data = current.data
   const c = stock.currency
   const buying = form.side === 'BUY'
-  const commission = data?.what_if?.commission
-  const sameCurrency = data?.what_if?.commission_currency === c
-  const total =
-    data?.estimated_value != null && commission != null && sameCurrency
-      ? data.estimated_value + (buying ? commission : -commission)
-      : data?.estimated_value
-  // Buying power moves by the order's value in the account's currency (an estimate: before commission)
-  const buyingPowerAfter =
-    account?.buying_power != null && data?.estimated_value_base != null
-      ? account.buying_power + (buying ? -data.estimated_value_base : data.estimated_value_base)
-      : null
-  const problems = data?.problems ?? []
+  const { total, buyingPowerAfter } = estimates(data, { side: form.side, currency: c, buyingPower: account?.buying_power })
+  // A problem with the amount already shows in the note under it
+  const amountProblem = byAmount ? parseMoney(form.amount).problem : null
+  const problems = [...inputProblems.filter((p) => p !== amountProblem), ...(data?.problems ?? [])]
   const canReview = Boolean(data?.can_submit && data.confirmation_token && onReview)
 
   return (
@@ -231,7 +170,8 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
                     className="num"
                     inputMode="decimal"
                     value={form.amount}
-                    onChange={(e) => set('amount')(e.target.value.replace(/[^\d.]/g, ''))}
+                    aria-label="Amount"
+                    onChange={(e) => set('amount')(e.target.value)}
                   />
                 </span>
               ) : (
@@ -242,7 +182,8 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
                     className="form-field num"
                     inputMode="numeric"
                     value={form.quantity}
-                    onChange={(e) => set('quantity')(e.target.value.replace(/[^\d]/g, ''))}
+                    aria-label="Quantity"
+                    onChange={(e) => set('quantity')(e.target.value)}
                   />
                   <div className="stepper">
                     <button type="button" aria-label="One more share" onClick={() => step(1)}>
@@ -262,7 +203,7 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
                     ? 'Enter a limit price to work out the shares.'
                     : 'No current price to work out the shares. Use Shares, or a limit order.'
                   : amountShares === null
-                    ? 'Enter an amount.'
+                    ? parseMoney(form.amount).problem ?? 'Enter an amount.'
                     : amountShares === 0
                       ? `Less than one share at ${formatMoney(unitPrice, c)}.`
                       : `= ${amountShares} ${amountShares === 1 ? 'share' : 'shares'} at ${formatMoney(unitPrice, c)} ${
@@ -281,7 +222,7 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
                   className="num"
                   inputMode="decimal"
                   value={form.limitPrice}
-                  onChange={(e) => set('limitPrice')(e.target.value.replace(/[^\d.]/g, ''))}
+                  onChange={(e) => set('limitPrice')(e.target.value)}
                   aria-label="Limit price"
                 />
               </span>

@@ -1,7 +1,7 @@
 // The Purchase date and 12-month CGT date cards (#17): every case in the issue.
 // Run with: npm test
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 import { lotCards } from './lotCards.js'
 
 const lot = (opened, cgt, days, quantity = 100) => ({ quantity, opened, cgt_discount_from: cgt, days_until_discount: days })

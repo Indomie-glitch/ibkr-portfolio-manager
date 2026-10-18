@@ -13,7 +13,7 @@
     "build:app": "npm run build:backend && npm run build:ibc && tauri build --bundles app --config src-tauri/tauri.release.conf.json",
     "build:ibc": "src-tauri/ibc/build-ibc.sh",
     "build:dmg": "npm run build:backend && npm run build:ibc && tauri build --bundles app,dmg --config src-tauri/tauri.release.conf.json",
-    "test": "node --test \"src/**/*.test.js\""
+    "test": "vitest run"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",
@@ -26,6 +26,7 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "vitest": "^5.0.3"
   }
 }
