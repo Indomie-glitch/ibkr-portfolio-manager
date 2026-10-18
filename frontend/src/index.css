@@ -2796,6 +2796,20 @@ button.ai-source:hover {
   color: var(--text-3);
 }
 
+/* Sentiment arrows before the chevron (#97, Figma 70:514): gain / loss colours, drawn with currentColor */
+.sentiment-arrows {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.sentiment-arrows.gain {
+  color: var(--gain);
+}
+
+.sentiment-arrows.loss {
+  color: var(--loss);
+}
+
 /* Performance */
 .return-tiles {
   display: grid;

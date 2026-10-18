@@ -184,7 +184,7 @@ flowchart TB
     Markets --> HoldingDetail
 
     HoldingDetail["HoldingDetail.jsx<br/>price, chart, your position<br/>(incl. purchase and CGT dates)"] --> PriceChart
-    HoldingDetail --> detail["components/detail/<br/>KeyStats, About, News,<br/>Performance, AI summary<br/>(collapsible sections)"]
+    HoldingDetail --> detail["components/detail/<br/>KeyStats, About, News<br/>(with sentiment arrows),<br/>Performance, AI summary<br/>(collapsible sections)"]
 
     subgraph lib["lib/ + hooks/"]
         api["lib/api.js<br/>every backend call"]

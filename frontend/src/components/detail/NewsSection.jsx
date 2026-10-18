@@ -3,6 +3,7 @@ import { fetchNews } from '../../lib/api.js'
 import { formatAge } from '../../lib/format.js'
 import { useFetch } from '../../hooks/useFetch.js'
 import { ChevronIcon } from '../icons.jsx'
+import SentimentArrows from './SentimentArrows.jsx'
 import { SectionLoading, SectionUnavailable } from './DisclosureSection.jsx'
 
 const FIRST_ITEMS = 4
@@ -48,6 +49,7 @@ function NewsSection({ holding, companyName }) {
                     {item.published && ` · ${formatAge(item.published)}`}
                   </span>
                 </span>
+                <SentimentArrows sentiment={item.sentiment} />
                 <span className="news-chevron">
                   <ChevronIcon />
                 </span>
