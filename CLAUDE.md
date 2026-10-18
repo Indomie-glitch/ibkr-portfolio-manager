@@ -17,6 +17,7 @@ Stack
 Project layout
 - backend/: main.py (app, lifespan tasks, middleware; includes the routers), routers/ (app, positions, flex, summaries, trading: one APIRouter per area), config.py (.env, DATA_DIR, app settings), app_main.py + portfolio-backend.spec (PyInstaller entry for the Mac app), tests/, requirements.txt (runtime), requirements-build.txt (adds PyInstaller), venv/. The other modules and what each does: docs/architecture.md section 3.
 - frontend/src/: App.jsx, main.jsx, index.css, components/ (detail/ holds the stock detail sections), pages/, lib/ (api.js is every backend call; formatting and data helpers), hooks/, desktop/ (Mac app bridges to Tauri commands; switched off in the browser).
+- Requests (lib/api.js request()): every call has a time limit (30 s; 60 s for /history and /search; streams only have to start within it) and turns network failures and timeouts into plain messages. useFetch retries a failed section whenever App reloads its data (RefreshContext = dataVersion: the Refresh button and the 60 s timer).
 - docs/: architecture.md, flex-query.md (Flex setup guide), paper-trading-test.md (trading checklist), portfolio-summary-spec.md, code reviews.
 - .env (real settings, gitignored, never commit), .env.example (template, committed). Local data (SQLite files) lives in data/ in development (gitignored) and in Application Support in the Mac app.
 

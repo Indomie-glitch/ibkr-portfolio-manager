@@ -24,6 +24,7 @@ import { LIST_FOR_PAGE } from './lib/listPanes.js'
 import { savedLogin, signOut } from './desktop/appSession.js'
 import Setup, { Startup } from './pages/Setup.jsx'
 import { useLogin } from './hooks/useLogin.js'
+import { RefreshContext } from './hooks/useFetch.js'
 
 const AUTO_REFRESH_MS = 60_000
 const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', markets: 'Markets', orders: 'Orders' }
@@ -295,138 +296,143 @@ function App() {
         />
 
         <main className="content">
-          <Toolbar
-            title={page === 'watchlist' ? watchlist?.name : PAGE_TITLES[page]}
-            subtitle={subtitle}
-            loading={loading}
-            onRefresh={() => {
-              setLoading(true)
-              load()
-            }}
-            trading={connected ? trading : null}
-            listKey={listKey}
-          />
-
-          {/* Settings works without a connection: it's where you'd fix one */}
-          {settingsOpen && (
-            <SettingsSheet
-              onClose={closeSettings}
-              appearance={appearance}
-              onAppearanceChange={setAppearance}
-              login={login}
-              connected={connected}
-              onSignedOut={() => {
-                closeSettings()
-                refreshLogin()
+          {/* Sections that failed to load try again whenever the data is reloaded (#203) */}
+          <RefreshContext.Provider value={dataVersion}>
+            <Toolbar
+              title={page === 'watchlist' ? watchlist?.name : PAGE_TITLES[page]}
+              subtitle={subtitle}
+              loading={loading}
+              onRefresh={() => {
+                setLoading(true)
+                load()
               }}
-            />
-          )}
-
-          {sessionEnded && (
-            <SessionBanner reason={login.reason} lastUpdated={updatedAt} onReconnect={reconnectSession} />
-          )}
-
-          {!sessionEnded && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
-            <ConnectionMessage state={connection} health={health} lastUpdated={updatedAt} />
-          )}
-
-          {connected && error && (
-            <div className="page-message">
-              <div className="error" role="alert">
-                <strong>Could not load data.</strong> Make sure the backend is running on port 8000 and IB
-                Gateway is logged in.
-                <div className="error-detail">{error}</div>
-              </div>
-            </div>
-          )}
-
-          {showData && page === 'overview' && (
-            <div className={`page-body ${sessionEnded ? 'stale' : ''}`}>
-              <Overview account={account} holdings={holdings} onOpenHolding={openHolding} />
-            </div>
-          )}
-
-          {showData && page === 'positions' && (
-            <Positions
-              stale={sessionEnded}
-              holdings={holdings}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              refreshKey={dataVersion}
               trading={connected ? trading : null}
-              onTrade={(stock, side) => setTicket({ stock, side })}
+              listKey={listKey}
             />
-          )}
 
-          {/* Searching needs IB, so no stale view here */}
-          {showData && connected && page === 'markets' && (
-            <Markets
-              holdings={holdings}
-              refreshKey={dataVersion}
-              trading={trading}
-              onTrade={(stock, side) => setTicket({ stock, side })}
-            />
-          )}
-
-          {/* Prices come from IB, so no stale view here either */}
-          {showData && connected && page === 'watchlist' && watchlist && (
-            <Watchlist
-              key={watchlist.id}
-              list={watchlist}
-              holdings={holdings}
-              refreshKey={dataVersion}
-              trading={trading}
-              onTrade={(stock, side) => setTicket({ stock, side })}
-            />
-          )}
-
-          {showData && connected && page === 'orders' && (
-            <Orders
-              refreshKey={dataVersion}
-              trading={trading}
-              onModify={(order) =>
-                setTicket({
-                  stock: { con_id: order.con_id, symbol: order.symbol, currency: order.currency, last: null },
-                  side: order.action,
-                  existing: order,
-                })
-              }
-            />
-          )}
-
-          {ticket && connected && (
-            <>
-              {/* Stays mounted under the review sheet, so Edit returns to the same numbers */}
-              <OrderTicket
-                key={`${ticket.stock.con_id}-${ticket.side}-${ticket.existing?.order_id ?? 'new'}`}
-                stock={ticket.stock}
-                side={ticket.side}
-                existing={ticket.existing}
-                trading={trading}
-                account={account}
-                onClose={closeTicket}
-                onReview={(review) => setTicket((t) => ({ ...t, review }))}
-                hidden={Boolean(ticket.review)}
-                previewNonce={ticket.nonce ?? 0}
+            {/* Settings works without a connection: it's where you'd fix one */}
+            {settingsOpen && (
+              <SettingsSheet
+                onClose={closeSettings}
+                appearance={appearance}
+                onAppearanceChange={setAppearance}
+                login={login}
+                connected={connected}
+                onSignedOut={() => {
+                  closeSettings()
+                  refreshLogin()
+                }}
               />
-              {ticket.review && (
-                <OrderConfirm
-                  preview={ticket.review}
+            )}
+
+            {sessionEnded && (
+              <SessionBanner reason={login.reason} lastUpdated={updatedAt} onReconnect={reconnectSession} />
+            )}
+
+            {!sessionEnded && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
+              <ConnectionMessage state={connection} health={health} lastUpdated={updatedAt} />
+            )}
+
+            {connected && error && (
+              <div className="page-message">
+                <div className="error" role="alert">
+                  <strong>Could not load data.</strong>{' '}
+                  {IN_APP
+                    ? 'The app will try again in a minute, or press Refresh. If this keeps happening, quit and reopen the app.'
+                    : 'Make sure the backend is running (port 8000) and IB Gateway is logged in, then press Refresh.'}
+                  <div className="error-detail">{error}</div>
+                </div>
+              </div>
+            )}
+
+            {showData && page === 'overview' && (
+              <div className={`page-body ${sessionEnded ? 'stale' : ''}`}>
+                <Overview account={account} holdings={holdings} onOpenHolding={openHolding} />
+              </div>
+            )}
+
+            {showData && page === 'positions' && (
+              <Positions
+                stale={sessionEnded}
+                holdings={holdings}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                refreshKey={dataVersion}
+                trading={connected ? trading : null}
+                onTrade={(stock, side) => setTicket({ stock, side })}
+              />
+            )}
+
+            {/* Searching needs IB, so no stale view here */}
+            {showData && connected && page === 'markets' && (
+              <Markets
+                holdings={holdings}
+                refreshKey={dataVersion}
+                trading={trading}
+                onTrade={(stock, side) => setTicket({ stock, side })}
+              />
+            )}
+
+            {/* Prices come from IB, so no stale view here either */}
+            {showData && connected && page === 'watchlist' && watchlist && (
+              <Watchlist
+                key={watchlist.id}
+                list={watchlist}
+                holdings={holdings}
+                refreshKey={dataVersion}
+                trading={trading}
+                onTrade={(stock, side) => setTicket({ stock, side })}
+              />
+            )}
+
+            {showData && connected && page === 'orders' && (
+              <Orders
+                refreshKey={dataVersion}
+                trading={trading}
+                onModify={(order) =>
+                  setTicket({
+                    stock: { con_id: order.con_id, symbol: order.symbol, currency: order.currency, last: null },
+                    side: order.action,
+                    existing: order,
+                  })
+                }
+              />
+            )}
+
+            {ticket && connected && (
+              <>
+                {/* Stays mounted under the review sheet, so Edit returns to the same numbers */}
+                <OrderTicket
+                  key={`${ticket.stock.con_id}-${ticket.side}-${ticket.existing?.order_id ?? 'new'}`}
+                  stock={ticket.stock}
+                  side={ticket.side}
+                  existing={ticket.existing}
                   trading={trading}
-                  onEdit={() => setTicket((t) => ({ ...t, review: null, nonce: (t.nonce ?? 0) + 1 }))}
-                  onDone={() => {
-                    closeTicket()
-                    load()
-                  }}
-                  onViewOrders={() => {
-                    closeTicket()
-                    setPage('orders')
-                    load()
-                  }}
+                  account={account}
+                  onClose={closeTicket}
+                  onReview={(review) => setTicket((t) => ({ ...t, review }))}
+                  hidden={Boolean(ticket.review)}
+                  previewNonce={ticket.nonce ?? 0}
                 />
-              )}
-            </>
-          )}
+                {ticket.review && (
+                  <OrderConfirm
+                    preview={ticket.review}
+                    trading={trading}
+                    onEdit={() => setTicket((t) => ({ ...t, review: null, nonce: (t.nonce ?? 0) + 1 }))}
+                    onDone={() => {
+                      closeTicket()
+                      load()
+                    }}
+                    onViewOrders={() => {
+                      closeTicket()
+                      setPage('orders')
+                      load()
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </RefreshContext.Provider>
         </main>
       </div>
     </>

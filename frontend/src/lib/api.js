@@ -5,43 +5,77 @@ export const IN_APP = Boolean(APP_BACKEND)
 const API_URL = APP_BACKEND?.url ?? import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 const HEADERS = APP_BACKEND ? { 'X-App-Token': APP_BACKEND.token } : {}
 
-async function getJson(path) {
-  const response = await fetch(`${API_URL}${path}`, { headers: HEADERS })
-  if (!response.ok) {
-    let detail = `${path} returned ${response.status}`
-    try {
-      const body = await response.json()
-      if (typeof body.detail === 'string') detail = body.detail
-    } catch {
-      // body wasn't JSON; keep the status message
-    }
-    const error = new Error(detail)
-    error.status = response.status
+// How long a request may take before the app gives up on it. Most answers take well under a
+// second; IB price history and searches can wait in IB's queue (#203).
+const TIMEOUT_MS = 30_000
+const SLOW_TIMEOUT_MS = 60_000
+
+// fetch with a time limit. For JSON the whole answer must arrive in time; a stream (stream: true)
+// only has to start in time, then runs as long as it needs. signal: the caller's own cancel.
+// Network failures and timeouts become plain messages (error.code 'network' or 'timeout').
+async function request(path, { timeoutMs = TIMEOUT_MS, stream = false, signal, ...init } = {}) {
+  const controller = new AbortController()
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeoutMs)
+  // Passed on by hand: AbortSignal.any isn't in the Mac app's web view on older macOS
+  const forward = () => controller.abort()
+  signal?.addEventListener('abort', forward)
+  try {
+    const response = await fetch(`${API_URL}${path}`, { ...init, headers: { ...HEADERS, ...init.headers }, signal: controller.signal })
+    if (stream && response.ok) return response
+    const body = await response.text()
+    return { ok: response.ok, status: response.status, json: () => JSON.parse(body) }
+  } catch (err) {
+    if (signal?.aborted) throw err
+    const error = new Error(
+      timedOut
+        ? `No answer from the backend after ${Math.round(timeoutMs / 1000)} seconds. Try again with Refresh.`
+        : IN_APP
+          ? 'Couldn’t reach the app’s background service.'
+          : 'Couldn’t reach the backend. Is it running?',
+    )
+    error.code = timedOut ? 'timeout' : 'network'
     throw error
+  } finally {
+    // A stream keeps its connection; only waiting for it to start was limited
+    clearTimeout(timer)
+    if (!stream) signal?.removeEventListener('abort', forward)
   }
+}
+
+// The error for a failed answer: FastAPI's detail when there is one, else the status
+async function failure(path, response, fallback = `${path} returned ${response.status}`) {
+  let detail = fallback
+  try {
+    const data = await response.json()
+    if (typeof data.detail === 'string') detail = data.detail
+    // FastAPI validation errors: a list of {msg}
+    else if (Array.isArray(data.detail)) detail = data.detail.map((d) => d.msg).join(' ')
+  } catch {
+    // body wasn't JSON; keep the status message
+  }
+  const error = new Error(detail)
+  error.status = response.status
+  return error
+}
+
+async function getJson(path, options) {
+  const response = await request(path, options)
+  if (!response.ok) throw await failure(path, response)
   return response.json()
 }
 
-async function postJson(path, body) {
-  const response = await fetch(`${API_URL}${path}`, {
+async function postJson(path, body, options) {
+  const response = await request(path, {
+    ...options,
     method: 'POST',
-    headers: { ...HEADERS, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!response.ok) {
-    let detail = `${path} returned ${response.status}`
-    try {
-      const data = await response.json()
-      if (typeof data.detail === 'string') detail = data.detail
-      // FastAPI validation errors: a list of {msg}
-      else if (Array.isArray(data.detail)) detail = data.detail.map((d) => d.msg).join(' ')
-    } catch {
-      // body wasn't JSON; keep the status message
-    }
-    const error = new Error(detail)
-    error.status = response.status
-    throw error
-  }
+  if (!response.ok) throw await failure(path, response)
   return response.json()
 }
 
@@ -72,8 +106,8 @@ export function modifyOrder(orderId, change) {
 
 // Follow order updates until signal aborts: onEvent('orders', [...]) first, then onEvent('order', {...})
 export async function watchOrders(onEvent, signal) {
-  const response = await fetch(`${API_URL}/orders/stream`, { headers: HEADERS, signal })
-  if (!response.ok) throw new Error(`/orders/stream returned ${response.status}`)
+  const response = await request('/orders/stream', { stream: true, signal })
+  if (!response.ok) throw await failure('/orders/stream', response)
   await readEvents(response, onEvent)
 }
 
@@ -87,7 +121,7 @@ export function fetchAccount() {
 
 // Any ASX or US stock by symbol or company name (Markets page)
 export function searchStocks(query) {
-  return getJson(`/search?q=${encodeURIComponent(query)}`)
+  return getJson(`/search?q=${encodeURIComponent(query)}`, { timeoutMs: SLOW_TIMEOUT_MS })
 }
 
 // Quotes for any stocks (same shape as /quotes): conIds is a comma-separated string
@@ -109,7 +143,7 @@ export function fetchQuotes() {
 }
 
 export function fetchHistory(conId, range) {
-  return getJson(`/history/${conId}?range=${encodeURIComponent(range)}`)
+  return getJson(`/history/${conId}?range=${encodeURIComponent(range)}`, { timeoutMs: SLOW_TIMEOUT_MS })
 }
 
 // A holding's purchase lots from the Flex report, with 12-month CGT dates (backend/lots.py)
@@ -159,19 +193,8 @@ export function fetchSummaryComparison(conId, a, b) {
 // backend streams: status, facts, section (one per finished section), done, error.
 // (EventSource can't send POST requests, so this reads the stream with fetch.)
 export async function generateSummary(conId, onEvent) {
-  const response = await fetch(`${API_URL}/summary/${conId}`, { method: 'POST', headers: HEADERS })
-  if (!response.ok) {
-    let detail = `Summary request failed (${response.status})`
-    try {
-      const body = await response.json()
-      if (typeof body.detail === 'string') detail = body.detail
-    } catch {
-      // not JSON; keep the status message
-    }
-    const error = new Error(detail)
-    error.status = response.status
-    throw error
-  }
+  const response = await request(`/summary/${conId}`, { method: 'POST', stream: true })
+  if (!response.ok) throw await failure(`/summary/${conId}`, response, `Summary request failed (${response.status})`)
 
   await readEvents(response, onEvent)
 }
