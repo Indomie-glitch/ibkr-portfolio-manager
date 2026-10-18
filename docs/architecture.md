@@ -292,10 +292,10 @@ sequenceDiagram
     You->>UI: Generate
     UI->>R: POST /summary/{id} (stream)
     R->>F: build facts sheet
-    F->>F: price, valuation, events, news,<br/>your position + lots, change since last
+    F->>F: price, valuation, events, news,<br/>your position + lots (holdings only),<br/>change since last
     F-->>R: facts with ids (D:..., N1...)
     R-->>UI: event: facts
-    R->>AI: facts + 10 section prompt
+    R->>AI: facts + 10 section prompt<br/>(9, without Your position, for a stock<br/>you don't own, e.g. from Markets)
     AI->>Claude: request (structured output)
     loop each section as it finishes
         Claude-->>AI: partial JSON

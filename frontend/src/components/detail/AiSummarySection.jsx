@@ -48,7 +48,7 @@ function ComparedSummaries({ conId, ids, onBack }) {
   )
 }
 
-function AiSummarySection({ holding, name }) {
+function AiSummarySection({ holding, name, owned = true }) {
   const saved = useFetch(() => fetchSummary(holding.con_id), holding.con_id)
   // The generation in progress (or just finished/failed). Tagged with its holding, so switching
   // stocks mid-generation never shows one stock's summary under another; the backend still
@@ -146,6 +146,7 @@ function AiSummarySection({ holding, name }) {
             configured={configured}
             missingKeyMessage={missingKeyMessage}
             name={name}
+            owned={owned}
           />
         )}
       </div>

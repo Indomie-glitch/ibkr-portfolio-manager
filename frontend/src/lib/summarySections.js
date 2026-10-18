@@ -31,3 +31,13 @@ export const GROUPS = [
     ],
   },
 ]
+
+// The groups for a summary: a stock the investor doesn't own has no Your position section (#95)
+export function groupsFor(owned) {
+  if (owned) return GROUPS
+  return GROUPS.map((group) =>
+    group.sections.some(([key]) => key === 'your_position')
+      ? { title: 'Since you last looked', sections: group.sections.filter(([key]) => key !== 'your_position') }
+      : group,
+  )
+}

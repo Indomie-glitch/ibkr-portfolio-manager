@@ -36,7 +36,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * AI stock summary (Claude): a 10-part briefing on any holding, covering the business, financial health, valuation, a news digest, why the price moved, upcoming events, bull and bear case, key risks, what it means for your position, and why the price moved since your last summary (in line with the market given the stock's beta, or company specific, with any news from that window). It only uses data the app fetched, cites a source for every point, and never gives buy/sell advice
 * Summary history: reopen any of the last 20 summaries of a stock, or compare two side by side, with the exact changes in the data (price, P/E, analyst target, dividend yield, P&L, new news) and each point tagged as new, changed or no longer present
 
-* Markets: search any ASX or US stock by symbol or name, see its price, chart, statistics and news, with recently viewed stocks
+* Markets: search any ASX or US stock by symbol or name, see its price, chart, statistics, news and an AI summary (without the Your position part), with recently viewed stocks
 * Watchlists: as many as you like in the sidebar, each with price and day change for any ASX or US stock; add stocks from the watchlist's search field, the Watch button on any stock, or by dragging a row onto a watchlist in the sidebar (stored on your computer only)
 * News sentiment: green or red arrows (1 to 3) on each headline, showing how good or bad it is for that company, judged by Claude once per article
 * Trading (paper or live account, in the browser and the Mac app): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders. See [Trading safety](#trading-safety)
@@ -259,8 +259,8 @@ launch (so other programs on the Mac can't use its API), and stops it when it qu
 | `GET /stats/{con_id}` | Market cap, P/E, EPS, beta, dividends, 52-week range, analyst target (Yahoo, cached 1 hour) |
 | `GET /news/{con_id}` | Recent headlines that name the company (Yahoo, cached 15 minutes), each with its sentiment for the company (positive / negative / neutral, strength 1-3; Claude, judged once per article) when an API key is set |
 | `GET /performance/{con_id}` | Total return YTD, 1Y, 3Y, 5Y vs a total return index (Yahoo, cached 1 day) |
-| `GET /summary/{con_id}` | The last saved AI summary for a holding |
-| `POST /summary/{con_id}` | Writes a new AI summary, streamed section by section (Server-Sent Events) |
+| `GET /summary/{con_id}` | The last saved AI summary for a stock (a holding, or any stock from Markets) |
+| `POST /summary/{con_id}` | Writes a new AI summary, streamed section by section (Server-Sent Events); a stock you don't own gets 9 sections, without Your position |
 | `GET /summary/{con_id}/facts` | The exact data the AI summary is based on (no API call) |
 | `GET /portfolio-summary` | The last saved AI portfolio summary, and whether AI is set up |
 | `POST /portfolio-summary` | Writes a new AI portfolio summary (8 sections), streamed like the stock summary |
