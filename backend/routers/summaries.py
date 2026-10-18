@@ -222,6 +222,48 @@ def check_generate_request(request):
 # One generation per holding at a time, so a double click doesn't pay twice
 summary_locks = {}
 
+async def summary_events(lock, *, gather, feature, con_id=None, subject, log_name, facts_log_name):
+    """The Server-Sent Events of generating a summary, shared by the stock and the portfolio summary:
+    status -> facts -> section (one per finished section) -> done, or error. One at a time per lock.
+
+    gather(): an async function returning {"facts_event", "stream", "finish"} (stream() yields
+    stream_sections' events; finish(summary, warnings, usage) saves and returns the done payload), or
+    {"problem": {code, message}} to stop with that error. Every call to Claude is logged in
+    usage_store, including a refused or cut-off answer (it's still billed)."""
+    async with lock:
+        yield sse("status", {"message": "Gathering data"})
+        try:
+            plan = await gather()
+        except Exception as exc:
+            print(f"{facts_log_name} failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
+            yield sse("error", {"code": "facts_failed", "message": f"Couldn't gather the data for {subject}."})
+            return
+        if "problem" in plan:
+            yield sse("error", plan["problem"])
+            return
+        yield sse("facts", plan["facts_event"])
+        try:
+            async for kind, *payload in plan["stream"]():
+                if kind == "section":
+                    name, section, warnings = payload
+                    yield sse("section", {"name": name, "section": section, "warnings": warnings})
+                else:
+                    summary, warnings, usage = payload
+                    usage_store.record(feature, config.ai_model(), usage, con_id)
+                    yield sse("done", plan["finish"](summary, warnings, usage))
+        except ai_summary.SummaryError as exc:
+            if exc.usage:
+                usage_store.record(feature, config.ai_model(), exc.usage, con_id, outcome=exc.code)
+            yield sse("error", {"code": exc.code, "message": exc.message})
+        except Exception as exc:
+            print(f"{log_name} failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
+            yield sse("error", {"code": "unexpected", "message": "Something went wrong while writing the summary."})
+
+def event_stream(events):
+    # no-cache and X-Accel-Buffering stop anything in between from holding events back
+    return StreamingResponse(events, media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
 @router.post("/summary/{con_id}", dependencies=[Depends(require_ib)])
 async def generate_summary(con_id: int, request: Request):
     """Generate a new summary and stream it as Server-Sent Events:
@@ -231,46 +273,29 @@ async def generate_summary(con_id: int, request: Request):
     if lock.locked():
         raise HTTPException(status_code=409, detail="A summary for this holding is already being written")
 
-    async def events():
-        async with lock:
-            yield sse("status", {"message": "Gathering data"})
-            try:
-                built = await summary_facts_for(con_id)
-            except Exception as exc:
-                print(f"Summary facts failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
-                yield sse("error", {"code": "facts_failed", "message": "Couldn't gather the data for this holding."})
-                return
-            facts, links = built["facts"], built["links"]
-            ids = summary_facts.source_ids(facts)
-            sections, system = ai_summary.briefing_for(facts["company"]["owned_by_investor"])
-            yield sse("facts", {"as_of_text": facts["as_of_text"], "links": links,
-                                "missing": facts["D:missing"], "facts": summary_facts.model_facts(facts)})
-            try:
-                async for kind, *payload in ai_summary.stream_sections(summary_facts.model_facts(facts), ids,
-                                                                       sections=sections, system=system):
-                    if kind == "section":
-                        name, section, warnings = payload
-                        yield sse("section", {"name": name, "section": section, "warnings": warnings})
-                    else:
-                        summary, warnings, usage = payload
-                        saved_facts = {**facts, "links": links}
-                        usage_store.record("stock_summary", config.ai_model(), usage, con_id)
-                        summary_store.save(con_id, facts["company"]["symbol"], facts["as_of"],
-                                           config.ai_model(), saved_facts, summary, warnings)
-                        print(f"Summary for {facts['company']['symbol']}: {usage['input_tokens']} in, "
-                              f"{usage['output_tokens']} out, {len(warnings)} warnings")
-                        yield sse("done", saved_summary_response(summary_store.latest(con_id)))
-            except ai_summary.SummaryError as exc:
-                if exc.usage:
-                    usage_store.record("stock_summary", config.ai_model(), exc.usage, con_id, outcome=exc.code)
-                yield sse("error", {"code": exc.code, "message": exc.message})
-            except Exception as exc:
-                print(f"Summary failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
-                yield sse("error", {"code": "unexpected", "message": "Something went wrong while writing the summary."})
+    async def gather():
+        built = await summary_facts_for(con_id)
+        facts, links = built["facts"], built["links"]
+        ids = summary_facts.source_ids(facts)
+        sections, system = ai_summary.briefing_for(facts["company"]["owned_by_investor"])
 
-    # no-cache and X-Accel-Buffering stop anything in between from holding events back
-    return StreamingResponse(events(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        def finish(summary, warnings, usage):
+            summary_store.save(con_id, facts["company"]["symbol"], facts["as_of"],
+                               config.ai_model(), {**facts, "links": links}, summary, warnings)
+            print(f"Summary for {facts['company']['symbol']}: {usage['input_tokens']} in, "
+                  f"{usage['output_tokens']} out, {len(warnings)} warnings")
+            return saved_summary_response(summary_store.latest(con_id))
+
+        return {
+            "facts_event": {"as_of_text": facts["as_of_text"], "links": links,
+                            "missing": facts["D:missing"], "facts": summary_facts.model_facts(facts)},
+            "stream": lambda: ai_summary.stream_sections(summary_facts.model_facts(facts), ids,
+                                                         sections=sections, system=system),
+            "finish": finish,
+        }
+
+    return event_stream(summary_events(lock, gather=gather, feature="stock_summary", con_id=con_id,
+                                       subject="this holding", log_name="Summary", facts_log_name="Summary facts"))
 
 
 # ---------- AI portfolio summary (Milestone 5.2) ----------
@@ -327,41 +352,26 @@ async def generate_portfolio_summary(request: Request):
     if portfolio_summary_lock.locked():
         raise HTTPException(status_code=409, detail="A portfolio summary is already being written")
 
-    async def events():
-        async with portfolio_summary_lock:
-            yield sse("status", {"message": "Gathering data"})
-            try:
-                facts = await portfolio_facts_for()
-            except Exception as exc:
-                print(f"Portfolio facts failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
-                yield sse("error", {"code": "facts_failed", "message": "Couldn't gather the data for the portfolio."})
-                return
-            if not facts["D:portfolio"]["number_of_holdings"]:
-                yield sse("error", {"code": "no_holdings", "message": "There are no share holdings to summarise."})
-                return
-            yield sse("facts", {"as_of_text": facts["as_of_text"], "missing": facts["D:missing"], "facts": facts})
-            try:
-                async for kind, *payload in portfolio_summary.stream_sections(facts, portfolio_facts.source_ids(facts)):
-                    if kind == "section":
-                        name, section, warnings = payload
-                        yield sse("section", {"name": name, "section": section, "warnings": warnings})
-                    else:
-                        summary, warnings, usage = payload
-                        usage_store.record("portfolio_summary", config.ai_model(), usage)
-                        summary_store.save_portfolio(facts["as_of"], config.ai_model(), facts, summary, warnings)
-                        print(f"Portfolio summary: {usage['input_tokens']} in, {usage['output_tokens']} out, "
-                              f"{len(warnings)} warnings")
-                        yield sse("done", saved_portfolio_response(summary_store.latest_portfolio()))
-            except ai_summary.SummaryError as exc:
-                if exc.usage:
-                    usage_store.record("portfolio_summary", config.ai_model(), exc.usage, outcome=exc.code)
-                yield sse("error", {"code": exc.code, "message": exc.message})
-            except Exception as exc:
-                print(f"Portfolio summary failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
-                yield sse("error", {"code": "unexpected", "message": "Something went wrong while writing the summary."})
+    async def gather():
+        facts = await portfolio_facts_for()
+        if not facts["D:portfolio"]["number_of_holdings"]:
+            return {"problem": {"code": "no_holdings", "message": "There are no share holdings to summarise."}}
 
-    return StreamingResponse(events(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        def finish(summary, warnings, usage):
+            summary_store.save_portfolio(facts["as_of"], config.ai_model(), facts, summary, warnings)
+            print(f"Portfolio summary: {usage['input_tokens']} in, {usage['output_tokens']} out, "
+                  f"{len(warnings)} warnings")
+            return saved_portfolio_response(summary_store.latest_portfolio())
+
+        return {
+            "facts_event": {"as_of_text": facts["as_of_text"], "missing": facts["D:missing"], "facts": facts},
+            "stream": lambda: portfolio_summary.stream_sections(facts, portfolio_facts.source_ids(facts)),
+            "finish": finish,
+        }
+
+    return event_stream(summary_events(portfolio_summary_lock, gather=gather, feature="portfolio_summary",
+                                       subject="the portfolio", log_name="Portfolio summary",
+                                       facts_log_name="Portfolio facts"))
 
 
 # ---------- Claude API usage and cost (#86) ----------
