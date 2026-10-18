@@ -126,3 +126,10 @@ export function estimates(preview, { side, currency, buyingPower }) {
   const buyingPowerAfter = buyingPower != null && base != null ? buyingPower + (buying ? -base : base) : null
   return { value, total, buyingPowerAfter }
 }
+
+// Whether a failed Place / Change Order may still have reached IBKR (#200). A 4xx answer means the
+// backend refused before sending anything (expired confirmation, a guardrail, bad input). No answer
+// at all (network, timeout) or a 5xx can happen after IBKR already has the order.
+export function outcomeUnknown(err) {
+  return !err.status || err.status >= 500
+}
