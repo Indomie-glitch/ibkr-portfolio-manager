@@ -76,6 +76,7 @@ AI stock summary (summary_facts.py, ai_summary.py, summary_store.py)
 AI portfolio summary (Milestone 5.2; spec in docs/portfolio-summary-spec.md)
 - portfolio_facts.py builds D:portfolio, D:allocation, D:pnl, D:market_moves, D:concentration (20/40/80% flags), D:events (60 days), D:income, D:since_last, D:missing and H:<con_id> per holding (STK only), all in base currency. D:since_last compares with the last saved portfolio facts (money parsed back from the saved strings; holdings added or sold; weight changes of 1 point or more).
 - portfolio_summary.py has the 8-section prompt, schema and extra advice checks (rebalance, trim, diversify) and reuses ai_summary.stream_sections / validate_section through keyword arguments.
+- Both POST routes stream through routers/summaries.summary_events() (status, facts, sections, done or error; usage logging), each supplying a gather() for its own facts, prompt and save; tests/test_summary_routes.py covers every outcome.
 - GET /portfolio-summary (latest + ai_configured), POST /portfolio-summary (SSE, one at a time), GET /portfolio-summary/facts, /history and /history/{summary_id}. Saved in summaries.sqlite table portfolio_summaries (last 20). The Overview card is still a placeholder (#22: needs a design).
 
 Purchase dates (Milestone 5.1: IBKR Flex Web Service)
