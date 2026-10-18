@@ -174,7 +174,7 @@ flowchart TB
 
     Sidebar --> SidebarWatchlists["SidebarWatchlists.jsx<br/>+ button, rows with counts,<br/>naming, Rename / Delete,<br/>drop stock rows here"]
     App --> Sidebar & Toolbar & SessionBanner & UpdatePrompt & ConnectionMessage
-    App --> Setup["pages/Setup.jsx<br/>first run + sign in (Mac app)"]
+    App --> Setup["pages/setup/<br/>first run + sign in (Mac app):<br/>Setup.jsx flow, one file per screen"]
     App --> Overview["pages/Overview.jsx"]
     App --> Positions["pages/Positions.jsx"]
     App --> Markets["pages/Markets.jsx"]
@@ -233,7 +233,7 @@ sequenceDiagram
     Rust->>UI: open window with backend URL + token
     UI->>BE: GET /health (until it answers)
     BE-->>UI: connected: false
-    UI->>You: sign in screen (pages/Setup.jsx)
+    UI->>You: sign in screen (pages/setup/SignInForm.jsx)
     You->>UI: username, password, Paper/Live
     UI->>Rust: sign_in command
     Rust->>IBC: start Gateway, send login (stdin)
