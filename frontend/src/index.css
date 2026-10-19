@@ -86,6 +86,7 @@
   --risk-highlight: rgba(255, 149, 0, 0.08);
   --risk-warning-bg: rgba(255, 149, 0, 0.1);
   --risk-tooltip-bg: #ffffff;
+  --risk-muted-bar: #c7c7cc;
   --risk-tooltip-shadow: rgba(0, 0, 0, 0.16);
 
   /* The macOS system font (San Francisco), like a native Mac app */
@@ -133,6 +134,7 @@
   --risk-highlight: rgba(255, 159, 10, 0.08);
   --risk-warning-bg: rgba(255, 159, 10, 0.1);
   --risk-tooltip-bg: #3a3a3c;
+  --risk-muted-bar: #48484a;
   --risk-tooltip-shadow: rgba(0, 0, 0, 0.5);
   --bg: #1e1e1e;
   --sidebar: #262628;
@@ -4847,6 +4849,103 @@ button.ai-source:hover {
 .risk-callout-note {
   color: var(--text-2);
   font-size: 10.5px;
+}
+
+/* RSK 06: hidden factors */
+.risk-headline {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.risk-factors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 28px;
+  align-items: flex-start;
+}
+
+.risk-factor-shares {
+  display: flex;
+  flex: 1 1 200px;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.risk-factor-row {
+  display: grid;
+  grid-template-columns: 22px minmax(60px, 170px) 34px;
+  gap: 8px;
+  align-items: center;
+}
+
+.risk-factor-id {
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.risk-factor-id.amber {
+  color: var(--risk-amber);
+}
+
+.risk-bar.wide,
+.risk-bar.wide .risk-bar-fill {
+  height: 10px;
+  border-radius: 2px;
+}
+
+.risk-bar-fill.muted {
+  background: var(--risk-muted-bar);
+}
+
+.risk-factor-share {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.risk-loadings {
+  display: grid;
+  gap: 4px;
+  align-items: center;
+}
+
+.risk-loading-head {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  font-size: 10.5px;
+}
+
+.risk-loading-head .risk-factor-id {
+  font-size: 10.5px;
+}
+
+.risk-loading-name {
+  overflow: hidden;
+  color: var(--text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.risk-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.risk-loading.strong {
+  color: var(--risk-key-on-text);
 }
 
 /* RSK 04: holding 52 · market 30 · bar · volatility 52 · beta 44 · index 70 */

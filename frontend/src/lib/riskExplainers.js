@@ -117,6 +117,7 @@ export const EXPLAINERS = {
     title: 'Hidden factors',
     what: 'A few shared patterns that explain most of how your holdings move.',
     consider: 'Holdings that follow different patterns from your largest one would spread where your results come from.',
+    yours: ({ section }) => factorsYours(section),
   },
   sharpe: {
     title: 'Sharpe ratio',
@@ -268,4 +269,23 @@ export function correlationYours({ average, most_related: most }) {
   else if (average < 0.6) text += 'your holdings often move together, so a fall in one is often matched by falls in others.'
   else text += 'your holdings mostly move together, so they tend to fall at the same time.'
   return `${text} ${most.a} and ${most.b} move together most (${corr(most.correlation)}).`
+}
+
+// "Two patterns explain 68%: Australian market (CBA, BHP, TLS and APA) and US tech (Apple) (AAPL)."
+export function factorsYours({ factors, loadings, count }) {
+  if (!factors?.length) return null
+  const followers = (key) =>
+    loadings
+      .filter((l) => (l[key] ?? 0) >= 0.4)
+      .sort((a, b) => b[key] - a[key])
+      .map((l) => l.symbol)
+  // A factor that's one holding on its own is already named after it
+  const describe = (factor, key) => {
+    const who = followers(key)
+    const alone = who.length === 0 || (who.length === 1 && who[0] === factor.top_holding)
+    return alone ? factor.name : `${factor.name} (${listNames(who)})`
+  }
+  if (count <= 2) return `One pattern explains ${pct(factors[0].share, { decimals: 0 })}: ${describe(factors[0], 'f1')}.`
+  const share = pct(factors[0].share + factors[1].share, { decimals: 0 })
+  return `Two patterns explain ${share}: ${describe(factors[0], 'f1')} and ${describe(factors[1], 'f2')}. The rest is each holding moving on its own.`
 }
