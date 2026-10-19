@@ -523,3 +523,50 @@ by the same factor, so a return between two past dates never changes.
 
 The marker next to each percentage shows how big the hit is: red at 20% or more of the holdings, amber
 from 10%, grey below.
+
+## 10. Performance attribution vs the ASX 200
+
+*Attribution* splits the difference between your return and the ASX 200's into the choices that
+caused it. The holdings are grouped into two *segments*, Australia and the United States; the ASX 200
+is the *benchmark*, which is 100% Australia.
+
+### The symbols
+
+- $w_{AU}$, $w_{US}$: the share of the holdings in each market (today's weights, adding up to 1)
+- $r_{AU}$, $r_{US}$: those holdings' combined return over the period in their own currency
+- $B$: the ASX 200's return (total return); $M$: the S&P 500's return in US dollars
+- $F$: the return of one US dollar in AUD (section 1)
+
+Each holding's return is compounded over the whole period (section 5), and the segment's return is the
+weighted average of its holdings'.
+
+### Your return and the three parts
+
+$$R = w_{AU}\, r_{AU} + w_{US}\,[(1 + r_{US})(1 + F) - 1]$$
+
+$$\underbrace{w_{US}(M - B)}_{\text{allocation}} + \underbrace{w_{AU}(r_{AU} - B) + w_{US}(r_{US} - M)}_{\text{selection}} + \underbrace{w_{US} F + w_{US}\, r_{US} F}_{\text{currency}} = R - B$$
+
+- **Allocation**: what being in the US market instead of the Australian one did, if you'd simply held
+  each market's index.
+- **Selection**: how your stocks did against their own market's index.
+- **Currency**: the exchange rate's effect on the money in US shares. The second term,
+  $w_{US}\, r_{US} F$, is a small *cross term*: the currency move applied to the US gains themselves.
+  It's included in Currency so the three parts add up exactly to the difference.
+
+The parts are in *percentage points* (pts): the difference between two percentages, so 26.2% vs 9.5%
+is 16.7 points, not 176%.
+
+Because the weights are today's, held for the whole period, "your return" here is what today's mix
+would have done, not your account's actual history.
+
+### Example
+
+40% in Australian shares that rose 12%, 60% in US shares that rose 30% in US dollars. The ASX 200 rose
+10%, the S&P 500 20%, and a US dollar lost 5% in AUD.
+
+- Your return: 0.4 × 12% + 0.6 × (1.30 × 0.95 − 1) = 4.8% + 0.6 × 23.5% = **18.9%**; difference
+  **+8.9 pts**
+- Allocation: 0.6 × (20% − 10%) = **+6.0 pts**
+- Selection: 0.4 × (12% − 10%) + 0.6 × (30% − 20%) = 0.8 + 6.0 = **+6.8 pts**
+- Currency: 0.6 × (−5%) + 0.6 × 30% × (−5%) = −3.0 − 0.9 = **−3.9 pts**
+- Check: 6.0 + 6.8 − 3.9 = **8.9 pts** ✓
