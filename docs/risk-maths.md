@@ -663,3 +663,26 @@ liabilities 50 and a market value of 150:
 - Z = 1.2 × 0.2 + 1.4 × 0.3 + 3.3 × 0.1 + 0.6 × 3 + 1.0 × 0.8 = 0.24 + 0.42 + 0.33 + 1.8 + 0.8 = **3.59**: safe.
 
 A low score is a prompt to look at the company's debt and cash flow, not a prediction that it will fail.
+
+## 13. Liquidity
+
+How long each holding would take to sell **without your own selling moving the price**. A common rule
+of thumb is to trade no more than about 10% of a stock's normal daily volume: more than that and you
+start pushing the price down as you sell.
+
+$$\text{days to sell} = \frac{\text{shares held}}{10\% \times \text{average daily volume}}$$
+
+- **Average daily volume**: the number of shares traded on a normal day, from IB's daily bars over the
+  last 3 months (the same figure as on the stock detail's Key statistics; IB's volume runs a bit below
+  the consolidated volume Yahoo shows)
+- Under one trading day, it's shown in minutes of the trading session: the US market trades 390
+  minutes a day (9:30 am to 4 pm New York time) and the ASX 360 (10 am to 4 pm Sydney time)
+
+The time to sell **everything** (the Liquidity tile) is the slowest holding's, because the holdings can
+be sold at the same time.
+
+Green means under a day, amber up to 5 trading days, red longer.
+
+**Example.** 100 shares of a stock that trades 1,000,000 a day: 10% of a day is 100,000 shares, so 100
+shares take 100 ÷ 100,000 = **0.001 days**, about 0.4 minutes of a US session: "< 1 min". 50,000 shares of
+a small company trading 100,000 a day would take 50,000 ÷ 10,000 = **5 trading days**.

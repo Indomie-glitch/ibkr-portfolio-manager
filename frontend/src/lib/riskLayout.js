@@ -1,5 +1,5 @@
 import { formatMoney } from './format.js'
-import { drawdownDates, pct, ratio } from './riskFormat.js'
+import { drawdownDates, pct, ratio, sellTime } from './riskFormat.js'
 
 const betaSub = (market) => (beta) =>
   beta == null ? 'Not enough index prices' : `Moves ${Math.abs(beta * 10).toFixed(1)}% when the ${market} moves 10%`
@@ -61,7 +61,10 @@ export const TILE_ROWS = [
       value: (s) => formatMoney(s.levels['95'].formula.day.aud, 'AUD', { decimals: 0 }),
       tone: (s) => (s.levels['95'].formula.day.aud < 0 ? 'loss' : undefined),
     },
-    { id: 'liquidity', label: 'Liquidity', caption: 'Time to sell everything', explainer: 'liquidity', section: 'liquidity' },
+    {
+      id: 'liquidity', label: 'Liquidity', caption: 'Time to sell everything', explainer: 'liquidity', section: 'liquidity',
+      value: (s) => sellTime(s.slowest),
+    },
   ],
 ]
 

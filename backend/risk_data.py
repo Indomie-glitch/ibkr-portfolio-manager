@@ -246,7 +246,7 @@ async def build_inputs(holdings, period, today, fetch=yahoo.fetch_daily_closes):
         aud_prices[key] = in_window if holding["currency"] == "AUD" else risk.to_aud(in_window, audusd)
         value_aud = holding["market_value"] if holding["currency"] == "AUD" else holding["market_value"] / latest_rate
         included.append({**{k: holding[k] for k in ("con_id", "symbol", "name", "market", "currency", "yahoo")},
-                         "sector": holding.get("sector"), "value_aud": value_aud})
+                         "sector": holding.get("sector"), "quantity": holding.get("quantity"), "value_aud": value_aud})
 
     if not included:
         raise NotEnoughData("No holdings have prices for the whole period")

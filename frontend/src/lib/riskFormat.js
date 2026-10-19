@@ -252,3 +252,31 @@ export function zoneLabel(row) {
       return 'Unavailable'
   }
 }
+
+// Time to sell: "< 1 min", "25 min", "2 h 10 min", "1.5 days"
+export function sellTime(row) {
+  if (row?.days == null) return '—'
+  if (row.days >= 1) return `${row.days < 10 ? row.days.toFixed(1) : Math.round(row.days)} ${row.days < 1.05 ? 'day' : 'days'}`
+  const minutes = row.minutes
+  if (minutes < 1) return '< 1 min'
+  if (minutes < 60) return `${Math.round(minutes)} min`
+  const hours = Math.floor(minutes / 60)
+  const rest = Math.round(minutes - hours * 60)
+  return rest ? `${hours} h ${rest} min` : `${hours} h`
+}
+
+// Green under a day, amber up to 5 trading days, red beyond
+export function sellTone(row) {
+  if (row?.days == null) return ''
+  if (row.days < 1) return 'gain'
+  return row.days <= 5 ? 'amber' : 'loss'
+}
+
+// 25_600_000 -> "25.6M", 980_000 -> "980K"
+export function compactVolume(value) {
+  if (value == null) return '—'
+  for (const [size, suffix] of [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']]) {
+    if (value >= size) return `${(value / size).toFixed(value / size < 100 ? 1 : 0).replace(/\.0$/, '')}${suffix}`
+  }
+  return String(Math.round(value))
+}

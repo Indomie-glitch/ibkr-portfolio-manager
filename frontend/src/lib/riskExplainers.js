@@ -1,5 +1,5 @@
 import { formatCompactMoney, formatMoney } from './format.js'
-import { corr, listNames, pct, periodPhrase, ratio, shortDate, tenPercentMove } from './riskFormat.js'
+import { corr, listNames, pct, periodPhrase, ratio, sellTime, shortDate, tenPercentMove } from './riskFormat.js'
 
 const pts = (v) => Math.abs(v * 100).toFixed(1)
 
@@ -177,6 +177,7 @@ export const EXPLAINERS = {
     title: 'Liquidity',
     what: 'How quickly you could sell each holding without your own selling moving the price.',
     consider: 'Liquidity matters most for small companies, thinly traded stocks and big positions.',
+    yours: ({ section }) => liquidityYours(section),
   },
 }
 
@@ -418,4 +419,14 @@ export function bankruptcyYours({ holdings }) {
   const banks = scored('bank')
   if (banks.length) parts.push(`The score doesn’t work for banks like ${listNames(banks.map((h) => h.symbol))}.`)
   return parts.join(' ') || null
+}
+
+// "Every position could be sold in under a minute: your shares are tiny next to the millions traded each day."
+export function liquidityYours({ slowest }) {
+  if (!slowest) return null
+  if (slowest.minutes != null && slowest.minutes < 1) {
+    return 'Every position could be sold in under a minute: your holdings are tiny next to what trades each day.'
+  }
+  if (slowest.days < 1) return `Every position could be sold within a day. The slowest, ${slowest.symbol}, would take about ${sellTime(slowest)}.`
+  return `${slowest.symbol} would take about ${sellTime(slowest)} to sell without your own selling moving its price.`
 }

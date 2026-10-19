@@ -16,7 +16,7 @@ import risk_sections
 import yahoo
 from cache import cached
 from ib_core import get_contract_info, require_ib
-from routers.positions import account, positions, yahoo_info
+from routers.positions import account, positions, quotes, yahoo_info
 from secrets_guard import mask_secrets
 
 router = APIRouter()
@@ -58,7 +58,7 @@ async def risk_holdings():
             "con_id": position["con_id"], "symbol": position["symbol"], "name": position["name"],
             "market": market_of(contract, position["exchange"]), "currency": position["currency"],
             "yahoo": yahoo.yahoo_symbol(contract) if contract else None,
-            "market_value": position["market_value"],
+            "market_value": position["market_value"], "quantity": position["quantity"],
         })
     for holding in holdings:
         holding["sector"] = await sector_of(holding["yahoo"])
@@ -185,6 +185,13 @@ async def risk_overview(period: Literal["3M", "1Y", "3Y"] = "1Y"):
             inputs.cash_aud = cash_in_aud(await account())
         except Exception as exc:
             print(f"Risk: no cash figure: {mask_secrets(exc)}")
+        # Average daily volume (IB's 3-month average, as on the stock detail) for the liquidity panel
+        try:
+            volume = {q["con_id"]: q.get("avg_volume") for q in await quotes()}
+            for holding in inputs.holdings:
+                holding["avg_volume"] = volume.get(holding["con_id"])
+        except Exception as exc:
+            print(f"Risk: no volumes: {mask_secrets(exc)}")
         # Past crashes for the stress tests: fetched once per symbol, then kept
         symbols = [h["yahoo"] for h in inputs.holdings] + [yahoo.AUDUSD] + [
             s for b in yahoo.RISK_BENCHMARKS.values() for s in (b["symbol"], b["fallback"])]

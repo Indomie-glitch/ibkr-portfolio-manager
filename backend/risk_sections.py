@@ -432,6 +432,19 @@ def mixes_section(inputs):
     return {"mixes": mixes, "cap": CAP, "currency_hedge": hedge, "cash": cash, "count": n}
 
 
+def liquidity_section(inputs):
+    """How long each holding would take to sell without moving its price: shares ÷ (10% of the average
+    daily volume) trading days (#245). The slowest holding is the time to sell everything."""
+    rows = []
+    for holding in inputs.holdings:
+        days, minutes = risk.time_to_sell(holding.get("quantity") or 0, holding.get("avg_volume"), holding["market"])
+        rows.append({"symbol": holding["symbol"], "market": holding["market"], "quantity": holding.get("quantity"),
+                     "avg_volume": holding.get("avg_volume"), "days": _round(days, 6), "minutes": _round(minutes, 3)})
+    known = [r for r in rows if r["days"] is not None]
+    slowest = max(known, key=lambda r: r["days"]) if known else None
+    return {"holdings": rows, "slowest": slowest, "volume_share": risk.VOLUME_SHARE}
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
     "concentration": concentration_section,
@@ -445,4 +458,5 @@ SECTIONS = {
     "stress": stress_section,
     "attribution": attribution_section,
     "mixes": mixes_section,
+    "liquidity": liquidity_section,
 }
