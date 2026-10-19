@@ -149,6 +149,8 @@ export const EXPLAINERS = {
     title: 'Value at Risk',
     what: 'A loss you’d expect to exceed only on rare bad days, worked out three ways.',
     consider: 'It isn’t the worst case: losses can be bigger than this. It gives a sense of what a normal bad day looks like.',
+    value: ({ section }) => formatMoney(section.levels['95'].formula.day.aud, 'AUD', { decimals: 0 }),
+    yours: ({ section }) => varYours(section),
   },
   attribution: {
     title: 'Attribution',
@@ -319,4 +321,12 @@ export function trackingYours({ tracking_error: te }) {
   else if (te.US > te.ASX * 1.25) text += ` Against the S&P 500 it’s ${pct(te.US)}, because more of your results follow the Australian market.`
   else text += ` Against the S&P 500 it’s ${pct(te.US)}.`
   return text
+}
+
+// "On about 1 trading day in 20 you could lose more than A$1,485, and on 1 day in 100 more than A$2,100. …"
+export function varYours({ levels }) {
+  const day95 = levels['95'].formula.day.aud
+  const day99 = levels['99'].formula.day.aud
+  const month95 = levels['95'].formula.month.aud
+  return `On about 1 trading day in 20 you could lose more than ${money(-day95)}, and on 1 day in 100 more than ${money(-day99)}. Over a month, the 1 in 20 figure is about ${money(-month95)}.`
 }

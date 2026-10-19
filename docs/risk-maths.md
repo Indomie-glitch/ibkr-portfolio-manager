@@ -425,3 +425,50 @@ same choice as for the portfolio's betas (section 3).
 
 **Example.** Daily gaps of +1%, −1%, +1%, −1%: their standard deviation is 1.15% a day, so the tracking
 error is 1.15% × √252 = **18.3%** a year.
+
+## 8. Value at Risk
+
+*Value at Risk* (VaR) is a loss you'd expect to be exceeded only on rare bad days: at **95%**, on about
+1 trading day in 20; at **99%**, on about 1 in 100. It's in A$ on today's holdings value, for one day
+and for one month (21 trading days). It isn't the worst case: on those rare days the loss can be much
+bigger.
+
+### 1. Formula (parametric)
+
+If daily portfolio returns follow a normal distribution with average 0 and standard deviation
+$\sigma_p$, then 5% of days fall below $-1.645\,\sigma_p$ and 1% below $-2.326\,\sigma_p$:
+
+$$\text{VaR} = -z \times \sigma_p \times \sqrt{\text{days}} \times V, \qquad \sigma_p = \sqrt{w^\top \Sigma w}$$
+
+- $z$: 1.645 (95%) or 2.326 (99%), from the normal distribution's table
+- $\sigma_p$: the portfolio's daily volatility from the covariance matrix (section 4)
+- $\sqrt{\text{days}}$: a month of 21 days swings √21 ≈ 4.6 times as much as one day
+- $V$: today's value of the holdings in AUD
+
+**Example.** A$10,000 in two unrelated holdings, half each, swinging 2% and 1% a day:
+$\sigma_p^2$ = 0.25 × 0.0004 + 0.25 × 0.0001 = 0.000125, so $\sigma_p$ = **1.12%** a day. 95% VaR =
+1.645 × 1.12% × A$10,000 = **A$184** for a day, and × √21 = **A$843** for a month.
+
+### 2. From history
+
+No assumption about the shape of returns: take the actual daily portfolio returns in the period and
+find the one that only 5% of days were worse than (the *5th percentile*). For a month, take every
+overlapping run of 21 days (days 1–21, 2–22, …), compound each, and find their 5th percentile.
+
+Real markets have more extreme days than a normal distribution allows (*fat tails*), so this figure is
+often bigger than the formula's. With only a year of data it rests on the worst dozen or so days, so it
+also jumps around more.
+
+**Example.** Twenty days with returns −10%, −9%, …, +9%: the 5th percentile, interpolating between the
+two worst days, is −10% + 0.95 × 1% = **−9.05%**.
+
+### 3. Simulated (Monte Carlo)
+
+Make up 10,000 possible days (or 21-day months) by drawing each holding's returns at random from a
+normal distribution with the same covariance $\Sigma$ as the real ones, so holdings that moved together
+still do. Combine them with the weights, compound the months, and take the 5th percentile of the
+10,000 results. The random numbers start from a fixed *seed*, so the figure doesn't change every time
+the page refreshes.
+
+For one day it lands close to the formula (both assume normal returns); for a month, compounding
+21 days makes it slightly different.

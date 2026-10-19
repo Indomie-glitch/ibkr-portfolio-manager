@@ -177,3 +177,27 @@ export function factorsHeadline({ factors, count }) {
   const share = factors.slice(0, used).reduce((sum, f) => sum + (f.share ?? 0), 0)
   return `${COUNT_WORDS[used]} ${used === 1 ? 'factor explains' : 'factors explain'} ${pct(share, { decimals: 0 })} of how your holdings move.`
 }
+
+// RSK 08's "In plain words": the 1-day 95% figure, and how the history based one compares
+export function varPlainWords({ levels }, period) {
+  const formula = levels['95'].formula.day
+  const history = levels['95'].history.day
+  const loss = formatCompactLoss(formula.aud)
+  let text = `On about 1 trading day in 20, expect to lose more than ${loss}.`
+  if (history) {
+    const past = { '3M': 'the past 3 months', '1Y': 'the past year', '3Y': 'the past 3 years' }[period] ?? 'this period'
+    if (history.aud < formula.aud * 1.05) {
+      text += ' The history based figure is higher because real markets have more extreme days than the formula assumes.'
+    } else if (history.aud > formula.aud * 0.95) {
+      text += ` The history based figure is lower: ${past} had fewer extreme days than the formula assumes.`
+    } else {
+      text += ' The three methods roughly agree.'
+    }
+  }
+  return text
+}
+
+// −1485.3 -> "A$1,485" (the size of a loss)
+function formatCompactLoss(aud) {
+  return `A$${Math.round(Math.abs(aud)).toLocaleString('en-AU')}`
+}

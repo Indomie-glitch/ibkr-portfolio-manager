@@ -1,3 +1,4 @@
+import { formatMoney } from './format.js'
 import { drawdownDates, pct, ratio } from './riskFormat.js'
 
 const betaSub = (market) => (beta) =>
@@ -55,7 +56,11 @@ export const TILE_ROWS = [
       id: 'tracking_us', label: 'Tracking error · S&P 500', caption: 'How far you drift from the S&P', explainer: 'tracking_us', section: 'performance',
       value: (s) => pct(s.tracking_error.US),
     },
-    { id: 'var_1d', label: 'Value at risk · 1 day', caption: '1 day in 20 loses more than this', explainer: 'var', section: 'var' },
+    {
+      id: 'var_1d', label: 'Value at risk · 1 day', caption: '1 day in 20 loses more than this', explainer: 'var', section: 'var',
+      value: (s) => formatMoney(s.levels['95'].formula.day.aud, 'AUD', { decimals: 0 }),
+      tone: (s) => (s.levels['95'].formula.day.aud < 0 ? 'loss' : undefined),
+    },
     { id: 'liquidity', label: 'Liquidity', caption: 'Time to sell everything', explainer: 'liquidity', section: 'liquidity' },
   ],
 ]

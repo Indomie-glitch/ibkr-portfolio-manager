@@ -4948,6 +4948,45 @@ button.ai-source:hover {
   color: var(--risk-key-on-text);
 }
 
+/* RSK 08: Value at Risk table and plain words box */
+.risk-var-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 140px) minmax(70px, 110px) minmax(70px, 110px) minmax(80px, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.risk-table-row.roomy {
+  padding: 6px 0;
+}
+
+.risk-var-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.risk-mono.loss {
+  color: var(--loss);
+}
+
+.risk-mono-2.small {
+  font-size: 10.5px;
+}
+
+.risk-plain {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--risk-key);
+  font-size: 11.5px;
+}
+
+.risk-plain p {
+  margin: 0;
+}
+
 /* RSK 04: holding 52 · market 30 · bar · volatility 52 · beta 44 · index 70 */
 .risk-vol-row {
   display: grid;
