@@ -197,3 +197,19 @@ def shares_by(weights, labels):
     for weight, label in zip(weights, labels):
         totals[label] = totals.get(label, 0.0) + float(weight)
     return sorted(totals.items(), key=lambda item: -item[1])
+
+
+# ---------- Currency effect on foreign holdings (#101) ----------
+
+def compound(returns):
+    """The total return over all the days: Π(1 + rₜ) − 1 (column by column on a matrix)."""
+    return np.prod(1 + np.asarray(returns, dtype=float), axis=0) - 1
+
+
+def currency_effect_aud(value_aud, fx_return):
+    """How many A$ the exchange rate added to (or took from) a US holding worth value_aud today.
+
+    Had the rate not moved, today's value would be value_aud / (1 + r_fx); the difference is the
+    currency effect: value_aud × r_fx / (1 + r_fx).
+    """
+    return value_aud * fx_return / (1 + fx_return)

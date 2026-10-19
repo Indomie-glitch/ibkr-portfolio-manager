@@ -4,6 +4,7 @@ import { loadRisk } from '../lib/riskData.js'
 import { PANELS, TILE_ROWS } from '../lib/riskLayout.js'
 import { DEFAULT_PERIOD, PERIODS, asOfText, calculatedNote, extraNotes, leftOutNote } from '../lib/riskFormat.js'
 import ConcentrationPanel from '../components/risk/ConcentrationPanel.jsx'
+import CurrencyPanel from '../components/risk/CurrencyPanel.jsx'
 import ExposurePanel from '../components/risk/ExposurePanel.jsx'
 import RiskPanel from '../components/risk/RiskPanel.jsx'
 import RiskTile from '../components/risk/RiskTile.jsx'
@@ -16,11 +17,13 @@ const STALE_MS = 10 * 60_000
 // Each panel's body and right-hand label, added by the issue that builds it
 const BODIES = {
   concentration: ConcentrationPanel,
+  currency: CurrencyPanel,
   exposure: ExposurePanel,
   volatility: VolatilityPanel,
 }
 const LABELS = {
   concentration: () => 'Money vs risk',
+  currency: (section, period) => (section.holdings[0] ? `${section.holdings[0].symbol} · ${period}` : period),
   exposure: () => '% of holdings',
   volatility: () => 'Per holding',
 }

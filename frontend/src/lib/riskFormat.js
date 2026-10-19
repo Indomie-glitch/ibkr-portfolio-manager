@@ -101,3 +101,24 @@ export function listNames(names) {
 export function concentrationWarning(warning) {
   return `${warning.name} is ${pct(warning.share)} of your holdings, over the ${pct(warning.threshold, { decimals: 0 })} level`
 }
+
+// "this year", "over the last 3 months", "over the last 3 years"
+export function periodPhrase(period) {
+  return { '3M': 'over the last 3 months', '1Y': 'this year', '3Y': 'over the last 3 years' }[period] ?? 'over this period'
+}
+
+// The one-line explanation under the total currency effect
+export function currencySentence(section, period) {
+  const fx = section.fx_return
+  const gains = section.holdings.reduce((sum, h) => sum + h.value_aud * (h.price_return ?? 0), 0) >= 0
+  const when = periodPhrase(period)
+  if (fx == null || Math.abs(fx) < 0.0005) return `The exchange rate barely moved ${when}, so it made little difference.`
+  if (fx < 0) {
+    return gains
+      ? `A stronger Australian dollar shrank your US gains ${when}.`
+      : `A stronger Australian dollar added to your US losses ${when}.`
+  }
+  return gains
+    ? `A weaker Australian dollar added to your US gains ${when}.`
+    : `A weaker Australian dollar softened your US losses ${when}.`
+}
