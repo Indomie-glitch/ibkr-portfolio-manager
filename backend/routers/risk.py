@@ -14,7 +14,7 @@ import risk_sections
 import yahoo
 from cache import cached
 from ib_core import get_contract_info, require_ib
-from routers.positions import positions, yahoo_info
+from routers.positions import account, positions, yahoo_info
 from secrets_guard import mask_secrets
 
 router = APIRouter()
@@ -63,6 +63,17 @@ async def risk_holdings():
     return holdings
 
 
+def cash_in_aud(summary):
+    """The account's cash in AUD from GET /account's figures, or None if it can't be converted."""
+    cash, base = summary.get("cash"), summary.get("currency")
+    if cash is None:
+        return None
+    if base == "AUD":
+        return cash
+    rate = (summary.get("fx_rates") or {}).get("AUD")  # 1 AUD in the base currency
+    return cash / rate if rate else None
+
+
 def build_response(inputs, now):
     """meta + holdings + one key per section."""
     benchmarks = inputs.benchmarks
@@ -109,6 +120,10 @@ async def risk_overview(period: Literal["3M", "1Y", "3Y"] = "1Y"):
 
     async def compute():
         inputs = await risk_data.build_inputs(holdings, period, now.date())
+        try:
+            inputs.cash_aud = cash_in_aud(await account())
+        except Exception as exc:
+            print(f"Risk: no cash figure: {mask_secrets(exc)}")
         return build_response(inputs, now)
 
     try:

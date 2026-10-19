@@ -34,6 +34,20 @@ def correlation_section(inputs):
 
 
 INDEX_NAMES = {"ASX": "ASX 200", "US": "S&P 500"}
+MARKET_NAMES = {"ASX": "Australia", "US": "United States"}
+# Yahoo's sector names, shortened as in the design
+SECTOR_NAMES = {
+    "Financial Services": "Financials",
+    "Basic Materials": "Materials",
+    "Communication Services": "Communication",
+    "Consumer Cyclical": "Consumer cyclical",
+    "Consumer Defensive": "Consumer staples",
+}
+
+
+def sector_name(holding):
+    sector = holding.get("sector")
+    return SECTOR_NAMES.get(sector, sector) if sector else "Unknown"
 
 
 def _round(value, places=4):
@@ -102,7 +116,7 @@ def concentration_section(inputs):
 
     for row in rows:
         warn("stock", row["symbol"], row["weight"], SINGLE_STOCK_PCT)
-    for sector, share in risk.shares_by(weights, [h.get("sector") or "Unknown" for h in inputs.holdings]):
+    for sector, share in risk.shares_by(weights, [sector_name(h) for h in inputs.holdings]):
         if sector != "Unknown":
             warn("sector", sector, share, SECTOR_PCT)
     for currency, share in risk.shares_by(weights, [h["currency"] for h in inputs.holdings]):
@@ -118,9 +132,27 @@ def concentration_section(inputs):
     }
 
 
+def exposure_section(inputs):
+    """How the holdings split by currency, market and sector, as shares of their AUD value (#100).
+    Cash isn't a holding; it's reported separately for the footnote."""
+    weights = inputs.weights
+
+    def split(labels):
+        return [{"name": name, "share": _round(share)} for name, share in risk.shares_by(weights, labels)]
+
+    return {
+        "currency": split([h["currency"] for h in inputs.holdings]),
+        "market": split([MARKET_NAMES.get(h["market"], h["market"]) for h in inputs.holdings]),
+        "sector": split([sector_name(h) for h in inputs.holdings]),
+        "holdings_value_aud": round(sum(h["value_aud"] for h in inputs.holdings), 2),
+        "cash_aud": None if inputs.cash_aud is None else round(inputs.cash_aud, 2),
+    }
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
     "concentration": concentration_section,
+    "exposure": exposure_section,
     "correlation": correlation_section,
     "volatility": volatility_section,
 }

@@ -116,6 +116,7 @@ class RiskInputs:
     fx_returns: np.ndarray  # daily return of one US dollar in AUD
     benchmarks: dict  # {"ASX": {symbol, short, total_return}, "US": ...}
     left_out: list = field(default_factory=list)  # [{con_id, symbol, reason}]
+    cash_aud: float = None  # the account's cash in AUD (set by the route; not part of any weight)
     stale: list = field(default_factory=list)  # symbols whose update failed (older prices used)
 
     @property
