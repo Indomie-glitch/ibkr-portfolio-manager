@@ -165,6 +165,7 @@ export const EXPLAINERS = {
     title: 'Optimisation and hedging',
     what: 'Example mixes of your own stocks, showing how risk and return trade off, and hedges that reduce specific risks.',
     consider: 'These use last year’s data and aren’t a plan. They show the trade off: less risk usually means giving up some return.',
+    yours: ({ section, meta }) => mixesYours(section, meta?.period),
   },
   bankruptcy: {
     title: 'Bankruptcy risk · Altman Z',
@@ -370,4 +371,26 @@ export function attributionYours({ difference, allocation, selection, currency }
   if (!parts.length) return verdict
   const text = parts.map(([key, v]) => phrases[key](v))
   return `${verdict} ${text[0][0].toUpperCase()}${text[0].slice(1)}${text.length > 1 ? `, ${listNames(text.slice(1))}` : ''}.`
+}
+
+// "Capping Apple at 40% would have cut volatility from 19.8% to 15.4%, but last year it would also have
+// cut your return. Your 92.7% cash already cushions your whole account."
+export function mixesYours({ mixes, cash }, period) {
+  const current = mixes[0]
+  const capped = mixes.find((m) => m.id === 'capped')
+  const when = { '3M': 'over the last 3 months', '1Y': 'last year', '3Y': 'over the last 3 years' }[period] ?? 'over this period'
+  const parts = []
+  if (capped) {
+    const vol = capped.volatility < current.volatility ? 'cut' : 'raised'
+    const ret = capped.annual_return < current.annual_return ? 'cut' : 'raised'
+    const link = vol === 'cut' && ret === 'cut' ? 'but' : 'and'
+    parts.push(
+      `Capping ${capped.name} at 40% would have ${vol} volatility from ${pct(current.volatility)} to ${pct(capped.volatility)}, ${link} ${when} it would also have ${ret} your return.`,
+    )
+  } else {
+    const lowest = mixes.find((m) => m.id === 'lowest_risk')
+    if (lowest) parts.push(`The lowest risk mix of your stocks would have swung ${pct(lowest.volatility)} a year, against ${pct(current.volatility)} for your current mix.`)
+  }
+  if (cash && cash.share >= 0.05) parts.push(`Your ${pct(cash.share)} cash already cushions your whole account.`)
+  return parts.join(' ') || null
 }

@@ -215,3 +215,24 @@ export function points(fraction, { signed = true } = {}) {
   if (fraction == null) return '—'
   return pct(fraction, { signed }).replace('%', ' pts')
 }
+
+// "AAPL 68%, CBA 21%, BHP 8%…": the largest weights of a mix
+export function weightsCaption(weights, shown = 3) {
+  const sorted = [...weights].sort((a, b) => b.weight - a.weight).filter((w) => w.weight >= 0.005)
+  const text = sorted.slice(0, shown).map((w) => `${w.symbol} ${pct(w.weight, { decimals: 0 })}`).join(', ')
+  return sorted.length > shown ? `${text}…` : text
+}
+
+// Name and caption for each example mix in RSK 10
+export function mixLabel(mix, count) {
+  switch (mix.id) {
+    case 'current':
+      return { name: 'Your current mix', caption: weightsCaption(mix.weights) }
+    case 'capped':
+      return { name: `${mix.name} capped at 40%`, caption: `Rest spread in proportion: ${weightsCaption(mix.weights, 2)}` }
+    case 'equal':
+      return { name: 'Equal weights', caption: `${pct(1 / count, { decimals: 0 })} each` }
+    default:
+      return { name: 'Lowest risk mix', caption: weightsCaption(mix.weights) }
+  }
+}

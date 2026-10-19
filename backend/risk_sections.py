@@ -382,6 +382,56 @@ def attribution_section(inputs):
     }
 
 
+CAP = 0.40
+
+
+def mixes_section(inputs):
+    """Other ways the same stocks could have been weighted, as examples from the window's data, not
+    advice (#243): the current mix, the largest holding capped at 40%, equal weights and the lowest
+    risk mix; and two hedges (the currency on US holdings, and the account's cash)."""
+    rf = config.risk_free_rate()
+    symbols = _symbols(inputs)
+    n = len(symbols)
+
+    def figures(key, weights, **extra):
+        daily = risk.portfolio_returns(inputs.returns, weights)
+        return {"id": key, "weights": [{"symbol": s, "weight": _round(w)} for s, w in zip(symbols, weights)],
+                "volatility": _round(risk.annual_volatility(daily)), "annual_return": _round(risk.annual_return(daily)),
+                "sharpe": _round(risk.sharpe_ratio(daily, rf), 3), **extra}
+
+    mixes = [figures("current", inputs.weights)]
+    largest = int(np.argmax(inputs.weights))
+    largest_holding = inputs.holdings[largest]
+    if inputs.weights[largest] > CAP:
+        capped = risk.cap_weights(inputs.weights, CAP)
+        if capped is not None:
+            mixes.append(figures("capped", capped, name=largest_holding["name"] or largest_holding["symbol"]))
+    if n > 1:
+        mixes.append(figures("equal", np.full(n, 1 / n)))
+        mixes.append(figures("lowest_risk", risk.min_variance_weights(risk.covariance(inputs.returns))))
+
+    # Hedges. Currency: US holdings' own-currency returns in place of their AUD returns
+    us = [i for i, h in enumerate(inputs.holdings) if h["currency"] == "USD"]
+    hedge = None
+    if us:
+        hedged = inputs.returns.copy()
+        hedged[:, us] = inputs.local_returns[:, us]
+        daily = risk.portfolio_returns(hedged, inputs.weights)
+        fx = float(risk.compound(inputs.fx_returns))
+        effect = sum(risk.currency_effect_aud(inputs.holdings[i]["value_aud"], fx) for i in us)
+        hedge = {"volatility": _round(risk.annual_volatility(daily)), "annual_return": _round(risk.annual_return(daily)),
+                 # What hedging would have changed in A$: the opposite of the currency's effect
+                 "result_aud": round(-effect, 2)}
+    total = sum(h["value_aud"] for h in inputs.holdings)
+    cash = None
+    if inputs.cash_aud is not None and inputs.cash_aud + total > 0:
+        share = max(0.0, inputs.cash_aud) / (max(0.0, inputs.cash_aud) + total)
+        cash = {"cash_aud": round(inputs.cash_aud, 2), "share": _round(share),
+                # The whole account swings less: cash doesn't move
+                "account_volatility": _round(mixes[0]["volatility"] * (1 - share))}
+    return {"mixes": mixes, "cap": CAP, "currency_hedge": hedge, "cash": cash, "count": n}
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
     "concentration": concentration_section,
@@ -394,4 +444,5 @@ SECTIONS = {
     "var": var_section,
     "stress": stress_section,
     "attribution": attribution_section,
+    "mixes": mixes_section,
 }

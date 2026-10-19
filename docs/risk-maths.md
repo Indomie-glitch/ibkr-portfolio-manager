@@ -570,3 +570,57 @@ would have done, not your account's actual history.
 - Selection: 0.4 × (12% − 10%) + 0.6 × (30% − 20%) = 0.8 + 6.0 = **+6.8 pts**
 - Currency: 0.6 × (−5%) + 0.6 × 30% × (−5%) = −3.0 − 0.9 = **−3.9 pts**
 - Check: 6.0 + 6.8 − 3.9 = **8.9 pts** ✓
+
+## 11. Example mixes and hedges
+
+These show the trade-off between risk and return using **the same stocks** weighted differently over
+the same period. They're examples worked out from past data, not a recommendation: none is labelled
+best, and past results don't predict future ones.
+
+For every mix, the daily return series is the holdings' returns combined with that mix's weights, and
+volatility, yearly return and Sharpe ratio are worked out as in sections 3 and 7. So the "current mix"
+row matches the tiles exactly.
+
+### Largest holding capped at 40%
+
+The largest holding is set to 40% and the excess is shared among the others **in proportion to their
+weights**. If that pushes another one over 40%, it's capped too, and so on. With two holdings a 40% cap
+is impossible (2 × 40% < 100%), so the row isn't shown, nor when nothing is over 40%.
+
+**Example.** 60%, 30%, 10%: the 20% excess goes 3 : 1 to the other two, giving 45% and 15%. 45% is now
+over, so its 5% excess goes to the last one: **40%, 40%, 20%**.
+
+### Equal weights
+
+$1/n$ in each.
+
+### Lowest risk mix (minimum variance)
+
+The weights $w$ that make the portfolio's variance $w^\top \Sigma w$ as small as possible, with every
+weight between 0 and 1 (no borrowing or short selling) and the weights adding up to 1.
+
+There's no simple formula once weights can't go negative, so it's found step by step by *projected
+gradient descent*:
+
+1. Start with equal weights.
+2. Take a small step downhill: $w \leftarrow w - \eta \cdot 2\Sigma w$ ($2\Sigma w$ is the *gradient*, the
+   direction in which the variance grows fastest; $\eta = 1 / (2\lambda_{max})$ with $\lambda_{max}$ the
+   largest eigenvalue of $\Sigma$, small enough never to overshoot).
+3. *Project* back to the nearest allowed weights: shift all weights by the same amount and set any
+   negatives to 0, so they add up to 1 again.
+4. Repeat until the weights stop changing.
+
+**Example.** Two unrelated holdings with variances 0.04 and 0.01. Without the 0-to-1 rule, the answer
+is known: weight each by 1 / its variance, so 25 : 100, giving **20%** and **80%**. Here both are already
+between 0 and 1, so projected gradient descent lands on the same answer. When one holding only adds
+risk, the rule stops its weight at 0 instead of going negative.
+
+### Hedges
+
+- **Currency hedge on US holdings**: the current mix with each US holding's US-dollar return in place
+  of its AUD return, as if the exchange rate had been fixed. The A$ figure is the opposite of section
+  5's currency effect: what hedging would have added (or cost) over the period. It leaves out the cost
+  of hedging itself.
+- **Cash or bonds**: cash doesn't move with the share market, so with a cash share $c$ of the whole
+  account, the account swings about $(1 - c)$ times as much as the holdings. With 75% in cash, a 20%
+  volatility in the shares is only about 5% for the whole account.

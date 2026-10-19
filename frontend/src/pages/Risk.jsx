@@ -12,6 +12,7 @@ import ExposurePanel from '../components/risk/ExposurePanel.jsx'
 import FactorsPanel from '../components/risk/FactorsPanel.jsx'
 import RiskPanel from '../components/risk/RiskPanel.jsx'
 import RiskTile from '../components/risk/RiskTile.jsx'
+import MixesPanel from '../components/risk/MixesPanel.jsx'
 import StressPanel from '../components/risk/StressPanel.jsx'
 import VarPanel from '../components/risk/VarPanel.jsx'
 import VolatilityPanel from '../components/risk/VolatilityPanel.jsx'
@@ -28,6 +29,7 @@ const BODIES = {
   currency: CurrencyPanel,
   exposure: ExposurePanel,
   factors: FactorsPanel,
+  mixes: MixesPanel,
   stress: StressPanel,
   var: VarPanel,
   volatility: VolatilityPanel,
@@ -39,6 +41,7 @@ const LABELS = {
   currency: (section, period) => (section.holdings[0] ? `${section.holdings[0].symbol} · ${period}` : period),
   exposure: () => '% of holdings',
   factors: (section, period) => `PCA · ${period}`,
+  mixes: (section, period) => `Examples · ${period} data`,
   stress: (section) => `Impact on ${formatCompactMoney(section.value_aud, 'AUD')}`,
   var: (section) => `${formatCompactMoney(section.value_aud, 'AUD')} holdings`,
   volatility: () => 'Per holding',
