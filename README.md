@@ -61,7 +61,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 5.2: AI portfolio summary** on the Overview page: 8 sections, citations to the facts and holdings, history and compare
 * [ ] **Milestone 6: Trade placement:** built; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
-* [ ] **Milestone 8: Risk analysis** (in progress): daily AUD returns pipeline, correlation and the Risk page with its explainers done; the metrics' panels next ([the maths](docs/risk-maths.md))
+* [ ] **Milestone 8: Risk analysis** (in progress): daily AUD returns pipeline, correlation, the Risk page with its explainers, and volatility, beta and max drawdown done; the other panels next ([the maths](docs/risk-maths.md))
 * [ ] **Milestone 9:** Company connections
 * [ ] **Milestone 10:** Supply chain graph foundation
 * [ ] **Milestone 11:** Extraction agents
@@ -292,7 +292,7 @@ cd frontend/src-tauri && cargo test
 | **AI usage** | |
 | `GET /usage?month=YYYY-MM` | Tokens and estimated cost (US$) of every Claude call in a month (default this month), in total and per feature (stock summaries, portfolio summaries, news sentiment) |
 | **Risk analysis** | |
-| `GET /risk?period=1Y` | Risk figures for the stock holdings over `3M`, `1Y` or `3Y`, from daily closes in AUD (Yahoo, stored locally; [the maths](docs/risk-maths.md)): which holdings and days were used, which were left out and why, and how each pair of holdings moves together (correlation); each later section is added to this answer |
+| `GET /risk?period=1Y` | Risk figures for the stock holdings over `3M`, `1Y` or `3Y`, from daily closes in AUD (Yahoo, stored locally; [the maths](docs/risk-maths.md)): which holdings and days were used, which were left out and why, how each pair of holdings moves together (correlation), and volatility, beta and the biggest fall; each later section is added to this answer |
 | **Trading** | |
 | `GET /trading/status` | Paper or live account, whether orders are allowed (and why not), and the order limit |
 | `POST /orders/preview` | What an order would cost (IB what-if: commission, margin change) and any guardrail problems, without sending it; returns a `confirmation_token` when it can be placed |

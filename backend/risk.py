@@ -124,3 +124,46 @@ def pairs(matrix):
     """Every pair (i, j) with i < j and its value, from a square matrix."""
     n = len(matrix)
     return [(i, j, float(matrix[i][j])) for i in range(n) for j in range(i + 1, n)]
+
+
+# ---------- Volatility, beta and max drawdown (#102) ----------
+
+def annual_volatility(returns):
+    """Yearly volatility: the sample standard deviation of daily returns × √252.
+
+    Works on one series or column by column on a matrix (rows = days).
+    """
+    returns = np.asarray(returns, dtype=float)
+    return np.std(returns, axis=0, ddof=1) * np.sqrt(TRADING_DAYS)
+
+
+def portfolio_returns(returns, weights):
+    """The portfolio's daily return with fixed weights: Σ wᵢ rᵢ for each day."""
+    return np.asarray(returns, dtype=float) @ np.asarray(weights, dtype=float)
+
+
+def beta(returns, index_returns):
+    """How much a series moves with an index: cov(r, index) / var(index). None if the index never moved."""
+    returns = np.asarray(returns, dtype=float)
+    index_returns = np.asarray(index_returns, dtype=float)
+    variance = np.var(index_returns, ddof=1)
+    if variance == 0:
+        return None
+    return float(np.cov(returns, index_returns, ddof=1)[0, 1] / variance)
+
+
+def max_drawdown(returns):
+    """The largest fall from a high to a later low of the value grown by these daily returns.
+
+    Returns (fall, peak, trough): fall is negative (−0.2 = −20%), peak and trough are positions in the
+    value series, where 0 is the value before the first return and k is the value after return k.
+    (0, 0, 0) when the value never fell.
+    """
+    values = np.concatenate([[1.0], np.cumprod(1 + np.asarray(returns, dtype=float))])
+    peaks = np.maximum.accumulate(values)
+    falls = values / peaks - 1
+    trough = int(np.argmin(falls))
+    if falls[trough] >= 0:
+        return 0.0, 0, 0
+    peak = int(np.argmax(values[: trough + 1]))
+    return float(falls[trough]), peak, trough

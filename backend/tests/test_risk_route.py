@@ -11,7 +11,7 @@ from routers import risk as risk_routes
 
 def inputs():
     return risk_data.RiskInputs(
-        period="1Y", start=date(2025, 10, 19), dates=[date(2025, 10, 20), date(2026, 10, 16)],
+        period="1Y", start=date(2025, 10, 19), base_date=date(2025, 10, 17), dates=[date(2025, 10, 20), date(2026, 10, 16)],
         holdings=[{"con_id": 1, "symbol": "BHP", "name": "BHP Group", "market": "ASX", "currency": "AUD",
                    "yahoo": "BHP.AX", "value_aud": 3000.0, "weight": 1.0}],
         returns=np.zeros((2, 1)), local_returns=np.zeros((2, 1)), weights=np.array([1.0]),

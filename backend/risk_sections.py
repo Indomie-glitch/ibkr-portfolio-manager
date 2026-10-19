@@ -32,7 +32,59 @@ def correlation_section(inputs):
     }
 
 
+INDEX_NAMES = {"ASX": "ASX 200", "US": "S&P 500"}
+
+
+def _round(value, places=4):
+    return None if value is None else round(float(value), places)
+
+
+def volatility_section(inputs):
+    """How much each holding and the portfolio swing, how much they move with the market, and the
+    worst fall in the window (#102).
+
+    Volatility uses AUD returns (what you experience). A holding's beta compares its own-currency
+    returns with its home index, so the exchange rate doesn't blur how it moves with its market; the
+    portfolio's betas compare its AUD returns with each index as quoted.
+    """
+    holdings = []
+    vols = risk.annual_volatility(inputs.returns)
+    for i, holding in enumerate(inputs.holdings):
+        market = holding["market"]
+        holdings.append({
+            "symbol": holding["symbol"], "market": market, "weight": _round(holding["weight"]),
+            "volatility": _round(vols[i]),
+            "beta": _round(risk.beta(inputs.local_returns[:, i], inputs.benchmark_returns[market])),
+            "beta_vs": INDEX_NAMES[market],
+        })
+    portfolio = risk.portfolio_returns(inputs.returns, inputs.weights)
+    fall, peak, trough = risk.max_drawdown(portfolio)
+    days = [inputs.base_date, *inputs.dates]
+    total = sum(h["value_aud"] for h in inputs.holdings)
+    return {
+        "holdings": holdings,
+        "portfolio": {
+            "volatility": _round(risk.annual_volatility(portfolio)),
+            "beta_asx": _round(risk.beta(portfolio, inputs.benchmark_returns["ASX"])),
+            "beta_us": _round(risk.beta(portfolio, inputs.benchmark_returns["US"])),
+            "value_aud": round(total, 2),
+            "us_weight": _round(sum(h["weight"] for h in inputs.holdings if h["market"] == "US")),
+        },
+        "benchmarks": {market: {"name": INDEX_NAMES[market],
+                                "volatility": _round(risk.annual_volatility(inputs.benchmark_returns[market]))}
+                       for market in ("ASX", "US")},
+        "max_drawdown": {
+            "fall": _round(fall),
+            "peak": days[peak].isoformat() if fall < 0 else None,
+            "trough": days[trough].isoformat() if fall < 0 else None,
+            # The same fall on today's holdings
+            "loss_aud": round(fall * total, 2),
+        },
+    }
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
     "correlation": correlation_section,
+    "volatility": volatility_section,
 }

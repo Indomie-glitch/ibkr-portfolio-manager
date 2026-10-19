@@ -5,14 +5,19 @@ import { PANELS, TILE_ROWS } from '../lib/riskLayout.js'
 import { DEFAULT_PERIOD, PERIODS, asOfText, calculatedNote, extraNotes, leftOutNote } from '../lib/riskFormat.js'
 import RiskPanel from '../components/risk/RiskPanel.jsx'
 import RiskTile from '../components/risk/RiskTile.jsx'
+import VolatilityPanel from '../components/risk/VolatilityPanel.jsx'
 
 const PERIOD_KEY = 'riskPeriod'
 // The backend keeps a result for 10 minutes and prices are daily, so a refresh only asks again after that
 const STALE_MS = 10 * 60_000
 
 // Each panel's body and right-hand label, added by the issue that builds it
-const BODIES = {}
-const LABELS = {}
+const BODIES = {
+  volatility: VolatilityPanel,
+}
+const LABELS = {
+  volatility: () => 'Per holding',
+}
 
 function savedPeriod() {
   try {

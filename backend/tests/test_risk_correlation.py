@@ -55,7 +55,7 @@ def inputs(columns, symbols):
     returns = np.column_stack(columns)
     n = returns.shape[1]
     return risk_data.RiskInputs(
-        period="1Y", start=date(2025, 10, 19), dates=[date(2026, 10, 14 + i) for i in range(len(returns))],
+        period="1Y", start=date(2025, 10, 19), base_date=date(2026, 10, 13), dates=[date(2026, 10, 14 + i) for i in range(len(returns))],
         holdings=[{"con_id": i, "symbol": s} for i, s in enumerate(symbols)],
         returns=returns, local_returns=returns, weights=np.full(n, 1 / n),
         benchmark_returns={}, fx_returns=np.zeros(len(returns)), benchmarks={},
