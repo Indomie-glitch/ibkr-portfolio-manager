@@ -176,3 +176,74 @@ compare the same calendar day, so part of the shared movement lands on different
 measured correlation between an Australian and a US holding comes out lower than the real
 relationship. Weekly returns would reduce this, but they leave far fewer data points in a 3-month or
 1-year window, so the app uses daily returns and notes the effect here.
+
+## 3. Volatility, beta and the biggest fall
+
+### Volatility
+
+*Volatility* is how much something typically swings in a year: the standard deviation of its daily
+returns, scaled to a year (section 1, "From daily to yearly"):
+
+$$\sigma = \sqrt{\frac{1}{n-1}\sum_{t=1}^{n}(r_t - \bar r)^2} \times \sqrt{252}$$
+
+- $r_t$: the daily return on day $t$ (in AUD for holdings and the portfolio)
+- $\bar r$: the average daily return over the period
+
+Roughly two years in three end within one volatility of the average, so a portfolio with 20%
+volatility and A$50,000 in shares would typically end a year within about A$10,000 of where it would
+on average.
+
+**Example.** Daily returns of +1%, −1%, +1%, −1%. The average is 0, the squared differences add up to
+4 × 0.0001 = 0.0004, divided by n − 1 = 3 gives 0.000133, and the square root is **1.15% a day**.
+× √252 = × 15.87 gives **18.3% a year**.
+
+### The portfolio's daily return
+
+The portfolio's return on a day is each holding's return weighted by its share of the money:
+
+$$r_{p,t} = \sum_i w_i \, r_{i,t}$$
+
+**Example.** 75% in a stock that rose 2% and 25% in one that fell 4%: 0.75 × 2% + 0.25 × (−4%) =
+1.5% − 1% = **+0.5%**.
+
+The weights are **today's**, applied to every day in the period. So the portfolio figures answer "how
+would the holdings I have now have behaved over the last year?", not "how did my account do?", which
+would also depend on what was bought and sold along the way.
+
+### Beta
+
+*Beta* says how much something moves when a market index moves:
+
+$$\beta = \frac{\text{cov}(r, m)}{\text{var}(m)}$$
+
+- $r$: the daily returns of the holding (or portfolio)
+- $m$: the daily returns of the index (the ASX 200 or the S&P 500, total return)
+
+A beta of 1 means it moves in step with the index on average, 1.2 means about 12% when the index moves
+10%, 0.5 about 5%, and 0 means its moves are unrelated to the index's. A beta above 1 is shown in
+amber.
+
+- **Each holding** is compared with its **home** index: Australian shares with the ASX 200, US shares
+  with the S&P 500. A US share's beta uses its **US dollar** returns, so changes in the exchange rate
+  (which have nothing to do with how the share follows its market) don't blur it.
+- **The portfolio** is compared with both indexes, using its AUD returns and each index as quoted.
+
+**Example.** An index moves +1%, −1%, +1%, −1% and a stock moves exactly twice as much: +2%, −2%, +2%,
+−2%. Its covariance with the index is twice the index's variance, so its beta is **2**. A stock that
+moved +1%, +1%, −1%, −1% on those days rose and fell independently of the index: covariance 0, beta
+**0**.
+
+### Maximum drawdown
+
+The *maximum drawdown* is the largest fall from a high to a later low. Grow A$1 by the daily returns,
+keep track of the highest value so far, and find the deepest fall below it:
+
+$$V_t = \prod_{s \le t}(1 + r_{p,s}), \qquad \text{drawdown}_t = \frac{V_t}{\max_{s \le t} V_s} - 1$$
+
+The maximum drawdown is the most negative drawdown, with the date of the high before it (*peak*) and
+of the low (*trough*). The A$ figure is that fall applied to today's value of the holdings.
+
+**Example.** Daily returns +10%, −20%, +5%, −10%, +30%. The value goes 1 → 1.10 → 0.88 → 0.924 →
+0.832 → 1.081. The high is 1.10 after day 1 and the lowest point after it is 0.832 after day 4:
+0.832 ÷ 1.10 − 1 = **−24.4%**. The value later recovers above 1.10, but the drawdown still counts,
+because it's the worst fall you'd have sat through.

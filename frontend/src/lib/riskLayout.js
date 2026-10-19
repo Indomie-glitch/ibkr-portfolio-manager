@@ -1,3 +1,8 @@
+import { drawdownDates, pct, ratio } from './riskFormat.js'
+
+const betaSub = (market) => (beta) =>
+  beta == null ? 'Not enough index prices' : `Moves ${Math.abs(beta * 10).toFixed(1)}% when the ${market} moves 10%`
+
 // What the Risk page shows and where (Figma Risk / V5A): the two rows of headline tiles and the
 // twelve panels in two columns. Each Milestone 8 issue fills in its tiles' value and caption and its
 // panel's body; until then a tile shows "—" and a panel an empty frame.
@@ -8,11 +13,27 @@
 
 export const TILE_ROWS = [
   [
-    { id: 'volatility', label: 'Volatility', caption: 'Typical yearly swing', explainer: 'volatility', section: 'volatility' },
-    { id: 'beta_asx', label: 'Beta · ASX 200', caption: 'How much you move with the ASX', explainer: 'beta_asx', section: 'volatility' },
-    { id: 'beta_us', label: 'Beta · S&P 500', caption: 'How much you move with the S&P', explainer: 'beta_us', section: 'volatility' },
+    {
+      id: 'volatility', label: 'Volatility', caption: 'Typical yearly swing', explainer: 'volatility', section: 'volatility',
+      value: (s) => pct(s.portfolio.volatility),
+    },
+    {
+      id: 'beta_asx', label: 'Beta · ASX 200', caption: 'How much you move with the ASX', explainer: 'beta_asx', section: 'volatility',
+      value: (s) => ratio(s.portfolio.beta_asx),
+      sub: (s) => betaSub('ASX')(s.portfolio.beta_asx),
+    },
+    {
+      id: 'beta_us', label: 'Beta · S&P 500', caption: 'How much you move with the S&P', explainer: 'beta_us', section: 'volatility',
+      value: (s) => ratio(s.portfolio.beta_us),
+      sub: (s) => betaSub('S&P')(s.portfolio.beta_us),
+    },
     { id: 'effective_holdings', label: 'Effective holdings', caption: 'How many stocks you behave like', explainer: 'effective_holdings', section: 'concentration' },
-    { id: 'max_drawdown', label: 'Max drawdown', caption: 'Biggest fall in the period', explainer: 'max_drawdown', section: 'volatility' },
+    {
+      id: 'max_drawdown', label: 'Max drawdown', caption: 'Biggest fall in the period', explainer: 'max_drawdown', section: 'volatility',
+      value: (s) => pct(s.max_drawdown.fall),
+      sub: (s) => drawdownDates(s.max_drawdown),
+      tone: (s) => (s.max_drawdown.fall < 0 ? 'loss' : undefined),
+    },
   ],
   [
     { id: 'sharpe', label: 'Sharpe ratio', caption: 'Return per unit of risk', explainer: 'sharpe', section: 'performance' },

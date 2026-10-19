@@ -82,6 +82,8 @@
   --risk-pop-border: rgba(0, 0, 0, 0.1);
   --risk-pop-body: #3a3a3c;
   --risk-pop-shadow: 0 12px 16px rgba(0, 0, 0, 0.14);
+  --risk-vol: #af52de;
+  --risk-highlight: rgba(255, 149, 0, 0.08);
 
   /* The macOS system font (San Francisco), like a native Mac app */
   font-family: -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', sans-serif;
@@ -124,6 +126,8 @@
   --risk-pop-border: rgba(255, 255, 255, 0.12);
   --risk-pop-body: #d1d1d6;
   --risk-pop-shadow: 0 12px 16px rgba(0, 0, 0, 0.45);
+  --risk-vol: #bf5af2;
+  --risk-highlight: rgba(255, 159, 10, 0.08);
   --bg: #1e1e1e;
   --sidebar: #262628;
   --sidebar-border: rgba(255, 255, 255, 0.07);
@@ -4344,6 +4348,7 @@ button.ai-source:hover {
   color: var(--text-2);
   font-family: var(--mono);
   font-size: 10.5px;
+  text-transform: uppercase;
 }
 
 .risk-panel-note {
@@ -4367,6 +4372,109 @@ button.ai-source:hover {
 
 .risk-data-extra {
   flex-basis: 100%;
+}
+
+/* Tables, bars and rows shared by the panels */
+.risk-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.risk-table-head {
+  padding-bottom: 4px;
+  color: var(--risk-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.risk-table-row {
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--risk-border);
+}
+
+.risk-table .num {
+  text-align: right;
+}
+
+.risk-symbol {
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.risk-mono {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.risk-mono.amber {
+  color: var(--risk-amber);
+}
+
+.risk-mono-2 {
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.risk-bar {
+  position: relative;
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--risk-track);
+}
+
+.risk-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+}
+
+.risk-bar-fill.vol {
+  background: var(--risk-vol);
+}
+
+.risk-portfolio-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--risk-highlight);
+}
+
+.risk-portfolio-name {
+  width: 74px;
+  color: var(--risk-amber);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.risk-portfolio-betas {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.risk-footnote {
+  margin: 0;
+  color: var(--risk-faint);
+  font-size: 11px;
+}
+
+/* RSK 04: holding 52 · market 30 · bar · volatility 52 · beta 44 · index 70 */
+.risk-vol-row {
+  display: grid;
+  grid-template-columns: 52px 30px minmax(40px, 1fr) 52px 44px 70px;
+  gap: 10px;
 }
 
 /* Narrow windows: tiles in fewer columns, then one column of panels in RSK order */

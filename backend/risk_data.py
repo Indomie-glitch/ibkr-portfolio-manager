@@ -106,6 +106,7 @@ class RiskInputs:
     """Everything the risk sections share, for one window."""
     period: str
     start: date  # first day of the window
+    base_date: date  # the first close in the window: the starting point of the first return
     dates: list  # the day of each return row (its close)
     holdings: list  # included holdings: con_id, symbol, name, market, currency, yahoo, value_aud, weight
     returns: np.ndarray  # rows = days, columns = holdings: daily returns of each holding's value in AUD
@@ -208,7 +209,7 @@ async def build_inputs(holdings, period, today, fetch=yahoo.fetch_daily_closes):
     for holding, weight in zip(included, w):
         holding["weight"] = float(weight)
     return RiskInputs(
-        period=period, start=start, dates=dates[1:], holdings=included,
+        period=period, start=start, base_date=dates[0], dates=dates[1:], holdings=included,
         returns=returns_all[:, :n], local_returns=returns_all[:, n:2 * n], weights=w,
         benchmark_returns={"ASX": returns_all[:, 2 * n], "US": returns_all[:, 2 * n + 1]},
         fx_returns=risk.fx_returns(prices[:, 2 * n + 2]), benchmarks=benchmarks,
