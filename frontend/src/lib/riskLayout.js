@@ -27,7 +27,13 @@ export const TILE_ROWS = [
       value: (s) => ratio(s.portfolio.beta_us),
       sub: (s) => betaSub('S&P')(s.portfolio.beta_us),
     },
-    { id: 'effective_holdings', label: 'Effective holdings', caption: 'How many stocks you behave like', explainer: 'effective_holdings', section: 'concentration' },
+    {
+      id: 'effective_holdings', label: 'Effective holdings', caption: 'How many stocks you behave like', explainer: 'effective_holdings', section: 'concentration',
+      value: (s) => `${s.effective_holdings.toFixed(1)} / ${s.count}`,
+      sub: (s) => `Behaves like about ${Math.max(1, Math.round(s.effective_holdings))} ${Math.round(s.effective_holdings) === 1 ? 'stock' : 'stocks'}`,
+      // Amber when the money is spread over less than half as many stocks as you own
+      tone: (s) => (s.effective_holdings < s.count / 2 ? 'amber' : undefined),
+    },
     {
       id: 'max_drawdown', label: 'Max drawdown', caption: 'Biggest fall in the period', explainer: 'max_drawdown', section: 'volatility',
       value: (s) => pct(s.max_drawdown.fall),

@@ -108,7 +108,7 @@ class RiskInputs:
     start: date  # first day of the window
     base_date: date  # the first close in the window: the starting point of the first return
     dates: list  # the day of each return row (its close)
-    holdings: list  # included holdings: con_id, symbol, name, market, currency, yahoo, value_aud, weight
+    holdings: list  # included holdings: con_id, symbol, name, market, currency, yahoo, sector, value_aud, weight
     returns: np.ndarray  # rows = days, columns = holdings: daily returns of each holding's value in AUD
     local_returns: np.ndarray  # the same in each holding's own currency (price return only)
     weights: np.ndarray  # each holding's share of the AUD value of the included holdings
@@ -146,7 +146,7 @@ async def build_inputs(holdings, period, today, fetch=yahoo.fetch_daily_closes):
     """Prices -> aligned AUD returns for the window.
 
     holdings: [{con_id, symbol, name, market ("ASX"/"US"/None), currency, yahoo (symbol or None),
-    market_value (in its own currency)}].
+    market_value (in its own currency), sector (optional)}].
     """
     start = risk.window_start(period, today)
     stale, left_out = [], []
@@ -189,7 +189,7 @@ async def build_inputs(holdings, period, today, fetch=yahoo.fetch_daily_closes):
         aud_prices[key] = in_window if holding["currency"] == "AUD" else risk.to_aud(in_window, audusd)
         value_aud = holding["market_value"] if holding["currency"] == "AUD" else holding["market_value"] / latest_rate
         included.append({**{k: holding[k] for k in ("con_id", "symbol", "name", "market", "currency", "yahoo")},
-                         "value_aud": value_aud})
+                         "sector": holding.get("sector"), "value_aud": value_aud})
 
     if not included:
         raise NotEnoughData("No holdings have prices for the whole period")

@@ -247,3 +247,60 @@ of the low (*trough*). The A$ figure is that fall applied to today's value of th
 0.832 → 1.081. The high is 1.10 after day 1 and the lowest point after it is 0.832 after day 4:
 0.832 ÷ 1.10 − 1 = **−24.4%**. The value later recovers above 1.10, but the drawdown still counts,
 because it's the worst fall you'd have sat through.
+
+## 4. Concentration: share of money vs share of risk
+
+### Share of money
+
+Each holding's weight $w_i$ (section 1). **Top 3 share** adds the three largest weights, and
+**largest** is the biggest single weight.
+
+### Share of risk (risk contribution)
+
+The portfolio's variance (its squared daily swing) can be written with the covariance matrix
+$\Sigma$ from section 2:
+
+$$\sigma_p^2 = w^\top \Sigma w = \sum_i w_i (\Sigma w)_i$$
+
+- $(\Sigma w)_i = \sum_j \Sigma_{ij} w_j$: how holding $i$ moves together with the whole portfolio,
+  including with itself
+
+Each term $w_i (\Sigma w)_i$ is the part of the variance that comes from holding $i$, so its share is:
+
+$$\text{RC}_i = \frac{w_i (\Sigma w)_i}{w^\top \Sigma w}, \qquad \sum_i \text{RC}_i = 100\%$$
+
+A holding's share of risk is bigger than its share of money when it swings more than the others, or
+moves with them so they don't offset it. It's smaller when it's calm, or moves against the rest. It
+can even be negative: a holding that tends to rise when the others fall steadies the portfolio.
+
+**Example.** Two unrelated holdings, one swinging 20% a year and one 10%, so (in yearly terms)
+$\Sigma$ = [[0.04, 0], [0, 0.01]], with half the money in each.
+
+- $\Sigma w$ = (0.04 × 0.5, 0.01 × 0.5) = (0.02, 0.005)
+- $w^\top \Sigma w$ = 0.5 × 0.02 + 0.5 × 0.005 = 0.0125 (a portfolio volatility of √0.0125 = 11.2%)
+- shares of risk: 0.5 × 0.02 ÷ 0.0125 = **80%** and 0.5 × 0.005 ÷ 0.0125 = **20%**
+
+Half the money, but four fifths of the swings come from the more volatile holding. (The app uses daily
+covariances; scaling $\Sigma$ to a year multiplies the top and bottom by the same 252, so the shares
+are the same.)
+
+### Effective holdings
+
+How many equally sized holdings the portfolio behaves like:
+
+$$N_{\text{eff}} = \frac{1}{\sum_i w_i^2}$$
+
+$\sum w_i^2$ is the *Herfindahl index*, a standard measure of concentration. With $n$ equal holdings
+each $w_i = 1/n$, so $\sum w_i^2 = 1/n$ and $N_{\text{eff}} = n$. One big holding dominates the sum of
+squares, which pulls the number down.
+
+**Example.** Weights 68.2%, 21.3%, 8.3%, 1.6% and 0.7%: the squares add up to 0.465 + 0.045 + 0.007 +
+0.0003 + 0.00005 = 0.518, so $N_{\text{eff}}$ = 1 ÷ 0.518 = **1.9**. Five stocks that behave like
+about two.
+
+### Warnings
+
+A warning shows when one stock is over **20%** of the holdings, one sector over **40%**, or one
+currency over **80%**. These are the same levels the AI portfolio summary uses (`portfolio_facts.py`),
+so the two always flag the same things. Sectors come from each company's Yahoo profile; holdings
+without one aren't counted towards any sector.
