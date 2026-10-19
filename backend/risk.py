@@ -87,3 +87,40 @@ def weights(values):
     if total <= 0:
         raise ValueError("Holdings have no value")
     return values / total
+
+
+# ---------- How holdings move together (#103) ----------
+
+def covariance(returns):
+    """Sample covariance matrix Σ of daily returns (columns = holdings), dividing by n − 1."""
+    returns = np.asarray(returns, dtype=float)
+    return np.atleast_2d(np.cov(returns, rowvar=False, ddof=1))
+
+
+def correlation(returns):
+    """Correlation matrix: covariance scaled so every value is between −1 and +1.
+
+    A holding whose price never moved has no correlation with anything; it shows as 0 (1 with itself).
+    """
+    cov = covariance(returns)
+    sd = np.sqrt(np.diag(cov))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        corr = cov / np.outer(sd, sd)
+    corr = np.nan_to_num(corr, nan=0.0, posinf=0.0, neginf=0.0)
+    np.fill_diagonal(corr, 1.0)
+    return np.clip(corr, -1.0, 1.0)
+
+
+def same_direction_share(a, b):
+    """Share of days both moved the same way (both up or both down), out of the days both moved."""
+    a, b = np.sign(np.asarray(a, dtype=float)), np.sign(np.asarray(b, dtype=float))
+    moved = (a != 0) & (b != 0)
+    if not moved.any():
+        return None
+    return float((a[moved] == b[moved]).mean())
+
+
+def pairs(matrix):
+    """Every pair (i, j) with i < j and its value, from a square matrix."""
+    n = len(matrix)
+    return [(i, j, float(matrix[i][j])) for i in range(n) for j in range(i + 1, n)]
