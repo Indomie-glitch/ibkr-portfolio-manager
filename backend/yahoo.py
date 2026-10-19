@@ -6,7 +6,7 @@ SQLite cache that reports "database is locked" when used from several threads at
 """
 import asyncio
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import yfinance as yf
@@ -362,6 +362,30 @@ RISK_BENCHMARKS = {
 AUDUSD = "AUDUSD=X"  # US dollars per Australian dollar
 
 
+SESSION_DONE = time(16, 30)  # ASX and US shares and indexes have closed by then, local time
+
+
+def finished_days(rows, symbol, now=None):
+    """Only the days whose session has finished: [(aware datetime, close)] -> [(date, close)].
+
+    While a market is open, Yahoo's row for the current day holds the latest price, not the close
+    (#264). It's left out until the session is over: after 4:30 pm in the exchange's time zone for
+    shares and indexes, and not at all on the current day for currencies ("=X"), which trade around
+    the clock.
+    """
+    now = now or datetime.now(timezone.utc)
+    out = []
+    for moment, close in rows:
+        local_now = now.astimezone(moment.tzinfo) if moment.tzinfo else now
+        day = moment.date()
+        if day > local_now.date():
+            continue
+        if day == local_now.date() and (symbol.endswith("=X") or local_now.time() < SESSION_DONE):
+            continue
+        out.append((day, close))
+    return out
+
+
 def _fetch_daily_closes(symbol, start, end=None):
     # auto_adjust folds dividends and splits into the prices, so a stock's returns are total returns
     history = yf.Ticker(symbol).history(start=start.isoformat(), end=end.isoformat() if end else None,
@@ -369,7 +393,7 @@ def _fetch_daily_closes(symbol, start, end=None):
     closes = history["Close"].dropna() if "Close" in history else None
     if closes is None or closes.empty:
         raise YahooUnavailable(f"Yahoo has no daily prices for {symbol}")
-    return [(day.date(), float(v)) for day, v in closes.items() if v > 0]
+    return finished_days([(moment.to_pydatetime(), float(v)) for moment, v in closes.items() if v > 0], symbol)
 
 
 async def fetch_daily_closes(symbol, start, end=None):

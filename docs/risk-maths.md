@@ -23,6 +23,11 @@ value changed that day, measured in Australian dollars.
   total return series, the price index (`^AXJO`, `^GSPC`) is used instead and the page says so.
 - **Exchange rate:** `AUDUSD=X`, the number of US dollars one Australian dollar buys (for example 0.65).
 
+A day's price only counts as a close once that market's session is over: after 4:30 pm in the
+exchange's own time zone for shares and indexes, and for AUD/USD (which trades around the clock)
+never on the current day. While a market is open, Yahoo's row for "today" is just the latest price
+(sometimes yesterday's close repeated), and storing it would add a fake day (#264).
+
 Prices are kept in `risk_prices.sqlite`. Yahoo is asked at most once a day per symbol, and only for the
 days not stored yet, plus the last two weeks again: after each dividend Yahoo rewrites a stock's past
 adjusted prices, and if the stored ones no longer match, the whole history is fetched again.
@@ -82,6 +87,18 @@ A holding whose prices start more than a week after the window starts (it was li
 new company recently) is **left out** of every calculation and listed in the Data notes row, rather
 than shortening the window for everything else. Holdings in currencies other than AUD and USD are left
 out too.
+
+### Which currency each figure uses
+
+| Figure | Currency | Why |
+|---|---|---|
+| Correlation and covariance, risk contribution, hidden factors | AUD | They describe how your holdings' values move for you, an Australian investor |
+| Volatility (each holding and the portfolio), max drawdown | AUD | The swings you actually see in your account |
+| Value at Risk, stress tests, currency effect, example mixes | AUD | Losses and amounts in A$ on today's holdings |
+| A holding's **beta** | **Its own currency** against its **home** total return index: Apple in USD against the S&P 500 (`^SP500TR`), ASX shares in AUD against the ASX 200 (`^AXJT`) | Beta measures how a share follows its own market; the AUD/USD rate has nothing to do with that and would only blur it |
+| The portfolio's betas, tracking error | Portfolio in AUD, each index as quoted (S&P 500 in USD) | "When the S&P moves 10%" means the S&P 500 as reported |
+| Sharpe ratio | AUD (the ASX 200 for comparison in AUD) | Return per unit of the risk you carry |
+| Attribution | Your return in AUD; each market's stocks and index in their own currency; the exchange rate as its own part | So the currency's effect is shown separately |
 
 ### Weights
 
@@ -686,3 +703,15 @@ Green means under a day, amber up to 5 trading days, red longer.
 **Example.** 100 shares of a stock that trades 1,000,000 a day: 10% of a day is 100,000 shares, so 100
 shares take 100 ÷ 100,000 = **0.001 days**, about 0.4 minutes of a US session: "< 1 min". 50,000 shares of
 a small company trading 100,000 a day would take 50,000 ÷ 10,000 = **5 trading days**.
+
+## Reading the numbers: a quiet year can look strange
+
+The figures only describe the period chosen. If over the last year Yahoo's prices show your holdings
+mostly moving on their own news rather than with their market, correlations and betas come out near
+0 even though, over longer periods, the same stocks follow their market closely. Checking the 3Y
+period is the quickest way to see whether a low number is typical for a holding or just recent.
+
+**Example (October 2026).** Over 1Y, Yahoo's prices give Apple a beta of 0.62 against the S&P 500 and
+a CBA–BHP correlation of 0.03. Over 3Y they give 1.08 and 0.08. Year by year, Apple's correlation
+with the S&P 500 was 0.52 to 0.89 from 2021 to 2025 and 0.30 in 2026; with the Nasdaq 100 ETF (of
+which it's one of the largest holdings) it fell from 0.73 in 2025 to 0.16 in 2026.
