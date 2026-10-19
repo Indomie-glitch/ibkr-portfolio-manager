@@ -22,6 +22,7 @@ ENDPOINTS = [
     "GET /prices",
     "GET /profile/{con_id}",
     "GET /quotes",
+    "GET /risk",
     "GET /search",
     "GET /stats/{con_id}",
     "GET /summary/{con_id}",

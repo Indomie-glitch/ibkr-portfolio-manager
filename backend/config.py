@@ -93,3 +93,14 @@ def max_order_value():
     except ValueError:
         return 10000.0
     return value if value > 0 else 10000.0
+
+
+# ---------- risk analysis (Milestone 8) ----------
+
+def risk_free_rate():
+    """What cash earns in a year, for the Sharpe ratio and the example mixes: RISK_FREE_RATE in .env,
+    default 0.046 (the RBA cash rate target, 4.60% since 29 Sep 2026)."""
+    try:
+        return float(os.getenv("RISK_FREE_RATE", "0.046"))
+    except ValueError:
+        return 0.046
