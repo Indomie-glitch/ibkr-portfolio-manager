@@ -133,6 +133,7 @@ flowchart TB
         usage["usage_store.py<br/>tokens + cost of every<br/>Claude call (SQLite)"]
         rdata["risk_data.py<br/>daily closes (SQLite),<br/>AUD returns per window"]
         rmath["risk.py<br/>risk maths (numpy, pure)"]
+        rsec["risk_sections.py<br/>one function per<br/>Risk page section"]
     end
 
     main --> routers
@@ -145,7 +146,8 @@ flowchart TB
     r_trade --> trading & ib_core & web
     r_sum --> sfacts & pfacts & ai & pai & store & lots & web & usage
     r_sum -.->|reuses| r_pos
-    r_risk --> rdata & rmath & cache & ib_core
+    r_risk --> rdata & rsec & cache & ib_core
+    rsec --> rmath
     r_risk -.->|reuses| r_pos
     rdata --> yahoo & rmath
 

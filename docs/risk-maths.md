@@ -112,3 +112,67 @@ year, not 252%.
 What cash would have earned, used by the Sharpe ratio and the example mixes: `RISK_FREE_RATE` in
 `.env`, by default **4.60%** a year, the Reserve Bank of Australia's cash rate target since
 29 September 2026.
+
+## 2. Covariance and correlation: how holdings move together
+
+### Covariance
+
+The *covariance* of two holdings says whether they tend to be above their own average on the same
+days:
+
+$$\text{cov}(A, B) = \frac{1}{n-1} \sum_{t=1}^{n} (a_t - \bar a)(b_t - \bar b)$$
+
+- $a_t$, $b_t$: the two holdings' daily returns on day $t$
+- $\bar a$, $\bar b$: their average daily returns over the period
+- $n$: the number of days. Dividing by $n - 1$ rather than $n$ (the *sample* covariance) corrects for
+  the averages themselves being estimated from the same days.
+
+Positive means they usually move together, negative means they usually move in opposite directions.
+The covariance of a holding with itself is its *variance*, the square of its daily swing.
+
+Putting every pair in a table gives the **covariance matrix** $\Sigma$ (sigma): row $i$, column $j$ is
+$\text{cov}(i, j)$, and the diagonal holds each variance. It's the base for risk contribution (who
+causes the portfolio's swings), Value at Risk, the hidden factors and the example mixes, because the
+portfolio's variance for weights $w$ is $w^\top \Sigma w$ (section 4 explains it).
+
+### Correlation
+
+Covariance depends on how much each holding swings, so it's hard to read. The *correlation* divides
+that out, leaving a number from −1 to +1:
+
+$$\rho_{AB} = \frac{\text{cov}(A, B)}{\sigma_A \, \sigma_B}$$
+
+- $\sigma_A = \sqrt{\text{cov}(A, A)}$: holding A's daily standard deviation
+
+**+1** means they always move together in proportion, **0** means no straight-line relationship, and
+**−1** means they always move opposite. A holding whose price never moved has no correlation with
+anything and shows as 0.
+
+**Example.** Three days of returns: A = +2%, 0%, −2% and B = +1%, +1%, −2%. Both average 0%.
+
+- var(A) = (0.02² + 0² + 0.02²) ÷ 2 = 0.0004, so $\sigma_A$ = 2.0% a day
+- var(B) = (0.01² + 0.01² + 0.02²) ÷ 2 = 0.0003, so $\sigma_B$ = 1.73%
+- cov(A, B) = (0.02 × 0.01 + 0 × 0.01 + (−0.02) × (−0.02)) ÷ 2 = 0.0003
+- correlation = 0.0003 ÷ √(0.0004 × 0.0003) = 3 ÷ √12 = **+0.87**: they mostly move together.
+
+### Same direction share
+
+The hover text on the heatmap gives a plainer measure: the share of days both holdings moved the same
+way (both up or both down), counting only days on which both moved. In the example, A didn't move on
+day 2, so only days 1 and 3 count, and they moved the same way on both: **100%**. Two holdings with a
+correlation near 0 move the same way on about half the days.
+
+### The summary numbers
+
+- **Most related pair** and **least related pair**: the highest and lowest correlation of all pairs.
+- **Average correlation**: the mean over every pair (each pair counted once). Lower means the holdings
+  offset each other more, which steadies the portfolio.
+
+### Why ASX and US holdings look less related than they are
+
+The ASX closes at 4 pm Sydney time, before the US market opens. News that moves both markets on a US
+afternoon shows up in US prices that day but in Australian prices only the next day. Daily returns
+compare the same calendar day, so part of the shared movement lands on different days and the
+measured correlation between an Australian and a US holding comes out lower than the real
+relationship. Weekly returns would reduce this, but they leave far fewer data points in a 3-month or
+1-year window, so the app uses daily returns and notes the effect here.

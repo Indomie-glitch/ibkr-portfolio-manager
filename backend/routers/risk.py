@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 import config
 import risk_data
+import risk_sections
 import yahoo
 from cache import cached
 from ib_core import get_contract_info, require_ib
@@ -20,8 +21,8 @@ router = APIRouter()
 
 RESULT_TTL = 600  # seconds: prices are daily, so the maths needn't be redone on every refresh
 
-# name -> function(inputs) returning that section; later issues add theirs here
-SECTIONS = {}
+# name -> function(inputs) returning that section (risk_sections.py)
+SECTIONS = risk_sections.SECTIONS
 
 
 def market_of(contract, exchange):
