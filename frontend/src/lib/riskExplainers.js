@@ -91,6 +91,7 @@ export const EXPLAINERS = {
     title: 'Exposure',
     what: 'Where your money is: by currency, by country, and by industry.',
     consider: 'Holdings in other industries and in Australian dollars would make you less dependent on one area.',
+    yours: ({ section }) => exposureYours(section),
   },
   correlation: {
     title: 'Correlation',
@@ -218,4 +219,26 @@ export function concentrationYours({ holdings }) {
     return `${top.symbol} is ${money} of your money but causes only ${swings} of the swings, because it moves less than your other holdings or offsets them.`
   }
   return `${top.symbol} is ${money} of your money and causes about the same share of the swings (${swings}).`
+}
+
+// "68% is in US dollars, so … 68% is also in one industry, Technology."
+export function exposureYours({ currency, sector }) {
+  const usd = currency.find((c) => c.name === 'USD')?.share ?? 0
+  const parts = []
+  if (usd > 0) {
+    parts.push(
+      `${pct(usd, { decimals: 0 })} is in US dollars, so the exchange rate between the Australian and US dollar changes your returns even on days your US shares don’t move.`,
+    )
+  } else {
+    parts.push('All of it is in Australian dollars, so exchange rates don’t change your returns.')
+  }
+  const top = sector.find((s) => s.name !== 'Unknown')
+  if (top) {
+    parts.push(
+      top.share >= 0.4
+        ? `${pct(top.share, { decimals: 0 })} is in one industry, ${top.name}.`
+        : `Your largest industry is ${top.name}, at ${pct(top.share, { decimals: 0 })}.`,
+    )
+  }
+  return parts.join(' ')
 }

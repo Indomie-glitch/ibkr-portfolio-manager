@@ -4586,6 +4586,57 @@ button.ai-source:hover {
   font-weight: 700;
 }
 
+/* RSK 02: stacked bars with legends */
+.risk-split {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.risk-split .risk-bar-label {
+  margin: 0;
+}
+
+.risk-stacked {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+}
+
+.risk-stacked > span {
+  flex-basis: 0;
+  min-width: 3px;
+  border-radius: 3px;
+}
+
+.risk-split-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 11.5px;
+}
+
+.risk-split-legend > span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.risk-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.risk-split-name {
+  color: var(--text-2);
+}
+
+.risk-split-value {
+  font-family: var(--mono);
+  font-weight: 500;
+}
+
 /* RSK 04: holding 52 · market 30 · bar · volatility 52 · beta 44 · index 70 */
 .risk-vol-row {
   display: grid;

@@ -49,3 +49,19 @@ describe('concentration', () => {
     )
   })
 })
+
+describe('exposure', () => {
+  it('What yours means', async () => {
+    const { exposureYours } = await import('./riskExplainers.js')
+    const section = {
+      currency: [{ name: 'USD', share: 0.682 }, { name: 'AUD', share: 0.318 }],
+      sector: [{ name: 'Technology', share: 0.682 }, { name: 'Financials', share: 0.213 }],
+    }
+    expect(exposureYours(section)).toBe(
+      '68% is in US dollars, so the exchange rate between the Australian and US dollar changes your returns even on days your US shares don’t move. 68% is in one industry, Technology.',
+    )
+    expect(exposureYours({ currency: [{ name: 'AUD', share: 1 }], sector: [{ name: 'Unknown', share: 0.5 }, { name: 'Financials', share: 0.3 }] })).toBe(
+      'All of it is in Australian dollars, so exchange rates don’t change your returns. Your largest industry is Financials, at 30%.',
+    )
+  })
+})
