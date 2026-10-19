@@ -36,11 +36,12 @@ class BuildResponseTests(unittest.TestCase):
         self.assertNotIn("yahoo", response["holdings"][0])
 
     def test_a_failing_section_only_breaks_itself(self):
-        sections = {"good": lambda i: {"value": 1}, "bad": lambda i: 1 / 0}
+        sections = {"good": lambda i: {"value": 1}, "bad": lambda i: 1 / 0, "nan": lambda i: {"value": float("nan")}}
         with mock.patch.object(risk_routes, "SECTIONS", sections):
             response = risk_routes.build_response(inputs(), datetime(2026, 10, 19, 9, 0))
         self.assertEqual(response["good"], {"value": 1})
         self.assertEqual(response["bad"], {"error": "Couldn't calculate this section."})
+        self.assertEqual(response["nan"], {"error": "Couldn't calculate this section."})
 
 
 if __name__ == "__main__":

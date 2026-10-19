@@ -3,6 +3,8 @@
 The maths is in risk.py; this file only picks inputs and shapes the answer. A section that raises
 becomes {"error"} in the response (routers/risk.py), so one failure doesn't break the others.
 """
+import numpy as np
+
 import risk
 from portfolio_facts import CURRENCY_PCT, SECTOR_PCT, SINGLE_STOCK_PCT
 
@@ -53,7 +55,10 @@ def sector_name(holding):
 
 
 def _round(value, places=4):
-    return None if value is None else round(float(value), places)
+    """Rounded for the response; None for a missing or undefined number (NaN isn't valid JSON)."""
+    if value is None or not np.isfinite(value):
+        return None
+    return round(float(value), places)
 
 
 def volatility_section(inputs):
@@ -174,6 +179,49 @@ def currency_section(inputs):
     }
 
 
+# Short sector words for factor names: "US tech (Apple)"
+SECTOR_WORDS = {"Technology": "tech", "Financial Services": "financials", "Basic Materials": "materials",
+                "Communication Services": "communication", "Healthcare": "healthcare", "Energy": "energy"}
+FACTOR_INDEX_MIN = 0.5  # a factor is named after an index only if their returns correlate at least this much
+
+
+def factor_name(index_corr, top_holding):
+    """"Australian market", "US tech (Apple)" or "Mostly Apple"."""
+    market, strength = max(index_corr.items(), key=lambda item: abs(item[1] or 0))
+    name = top_holding["name"] or top_holding["symbol"]
+    if strength is not None and abs(strength) >= FACTOR_INDEX_MIN:
+        if market == "ASX":
+            return "Australian market"
+        word = SECTOR_WORDS.get(top_holding.get("sector"), "market")
+        return f"US {word} ({name})"
+    return f"Mostly {name}"
+
+
+def factors_section(inputs):
+    """The few shared patterns behind how the holdings move (#105): principal components of the
+    correlation matrix, each factor's share of the variance, the holdings' loadings on the first two,
+    and a name for each factor."""
+    n = len(inputs.holdings)
+    if n < 2:
+        return {"factors": [], "loadings": [], "top2_share": None, "count": n,
+                "note": "Hidden factors need at least two holdings."}
+    shares, loadings, factor_returns = risk.pca(inputs.returns)
+    factors = []
+    for k in range(n):
+        index_corr = {market: _round(np.corrcoef(factor_returns[:, k], inputs.benchmark_returns[market])[0, 1], 3)
+                      for market in ("ASX", "US")}
+        top = inputs.holdings[int(np.argmax(np.abs(loadings[:, k])))]
+        factors.append({"id": f"F{k + 1}", "share": _round(shares[k]), "name": factor_name(index_corr, top),
+                        "top_holding": top["symbol"], "index_correlation": index_corr})
+    return {
+        "factors": factors,
+        "loadings": [{"symbol": h["symbol"], "f1": _round(loadings[i, 0], 3), "f2": _round(loadings[i, 1], 3)}
+                     for i, h in enumerate(inputs.holdings)],
+        "top2_share": _round(shares[:2].sum()),
+        "count": n,
+    }
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
     "concentration": concentration_section,
@@ -181,4 +229,5 @@ SECTIONS = {
     "correlation": correlation_section,
     "volatility": volatility_section,
     "currency": currency_section,
+    "factors": factors_section,
 }

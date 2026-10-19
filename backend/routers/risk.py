@@ -3,6 +3,7 @@
 One answer holds every section of the page. Each section is calculated on its own (SECTIONS), so a
 section that fails becomes {"error": "..."} and only that panel says "unavailable".
 """
+import json
 from datetime import datetime
 from typing import Literal
 
@@ -103,6 +104,8 @@ def build_response(inputs, now):
     for name, section in SECTIONS.items():
         try:
             response[name] = section(inputs)
+            # NaN or infinity isn't valid JSON: the browser couldn't read any of the answer
+            json.dumps(response[name], allow_nan=False)
         except Exception as exc:
             print(f"Risk section {name} failed: {mask_secrets(exc)}")
             response[name] = {"error": "Couldn't calculate this section."}

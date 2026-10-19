@@ -334,3 +334,48 @@ holdings over the whole period.
 the Australian dollar twice in a row: $r^{FX}$ = 0.95 × 0.95 − 1 = **−9.75%**. In AUD the share
 returned 1.20 × 0.9025 − 1 = **+8.3%**. If it's worth A$10,830 today, at the old exchange rate it would
 be worth 10,830 ÷ 0.9025 = A$12,000, so the stronger Australian dollar cost **A$1,170**.
+
+## 6. Hidden factors (principal component analysis)
+
+Five holdings give ten pairwise correlations, which is a lot to take in. *Principal component analysis*
+(PCA) looks for a few shared patterns, called *factors*, that explain most of how the holdings move.
+If two factors explain 70%, the portfolio behaves mostly like two things, whatever the number of
+stocks.
+
+### How it's done
+
+1. **Standardise** each holding's daily returns: subtract its average and divide by its standard
+   deviation, so a calm stock and a wild one count equally. The covariance matrix of standardised
+   returns is the **correlation matrix** $R$ from section 2.
+2. **Eigen decomposition** of $R$: find the directions $v_k$ (*eigenvectors*) and numbers
+   $\lambda_k$ (*eigenvalues*) with
+   $$R \, v_k = \lambda_k v_k$$
+   Each eigenvector is a recipe mixing the holdings into one factor, and its eigenvalue is how much of
+   the total variation that factor captures. The eigenvalues of a correlation matrix add up to the
+   number of holdings $n$.
+3. **Explained share:** factor $k$ explains $\lambda_k / n$ of how the holdings move. The factors are
+   sorted from largest to smallest (F1, F2, …).
+4. **Loadings:** $v_k \sqrt{\lambda_k}$, each holding's correlation with factor $k$. A loading near 1
+   means the holding moves almost exactly with that factor; near 0, not at all; negative, against it.
+5. **Names:** each factor's daily returns (the standardised returns mixed by its eigenvector) are
+   compared with the ASX 200 and the S&P 500. If one of them correlates at least 0.5 with the
+   factor, the factor is named after it: "Australian market", or for the US the main holding's
+   industry and name, such as "US tech (Apple)". Otherwise it's named after the holding that loads on
+   it most: "Mostly Apple".
+
+An eigenvector and its negative describe the same pattern, so each factor's sign is chosen to make its
+loadings add up to a positive number.
+
+### Example
+
+Two holdings with correlation $\rho$ have $R$ = [[1, ρ], [ρ, 1]]. Its eigenvectors are
+(1, 1)/√2 (both moving together) and (1, −1)/√2 (one up, the other down), with eigenvalues
+$1 + \rho$ and $1 - \rho$.
+
+With $\rho$ = 0.87 (section 2's example), the first factor explains (1 + 0.87) ÷ 2 = **93%** of how the
+pair moves, and each loads √(1.87 ÷ 2) = **0.97** on it. The second factor, their differences, explains
+the remaining **7%**.
+
+With three holdings, two of which move identically and a third that moves on its own, $R$ =
+[[1, 1, 0], [1, 1, 0], [0, 0, 1]] has eigenvalues 2, 1 and 0. **Two factors explain 100%**: F1 (2/3)
+is the pair, with loadings 1, 1, 0, and F2 (1/3) is the third holding, with loadings 0, 0, 1.
