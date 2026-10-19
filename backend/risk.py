@@ -244,3 +244,26 @@ def pca(returns):
     shares = values / total if total > 0 else values
     loadings = vectors * np.sqrt(values)
     return shares, loadings, z @ vectors
+
+
+# ---------- Sharpe ratio and tracking error (#239) ----------
+
+def annual_return(returns):
+    """The yearly rate that compounds to the period's total return: (Π(1 + rₜ))^(252 / n) − 1."""
+    returns = np.asarray(returns, dtype=float)
+    growth = np.prod(1 + returns)
+    return float(growth ** (TRADING_DAYS / len(returns)) - 1)
+
+
+def sharpe_ratio(returns, risk_free_rate):
+    """(yearly return − risk-free rate) / yearly volatility. None when the series never moved."""
+    volatility = float(annual_volatility(returns))
+    if volatility == 0:
+        return None
+    return (annual_return(returns) - risk_free_rate) / volatility
+
+
+def tracking_error(returns, index_returns):
+    """How far returns drift from an index in a typical year: sd(r − index) × √252."""
+    difference = np.asarray(returns, dtype=float) - np.asarray(index_returns, dtype=float)
+    return float(annual_volatility(difference))

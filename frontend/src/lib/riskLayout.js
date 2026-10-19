@@ -42,9 +42,19 @@ export const TILE_ROWS = [
     },
   ],
   [
-    { id: 'sharpe', label: 'Sharpe ratio', caption: 'Return per unit of risk', explainer: 'sharpe', section: 'performance' },
-    { id: 'tracking_asx', label: 'Tracking error · ASX 200', caption: 'How far you drift from the ASX', explainer: 'tracking_error', section: 'performance' },
-    { id: 'tracking_us', label: 'Tracking error · S&P 500', caption: 'How far you drift from the S&P', explainer: 'tracking_error', section: 'performance' },
+    {
+      id: 'sharpe', label: 'Sharpe ratio', caption: 'Return per unit of risk', explainer: 'sharpe', section: 'performance',
+      value: (s) => ratio(s.portfolio.sharpe),
+      sub: (s) => `Return per unit of risk. ASX 200: ${ratio(s.benchmarks.ASX.sharpe)}`,
+    },
+    {
+      id: 'tracking_asx', label: 'Tracking error · ASX 200', caption: 'How far you drift from the ASX', explainer: 'tracking_asx', section: 'performance',
+      value: (s) => pct(s.tracking_error.ASX),
+    },
+    {
+      id: 'tracking_us', label: 'Tracking error · S&P 500', caption: 'How far you drift from the S&P', explainer: 'tracking_us', section: 'performance',
+      value: (s) => pct(s.tracking_error.US),
+    },
     { id: 'var_1d', label: 'Value at risk · 1 day', caption: '1 day in 20 loses more than this', explainer: 'var', section: 'var' },
     { id: 'liquidity', label: 'Liquidity', caption: 'Time to sell everything', explainer: 'liquidity', section: 'liquidity' },
   ],
