@@ -337,3 +337,36 @@ export function MenuCheckIcon({ size = 14 }) {
     </Icon>
   )
 }
+
+// Sidebar: Risk (Figma icon/risk, Risk / V5A)
+export function RiskIcon({ size = 16 }) {
+  return (
+    <Icon size={size} viewBox="0 0 16 16">
+      <path
+        d="M8 1.5L2.75 3.5V7.5C2.75 10.7 4.95 13.4 8 14.5C11.05 13.4 13.25 10.7 13.25 7.5V3.5L8 1.5Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path d="M8 5V8.5M8 10.6V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </Icon>
+  )
+}
+
+// The ⓘ on every Risk tile and panel (Figma icon/info in Info Button 102:581)
+export function RiskInfoIcon({ size = 18 }) {
+  return (
+    <Icon size={size} viewBox="0 0 18 18">
+      <path
+        d="M16.6 9C16.6 13.1974 13.1974 16.6 9 16.6C4.80264 16.6 1.4 13.1974 1.4 9C1.4 4.80264 4.80264 1.4 9 1.4C13.1974 1.4 16.6 4.80264 16.6 9Z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path d="M9 8V12.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path
+        d="M9 6.55C9.52467 6.55 9.95 6.12467 9.95 5.6C9.95 5.07533 9.52467 4.65 9 4.65C8.47533 4.65 8.05 5.07533 8.05 5.6C8.05 6.12467 8.47533 6.55 9 6.55Z"
+        fill="currentColor"
+      />
+    </Icon>
+  )
+}

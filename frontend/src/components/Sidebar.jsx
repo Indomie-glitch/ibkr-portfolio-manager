@@ -1,4 +1,4 @@
-import { GridIcon, ListIcon, OrdersIcon, SearchIcon } from './icons.jsx'
+import { GridIcon, ListIcon, OrdersIcon, RiskIcon, SearchIcon } from './icons.jsx'
 import { IN_APP } from '../lib/api.js'
 import AccountCard from './AccountCard.jsx'
 import SidebarWatchlists from './SidebarWatchlists.jsx'
@@ -73,6 +73,14 @@ function Sidebar({ page, onNavigate, watchlistId, onOpenWatchlist, onWatchlistDe
           onClick={() => onNavigate('orders')}
         >
           <OrdersIcon /> Orders
+        </button>
+        <button
+          type="button"
+          className={`sidebar-item ${page === 'risk' ? 'active' : ''}`}
+          aria-current={page === 'risk' ? 'page' : undefined}
+          onClick={() => onNavigate('risk')}
+        >
+          <RiskIcon /> Risk
         </button>
 
         <SidebarWatchlists
