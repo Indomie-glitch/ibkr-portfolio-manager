@@ -2,7 +2,7 @@
 calculated here in Python. The model only explains them and cites the blocks' ids: D:* for the
 portfolio and H:<con_id> for each holding.
 """
-from datetime import timedelta
+from datetime import date, timedelta
 
 from summary_facts import MINUS, as_of_text, change_pct, change_row, long_date, money, parse_money, pct
 
@@ -52,11 +52,12 @@ def month_move(closes, index_closes, beta):
     return move
 
 
-def build_portfolio_facts(account, holdings, now, missing=None, previous=None):
+def build_portfolio_facts(account, holdings, now, missing=None, previous=None, risk=None):
     """account: GET /account. holdings: one dict per position with position (GET /positions item),
     quote (GET /quotes item or None), sector, beta, closes, index_closes, benchmark (name),
     events [(date, label)] and dividends_12m (per share, position currency); missing data as None.
-    now: an aware datetime (the summary's time). previous: the last saved portfolio facts, or None."""
+    now: an aware datetime (the summary's time). previous: the last saved portfolio facts, or None.
+    risk: the GET /risk answer (1Y) for D:risk, or None if it couldn't be calculated."""
     today = now.date()
     base = account["currency"]
     rates = account.get("fx_rates") or {}
@@ -204,9 +205,70 @@ def build_portfolio_facts(account, holdings, now, missing=None, previous=None):
                        for r in sorted(paying, key=lambda r: -r["dividends"])],
     }
 
+    facts["D:risk"] = risk_block(risk)
+    if not facts["D:risk"]["available"]:
+        missing.append("Risk analysis: couldn't be calculated (daily prices unavailable)")
     facts["D:since_last"] = since_last(previous, facts)
     facts["D:missing"] = missing
     return facts
+
+
+def risk_block(risk):
+    """D:risk: the main findings of the Risk page (Milestone 8, #108) for the key risks section.
+    risk: the GET /risk answer; a section that failed there ({"error"}) is listed as unavailable."""
+    if not risk:
+        return {"available": False}
+    meta = risk["meta"]
+    ids = {h["symbol"]: holding_id(h["con_id"]) for h in risk.get("holdings", [])}
+    block = {
+        "available": True,
+        "basis": (f"Daily returns in AUD of today's holdings over the last {meta['period']} "
+                  f"({long_date(date.fromisoformat(meta['first_day']))} to {long_date(date.fromisoformat(meta['last_day']))}, "
+                  f"{meta['days_used']} trading days); cash left out; worked out from past prices, not forecasts"),
+        "currency": "AUD",
+    }
+    unavailable = []
+
+    def section(name):
+        value = risk.get(name)
+        if not value or "error" in value:
+            unavailable.append(name)
+            return None
+        return value
+
+    if vol := section("volatility"):
+        block["volatility_pct"] = pct(vol["portfolio"]["volatility"] * 100, 1)
+        if vol["benchmarks"]["ASX"]["volatility"] is not None:
+            block["asx_200_volatility_pct"] = pct(vol["benchmarks"]["ASX"]["volatility"] * 100, 1)
+        block["beta_vs_asx_200"] = pct(vol["portfolio"]["beta_asx"])
+        block["beta_vs_sp_500"] = pct(vol["portfolio"]["beta_us"])
+        dd = vol["max_drawdown"]
+        if dd["peak"]:
+            block["max_drawdown"] = {"fall_pct": pct(dd["fall"] * 100, 1),
+                                     "from": long_date(date.fromisoformat(dd["peak"])),
+                                     "to": long_date(date.fromisoformat(dd["trough"])),
+                                     "same_fall_on_todays_holdings": money(dd["loss_aud"], "AUD")}
+    if conc := section("concentration"):
+        block["effective_holdings"] = {"behaves_like": pct(conc["effective_holdings"], 1), "out_of": conc["count"]}
+        top = max((h for h in conc["holdings"] if h["risk_share"] is not None), key=lambda h: h["risk_share"], default=None)
+        if top:
+            block["largest_risk_contributor"] = {"holding": ids.get(top["symbol"], top["symbol"]),
+                                                 "share_of_money_pct": pct(top["weight"] * 100, 1),
+                                                 "share_of_risk_pct": pct(top["risk_share"] * 100, 1)}
+        block["warnings"] = [f"{w['name']} is {pct(w['share'] * 100, 1)}% of the holdings (above {pct(w['threshold'] * 100, 0):g}%)"
+                             for w in conc["warnings"]]
+    if var := section("var"):
+        day = var["levels"]["95"]["formula"]["day"]
+        block["value_at_risk_1_day_95"] = {"loss_exceeded_on_about_1_day_in_20": money(-day["aud"], "AUD")}
+    if stress := section("stress"):
+        worst = next((s for s in stress["scenarios"] if s["impact_aud"] is not None), None)
+        if worst:
+            block["worst_stress_test"] = {"scenario": worst["name"], "period_or_shock": worst["label"],
+                                          "impact": money(worst["impact_aud"], "AUD", signed=True),
+                                          "impact_pct": pct(worst["impact_pct"] * 100, 1)}
+    if unavailable:
+        block["unavailable"] = unavailable
+    return block
 
 
 def since_last(previous, facts):

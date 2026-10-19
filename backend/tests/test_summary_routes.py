@@ -174,6 +174,25 @@ class PortfolioSummaryRouteTests(RouteTestCase):
         self.assertIsNotNone(summary_store.latest_portfolio())
         self.assertEqual(self.usage(), [("portfolio_summary", "ok", 1000)])
 
+    def test_risk_findings_can_be_cited(self):
+        # D:risk (#108) is offered to the model as a source, and a key risk citing it is kept
+        seen = []
+        risk_point = {"text": "Volatility is 19.8% a year.", "sources": ["D:risk"]}
+
+        async def stream(facts, source_ids, client=None):
+            seen.extend(source_ids)
+            sections = {name: section(name) for name in portfolio_summary.SECTIONS}
+            sections["key_risks"] = {"status": "ok", "points": [risk_point, risk_point]}
+            for name in portfolio_summary.SECTIONS:
+                yield ("section", name, sections[name], [])
+            yield ("final", sections, [], USAGE)
+
+        facts = {**PORTFOLIO_FACTS, "D:risk": {"available": True, "volatility_pct": 19.8}}
+        got = self.run_route(stream, facts=facts)
+        self.assertIn("D:risk", seen)
+        self.assertEqual(got[-1][0], "done")
+        self.assertEqual(got[-1][1]["summary"]["key_risks"]["points"][0]["sources"], ["D:risk"])
+
     def test_no_holdings(self):
         facts = {**PORTFOLIO_FACTS, "D:portfolio": {"number_of_holdings": 0}}
         got = self.run_route(fake_stream(portfolio_summary.SECTIONS), facts=facts)

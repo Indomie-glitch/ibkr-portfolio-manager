@@ -56,8 +56,12 @@ Fill every section, in this order:
    value, from D:income, with its basis (past 12 months, future dividends may differ). 1-3 points.
 7. key_risks: 2-4 risks to this portfolio that follow directly from the facts: concentration in a
    stock, sector or currency, exposure to currency changes, events clustered together, holdings
-   with missing data. Never general market risk (interest rates, recessions) and never risks of a
-   single company's business.
+   with missing data, and the risk analysis in D:risk: volatility (against the ASX 200's), the betas,
+   effective holdings, the holding whose share of risk is far above its share of money (cite its
+   H: id too), the largest fall (max drawdown), the 1-day Value at Risk and the worst stress test.
+   Say once that D:risk comes from past prices of today's holdings (its basis), not a forecast.
+   Cite D:risk for those figures. If D:risk isn't available, use the other facts only. Never
+   general market risk (interest rates, recessions) and never risks of a single company's business.
 8. changes_since_last: what changed since the previous portfolio summary (its date is
    previous_summary), from D:since_last only. 1-4 points.
    - If this is the first portfolio summary, say so in one point.

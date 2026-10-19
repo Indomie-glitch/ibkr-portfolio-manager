@@ -45,6 +45,7 @@ const PORTFOLIO_SOURCES = {
   'D:concentration': { label: 'Concentration', target: 'allocation-card' },
   'D:events': { label: 'Upcoming events' },
   'D:income': { label: 'Dividends' },
+  'D:risk': { label: 'Risk analysis' },
   'D:since_last': { label: 'Previous summary' },
   'D:missing': { label: 'Missing data' },
 }

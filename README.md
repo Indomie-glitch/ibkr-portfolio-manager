@@ -43,7 +43,8 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Trading (paper or live account, in the browser and the Mac app): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders. See [Trading safety](#trading-safety)
 * Purchase dates and 12-month CGT discount dates per lot from an IBKR Flex Query ([setup](docs/flex-query.md)), shown in Your position and used in the AI summary (browser version; the Mac app can't take a Flex token yet)
 * Mac app that sets up and runs IB Gateway itself, with nothing secret stored
-* Risk page (in progress, Milestone 8): 3M / 1Y / 3Y periods, headline tiles and twelve panels, each with an ⓘ that explains the number in plain words using your own figures; worked out from daily closes in Australian dollars ([the maths](docs/risk-maths.md))
+* Risk page: 3M / 1Y / 3Y periods, ten headline figures (volatility, betas, effective holdings, max drawdown, Sharpe ratio, tracking error, Value at Risk, liquidity) and twelve panels (concentration, exposure, correlation heatmap, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution vs the ASX 200, example mixes and hedges, bankruptcy risk, liquidity), each with an ⓘ that explains the number in plain words using your own figures; worked out from daily closes in Australian dollars, with every formula explained in [docs/risk-maths.md](docs/risk-maths.md). It describes, never advises
+* The AI portfolio summary's key risks can cite the Risk page's findings
 
 ### Planned
 * Flex purchase dates in the Mac app's Settings (needs a design, #89), and entering purchase dates by hand
@@ -61,7 +62,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 5.2: AI portfolio summary** on the Overview page: 8 sections, citations to the facts and holdings, history and compare
 * [ ] **Milestone 6: Trade placement:** built; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
-* [ ] **Milestone 8: Risk analysis** (in progress): daily AUD returns pipeline, correlation, the Risk page with its explainers, volatility, beta and max drawdown, concentration, exposure, the currency effect, the correlation heatmap, the hidden factors (PCA), Sharpe ratio and tracking error, Value at Risk, stress tests, attribution, example mixes, bankruptcy risk (Altman Z) and liquidity done; risk flags in the AI portfolio summary next the other panels next ([the maths](docs/risk-maths.md))
+* [x] **Milestone 8: Risk analysis:** a Risk page with 10 headline figures and 12 panels (concentration, exposure, correlation, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution, example mixes, bankruptcy risk, liquidity), each explained in plain words with your own numbers, and the main findings in the AI portfolio summary ([the maths](docs/risk-maths.md))
 * [ ] **Milestone 9:** Company connections
 * [ ] **Milestone 10:** Supply chain graph foundation
 * [ ] **Milestone 11:** Extraction agents
