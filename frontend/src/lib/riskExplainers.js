@@ -66,6 +66,8 @@ export const EXPLAINERS = {
     title: 'Effective holdings',
     what: 'How many equally sized stocks your portfolio acts like.',
     consider: 'Spreading money more evenly raises this number: 5 equal holdings would score 5.',
+    value: ({ section }) => `${section.effective_holdings.toFixed(1)} of ${section.count}`,
+    yours: ({ section }) => effectiveHoldingsYours(section),
   },
   max_drawdown: {
     title: 'Biggest fall',
@@ -83,6 +85,7 @@ export const EXPLAINERS = {
     what: 'Each holding’s share of your money (blue) next to its share of your portfolio’s swings (amber).',
     consider:
       'When the amber bar is much longer than the blue one, that holding drives your results. Bringing the two closer usually means a smaller largest position or bigger others.',
+    yours: ({ section }) => concentrationYours(section),
   },
   exposure: {
     title: 'Exposure',
@@ -189,4 +192,30 @@ export function volatilityBetaYours(holdings) {
   text += ` ${listNames(calm.map((h) => h.symbol))} ${calmOne ? 'is the calmest' : 'are the calmest'}`
   text += calmWeight < 0.2 ? `, but ${calmOne ? 'it’s' : 'together they’re'} only ${share}.` : `, ${calmOne ? 'at' : 'together'} ${share}.`
   return text
+}
+
+// "You own 5 stocks, but they're so uneven that you behave like about 2. …"
+export function effectiveHoldingsYours({ effective_holdings: effective, count, largest }) {
+  const about = Math.max(1, Math.round(effective))
+  if (count === 1) return 'You own one stock, so everything depends on it.'
+  if (effective >= count * 0.8) return `Your money is spread fairly evenly across your ${count} stocks, so you behave like about ${about}.`
+  let text = `You own ${count} stocks, but they’re uneven enough that you behave like about ${about}.`
+  if (largest.weight > 0.5) text += ` A bad result for ${largest.symbol} moves most of your portfolio.`
+  return text
+}
+
+// "AAPL is 68% of your money but causes 92% of the swings, because …"
+export function concentrationYours({ holdings }) {
+  const top = holdings[0]
+  if (!top || top.risk_share == null) return null
+  const money = pct(top.weight, { decimals: 0 })
+  const swings = pct(top.risk_share, { decimals: 0 })
+  if (holdings.length === 1) return `${top.symbol} is all of your money, so it causes all of the swings.`
+  if (top.risk_share > top.weight + 0.02) {
+    return `${top.symbol} is ${money} of your money but causes ${swings} of the swings, because it moves more than your other holdings and they don’t offset it.`
+  }
+  if (top.risk_share < top.weight - 0.02) {
+    return `${top.symbol} is ${money} of your money but causes only ${swings} of the swings, because it moves less than your other holdings or offsets them.`
+  }
+  return `${top.symbol} is ${money} of your money and causes about the same share of the swings (${swings}).`
 }

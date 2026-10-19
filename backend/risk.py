@@ -167,3 +167,33 @@ def max_drawdown(returns):
         return 0.0, 0, 0
     peak = int(np.argmax(values[: trough + 1]))
     return float(falls[trough]), peak, trough
+
+
+# ---------- Concentration: share of money vs share of risk (#99) ----------
+
+def risk_contributions(weights, cov):
+    """Each holding's share of the portfolio's variance: wᵢ (Σw)ᵢ / (wᵀΣw). They add up to 1.
+
+    A share can be negative when a holding moves against the rest and steadies the portfolio.
+    """
+    w = np.asarray(weights, dtype=float)
+    cov = np.asarray(cov, dtype=float)
+    marginal = cov @ w
+    total = float(w @ marginal)
+    if total <= 0:
+        return np.full(len(w), np.nan)
+    return w * marginal / total
+
+
+def effective_holdings(weights):
+    """How many equal holdings the weights behave like: 1 / Σ wᵢ² (the inverse Herfindahl index)."""
+    w = np.asarray(weights, dtype=float)
+    return float(1 / np.sum(w ** 2))
+
+
+def shares_by(weights, labels):
+    """Total weight per label, largest first: [(label, share)]."""
+    totals = {}
+    for weight, label in zip(weights, labels):
+        totals[label] = totals.get(label, 0.0) + float(weight)
+    return sorted(totals.items(), key=lambda item: -item[1])

@@ -14,7 +14,7 @@ import risk_sections
 import yahoo
 from cache import cached
 from ib_core import get_contract_info, require_ib
-from routers.positions import positions
+from routers.positions import positions, yahoo_info
 from secrets_guard import mask_secrets
 
 router = APIRouter()
@@ -34,8 +34,19 @@ def market_of(contract, exchange):
     return None
 
 
+async def sector_of(symbol):
+    """The company's sector from its Yahoo profile (cached an hour), or None."""
+    if not symbol:
+        return None
+    try:
+        return (await yahoo_info(symbol)).get("sector")
+    except Exception as exc:
+        print(f"Risk: no sector for {symbol}: {mask_secrets(exc)}")
+        return None
+
+
 async def risk_holdings():
-    """Stock positions with what the risk maths needs (from IB)."""
+    """Stock positions with what the risk maths needs (from IB, and the sector from Yahoo)."""
     holdings = []
     for position in await positions():
         if position["sec_type"] != "STK":
@@ -47,6 +58,8 @@ async def risk_holdings():
             "yahoo": yahoo.yahoo_symbol(contract) if contract else None,
             "market_value": position["market_value"],
         })
+    for holding in holdings:
+        holding["sector"] = await sector_of(holding["yahoo"])
     return holdings
 
 
@@ -73,7 +86,7 @@ def build_response(inputs, now):
                                "so dividends are left out on that side") if fallback else None,
             "stale": inputs.stale,
         },
-        "holdings": [{k: h[k] for k in ("con_id", "symbol", "name", "market", "currency", "value_aud", "weight")}
+        "holdings": [{k: h.get(k) for k in ("con_id", "symbol", "name", "market", "currency", "sector", "value_aud", "weight")}
                      for h in inputs.holdings],
     }
     for name, section in SECTIONS.items():

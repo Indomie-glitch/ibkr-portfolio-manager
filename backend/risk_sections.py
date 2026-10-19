@@ -4,6 +4,7 @@ The maths is in risk.py; this file only picks inputs and shapes the answer. A se
 becomes {"error"} in the response (routers/risk.py), so one failure doesn't break the others.
 """
 import risk
+from portfolio_facts import CURRENCY_PCT, SECTOR_PCT, SINGLE_STOCK_PCT
 
 
 def _symbols(inputs):
@@ -83,8 +84,43 @@ def volatility_section(inputs):
     }
 
 
+def concentration_section(inputs):
+    """How much of the money sits in each stock next to how much of the swings it causes, the top 3,
+    the effective number of holdings, and warnings over the AI portfolio summary's thresholds (#99)."""
+    weights = inputs.weights
+    contributions = risk.risk_contributions(weights, risk.covariance(inputs.returns))
+    rows = sorted(
+        ({"symbol": h["symbol"], "weight": _round(w), "risk_share": _round(c) if c == c else None}  # c == c drops NaN
+         for h, w, c in zip(inputs.holdings, weights, contributions)),
+        key=lambda r: -r["weight"],
+    )
+    warnings = []
+
+    def warn(kind, name, share, threshold):
+        if share * 100 > threshold:
+            warnings.append({"kind": kind, "name": name, "share": _round(share), "threshold": threshold / 100})
+
+    for row in rows:
+        warn("stock", row["symbol"], row["weight"], SINGLE_STOCK_PCT)
+    for sector, share in risk.shares_by(weights, [h.get("sector") or "Unknown" for h in inputs.holdings]):
+        if sector != "Unknown":
+            warn("sector", sector, share, SECTOR_PCT)
+    for currency, share in risk.shares_by(weights, [h["currency"] for h in inputs.holdings]):
+        warn("currency", currency, share, CURRENCY_PCT)
+    return {
+        "holdings": rows,
+        "count": len(rows),
+        "top3_share": _round(sum(r["weight"] for r in rows[:3])),
+        "largest": rows[0],
+        "effective_holdings": _round(risk.effective_holdings(weights), 2),
+        "warnings": warnings,
+        "thresholds": {"stock": SINGLE_STOCK_PCT / 100, "sector": SECTOR_PCT / 100, "currency": CURRENCY_PCT / 100},
+    }
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
+    "concentration": concentration_section,
     "correlation": correlation_section,
     "volatility": volatility_section,
 }

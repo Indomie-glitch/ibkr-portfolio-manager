@@ -96,3 +96,8 @@ export function listNames(names) {
   if (names.length <= 1) return names.join('')
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
+
+// "AAPL is 68.2% of your holdings, over the 20% level"
+export function concentrationWarning(warning) {
+  return `${warning.name} is ${pct(warning.share)} of your holdings, over the ${pct(warning.threshold, { decimals: 0 })} level`
+}
