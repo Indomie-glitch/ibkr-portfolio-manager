@@ -346,6 +346,42 @@ def stress_section(inputs):
     return {"scenarios": known + [r for r in rows if r["impact_aud"] is None], "value_aud": round(total, 2)}
 
 
+def attribution_section(inputs):
+    """Why the holdings beat or trailed the ASX 200 over the window (#242): which market they're in
+    (allocation), which stocks within each market (selection), and the exchange rate (currency).
+
+    Each holding's return is compounded over the window and the segments use today's weights (a
+    single period), so the parts add up exactly to the difference."""
+    local = risk.compound(inputs.local_returns)
+    weights = inputs.weights
+
+    def segment(market):
+        idx = [i for i, h in enumerate(inputs.holdings) if h["market"] == market]
+        w = float(sum(weights[i] for i in idx))
+        r = float(sum(weights[i] * local[i] for i in idx) / w) if w else 0.0
+        return w, r
+
+    w_au, r_au = segment("ASX")
+    w_us, r_us = segment("US")
+    benchmark = float(risk.compound(inputs.benchmark_returns["ASX"]))
+    us_index = float(risk.compound(inputs.benchmark_returns["US"]))
+    fx = float(risk.compound(inputs.fx_returns))
+    portfolio, allocation, selection, currency, cross = risk.attribution(w_au, r_au, w_us, r_us, benchmark, us_index, fx)
+    return {
+        "portfolio_return": _round(portfolio),
+        "benchmark_return": _round(benchmark),
+        "difference": _round(portfolio - benchmark),
+        # The currency part includes the small cross term, so the three add up to the difference
+        "allocation": _round(allocation),
+        "selection": _round(selection),
+        "currency": _round(currency + cross),
+        "cross": _round(cross),
+        "us_weight": _round(w_us),
+        "us_index_return": _round(us_index),
+        "fx_return": _round(fx),
+    }
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
     "concentration": concentration_section,
@@ -357,4 +393,5 @@ SECTIONS = {
     "performance": performance_section,
     "var": var_section,
     "stress": stress_section,
+    "attribution": attribution_section,
 }

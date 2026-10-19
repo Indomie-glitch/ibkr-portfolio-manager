@@ -330,3 +330,26 @@ def period_return(closes, start, end, slack_days=START_SLACK_DAYS):
 def usd_in_aud_return(audusd_return):
     """The return of one US dollar in AUD when AUDUSD changed by audusd_return: 1 / (1 + r) − 1."""
     return 1 / (1 + audusd_return) - 1
+
+
+# ---------- Performance attribution vs the ASX 200 (#242) ----------
+
+def attribution(w_au, r_au, w_us, r_us, benchmark, us_index, fx):
+    """Why a portfolio of Australian and US shares beat or trailed the ASX 200 over a period.
+
+    w_au, w_us: the weights in each market (adding up to 1); r_au, r_us: those holdings' returns in
+    their own currency; benchmark: the ASX 200's return; us_index: the S&P 500's return in USD;
+    fx: the return of one US dollar in AUD.
+
+    Returns (portfolio return in AUD, allocation, selection, currency, cross) where
+    allocation + selection + currency + cross = portfolio return − benchmark exactly:
+    - allocation = w_us × (S&P 500 − ASX 200): being in the US market instead of Australia's
+    - selection = w_au × (r_au − ASX 200) + w_us × (r_us − S&P 500): the stocks picked within each market
+    - currency = w_us × fx, and cross = w_us × r_us × fx (the currency move on the US gains themselves)
+    """
+    portfolio = w_au * r_au + w_us * ((1 + r_us) * (1 + fx) - 1)
+    allocation = w_us * (us_index - benchmark)
+    selection = w_au * (r_au - benchmark) + w_us * (r_us - us_index)
+    currency = w_us * fx
+    cross = w_us * r_us * fx
+    return portfolio, allocation, selection, currency, cross

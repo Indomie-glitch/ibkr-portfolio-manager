@@ -4,6 +4,7 @@ import { formatCompactMoney } from '../lib/format.js'
 import { loadRisk } from '../lib/riskData.js'
 import { PANELS, TILE_ROWS } from '../lib/riskLayout.js'
 import { DEFAULT_PERIOD, PERIODS, asOfText, calculatedNote, extraNotes, leftOutNote } from '../lib/riskFormat.js'
+import AttributionPanel from '../components/risk/AttributionPanel.jsx'
 import ConcentrationPanel from '../components/risk/ConcentrationPanel.jsx'
 import CorrelationPanel from '../components/risk/CorrelationPanel.jsx'
 import CurrencyPanel from '../components/risk/CurrencyPanel.jsx'
@@ -21,6 +22,7 @@ const STALE_MS = 10 * 60_000
 
 // Each panel's body and right-hand label, added by the issue that builds it
 const BODIES = {
+  attribution: AttributionPanel,
   concentration: ConcentrationPanel,
   correlation: CorrelationPanel,
   currency: CurrencyPanel,
@@ -31,6 +33,7 @@ const BODIES = {
   volatility: VolatilityPanel,
 }
 const LABELS = {
+  attribution: (section, period) => `vs ASX 200 · ${period}`,
   concentration: () => 'Money vs risk',
   correlation: (section, period) => `${period} daily returns`,
   currency: (section, period) => (section.holdings[0] ? `${section.holdings[0].symbol} · ${period}` : period),

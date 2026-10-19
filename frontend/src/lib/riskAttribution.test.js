@@ -1,0 +1,19 @@
+import { describe, expect, it } from 'vitest'
+import { points } from './riskFormat.js'
+import { attributionYours } from './riskExplainers.js'
+
+describe('attribution', () => {
+  it('points', () => {
+    expect(points(0.139)).toBe('+13.9 pts')
+    expect(points(-0.018)).toBe('−1.8 pts')
+  })
+
+  it('What yours means, like the design', () => {
+    expect(attributionYours({ difference: 0.167, allocation: 0.139, selection: 0.046, currency: -0.018 })).toBe(
+      'You beat the ASX 200 by 16.7 points. 13.9 came from being in US shares rather than the local market, 4.6 from the stocks you picked and the exchange rate cost 1.8.',
+    )
+    expect(attributionYours({ difference: -0.05, allocation: 0, selection: -0.05, currency: 0 })).toBe(
+      'You trailed the ASX 200 by 5.0 points. The stocks you picked cost 5.0.',
+    )
+  })
+})

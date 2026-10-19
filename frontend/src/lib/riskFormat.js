@@ -209,3 +209,9 @@ export function severity(impactPct) {
   if (impactPct <= -0.1) return 'medium'
   return 'low'
 }
+
+// Percentage points: 0.139 -> "+13.9 pts"
+export function points(fraction, { signed = true } = {}) {
+  if (fraction == null) return '—'
+  return pct(fraction, { signed }).replace('%', ' pts')
+}

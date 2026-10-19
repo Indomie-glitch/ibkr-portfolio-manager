@@ -5029,6 +5029,56 @@ button.ai-source:hover {
   background: var(--risk-faint);
 }
 
+/* RSK 09: attribution */
+.risk-kpis.plain {
+  gap: 8px 24px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.risk-kpi-big {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.risk-kpi-big.gain {
+  color: var(--gain);
+}
+
+.risk-kpi-big.loss {
+  color: var(--loss);
+}
+
+.risk-kpi-big.amber {
+  color: var(--risk-amber);
+}
+
+.risk-attr-line {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.risk-attr-name {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.risk-attr-desc {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.risk-currency-row .risk-bar.full {
+  width: 100%;
+}
+
 /* RSK 04: holding 52 · market 30 · bar · volatility 52 · beta 44 · index 70 */
 .risk-vol-row {
   display: grid;

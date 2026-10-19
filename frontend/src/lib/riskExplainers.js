@@ -1,6 +1,8 @@
 import { formatCompactMoney, formatMoney } from './format.js'
 import { corr, listNames, pct, periodPhrase, ratio, shortDate, tenPercentMove } from './riskFormat.js'
 
+const pts = (v) => Math.abs(v * 100).toFixed(1)
+
 const money = (value) => formatMoney(value, 'AUD', { decimals: 0 })
 
 // "rise" or "fall" with the move a 10% fall in an index would give
@@ -157,6 +159,7 @@ export const EXPLAINERS = {
     title: 'Attribution',
     what: 'Why your returns differed from the ASX 200, split into choosing markets, picking stocks, and currency.',
     consider: 'If most of the difference comes from one choice, your results depend on that choice continuing to work.',
+    yours: ({ section }) => attributionYours(section),
   },
   mixes: {
     title: 'Optimisation and hedging',
@@ -349,4 +352,22 @@ export function stressYours({ scenarios }) {
     parts.push(`${text}.`)
   }
   return parts.join(' ') || null
+}
+
+// "You beat the ASX 200 by 16.7 points. Most of it (13.9) came from being in US shares rather than the
+// local market, 4.6 from the stocks you picked, and the exchange rate cost 1.8."
+export function attributionYours({ difference, allocation, selection, currency }) {
+  if (difference == null) return null
+  const verdict = difference >= 0 ? `You beat the ASX 200 by ${pts(difference)} points.` : `You trailed the ASX 200 by ${pts(difference)} points.`
+  const phrases = {
+    allocation: (v) => (v >= 0 ? `${pts(v)} came from being in US shares rather than the local market` : `being in US shares rather than the local market cost ${pts(v)}`),
+    selection: (v) => (v >= 0 ? `${pts(v)} from the stocks you picked` : `the stocks you picked cost ${pts(v)}`),
+    currency: (v) => (v >= 0 ? `the exchange rate added ${pts(v)}` : `the exchange rate cost ${pts(v)}`),
+  }
+  const parts = [['allocation', allocation], ['selection', selection], ['currency', currency]]
+    .filter(([, v]) => v != null && Math.abs(v) >= 0.0005)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+  if (!parts.length) return verdict
+  const text = parts.map(([key, v]) => phrases[key](v))
+  return `${verdict} ${text[0][0].toUpperCase()}${text[0].slice(1)}${text.length > 1 ? `, ${listNames(text.slice(1))}` : ''}.`
 }
