@@ -201,3 +201,11 @@ export function varPlainWords({ levels }, period) {
 function formatCompactLoss(aud) {
   return `A$${Math.round(Math.abs(aud)).toLocaleString('en-AU')}`
 }
+
+// A stress test's severity marker: high at a 20% loss or more, medium from 10%, low below
+export function severity(impactPct) {
+  if (impactPct == null || impactPct >= 0) return null
+  if (impactPct <= -0.2) return 'high'
+  if (impactPct <= -0.1) return 'medium'
+  return 'low'
+}

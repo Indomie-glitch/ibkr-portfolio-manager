@@ -101,6 +101,61 @@ async def update(symbol, today, fetch=yahoo.fetch_daily_closes, stale=None):
     return stored_closes(symbol)
 
 
+# ---------- Past crashes for the stress tests (#241) ----------
+
+# start: the close on or before it is the level before; end: the close on or before it is the low
+SCENARIOS = {
+    "gfc": {"name": "GFC 2008 replay", "label": "Sep 2008 to Mar 2009",
+            "start": date(2008, 8, 31), "end": date(2009, 3, 9)},
+    "covid": {"name": "COVID crash replay", "label": "19 Feb to 23 Mar 2020",
+              "start": date(2020, 2, 19), "end": date(2020, 3, 23)},
+    "tech2022": {"name": "2022 tech sell-off replay", "label": "Jan to Dec 2022",
+                 "start": date(2021, 12, 31), "end": date(2022, 12, 30)},
+}
+SCENARIO_FETCH = (date(2008, 8, 1), date(2023, 1, 10))  # one Yahoo call per symbol covers all three
+
+
+def _scenario_table(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS risk_scenarios (
+            symbol TEXT NOT NULL,
+            scenario TEXT NOT NULL,
+            ret REAL,  -- the symbol's return over the scenario; NULL if it had no prices then
+            PRIMARY KEY (symbol, scenario)
+        )""")
+
+
+async def scenario_returns(symbols, fetch=yahoo.fetch_daily_closes):
+    """{symbol: {scenario: return or None}} for the past crashes.
+
+    A return over a past period never changes (a later dividend adjustment scales both closes alike),
+    so each symbol is fetched once and kept. A symbol Yahoo has no prices for in those years is kept
+    as None; a failed call is left out and tried again next time.
+    """
+    result = {}
+    with _connect() as conn:
+        _scenario_table(conn)
+        for symbol, scenario, ret in conn.execute("SELECT symbol, scenario, ret FROM risk_scenarios"):
+            result.setdefault(symbol, {})[scenario] = ret
+    for symbol in symbols:
+        if symbol in result:
+            continue
+        try:
+            closes = dict(await fetch(symbol, *SCENARIO_FETCH))
+        except yahoo.YahooUnavailable:
+            closes = {}
+        except Exception as exc:
+            print(f"Stress test prices for {symbol} unavailable: {mask_secrets(exc)}")
+            continue
+        rets = {key: risk.period_return(closes, s["start"], s["end"]) for key, s in SCENARIOS.items()}
+        with _connect() as conn:
+            _scenario_table(conn)
+            conn.executemany("INSERT OR REPLACE INTO risk_scenarios (symbol, scenario, ret) VALUES (?, ?, ?)",
+                             [(symbol, key, ret) for key, ret in rets.items()])
+        result[symbol] = rets
+    return {symbol: result[symbol] for symbol in symbols if symbol in result}
+
+
 @dataclass
 class RiskInputs:
     """Everything the risk sections share, for one window."""
@@ -117,6 +172,7 @@ class RiskInputs:
     benchmarks: dict  # {"ASX": {symbol, short, total_return}, "US": ...}
     left_out: list = field(default_factory=list)  # [{con_id, symbol, reason}]
     cash_aud: float = None  # the account's cash in AUD (set by the route; not part of any weight)
+    scenarios: dict = field(default_factory=dict)  # scenario_returns() for the holdings, indexes and AUDUSD
     stale: list = field(default_factory=list)  # symbols whose update failed (older prices used)
 
     @property

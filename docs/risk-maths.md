@@ -472,3 +472,54 @@ the page refreshes.
 
 For one day it lands close to the formula (both assume normal returns); for a month, compounding
 21 days makes it slightly different.
+
+## 9. Stress tests
+
+A stress test asks: what would happen to the holdings I have **today** if a past crash, or a simple
+made-up shock, happened again? The impact is in A$ on today's holdings value, and the list is sorted
+worst first.
+
+### Replays of past crashes
+
+| Scenario | From the close on or before | To the close on or before |
+|---|---|---|
+| GFC 2008 | 31 Aug 2008 | 9 Mar 2009 (the US market's low) |
+| COVID crash | 19 Feb 2020 (the high) | 23 Mar 2020 (the low) |
+| 2022 tech sell-off | 31 Dec 2021 | 30 Dec 2022 |
+
+For each holding:
+
+1. **Its own return over the period** (dividend-adjusted), if it had prices then.
+2. Otherwise **its home index's return × its beta** (section 3), marked with * on the panel. A company
+   listed in 2015 can't have fallen in 2008, but a stock like it would have moved with its market.
+3. For US holdings, the AUD return adds the exchange rate over the same dates:
+   $(1 + r^{USD})(1 + r^{FX}) - 1$, with $r^{FX} = 1 / (1 + r_{AUDUSD}) - 1$.
+
+Then impact $= \sum_i V_i \times r_i$ with today's values $V_i$.
+
+In a crash the Australian dollar usually falls, which softens the loss on US shares for an Australian
+investor: in the GFC the AUDUSD rate fell about 26%, so a US dollar gained about 35% in AUD.
+
+**Example.** A$6,000 of BHP fell 50%: −A$3,000. A$4,000 of a US stock with no prices then, beta 1,
+while the S&P 500 fell 40%: −40% in US dollars. AUDUSD fell 25%, so a US dollar rose 1 ÷ 0.75 − 1 =
++33.3% in AUD, and the AUD return is 0.6 × 1.333 − 1 = −20%: −A$800. Total **−A$3,800**, 38% of
+A$10,000.
+
+The past returns are fetched once and kept: a dividend paid later lowers every earlier adjusted price
+by the same factor, so a return between two past dates never changes.
+
+### Shocks
+
+- **Largest holding falls 20%**: −20% × its value.
+- **S&P 500 falls 10%** / **ASX 200 falls 10%**: each holding in that market moves its beta × −10%;
+  holdings in the other market don't move. The label shows the beta this works out to for the whole
+  portfolio: impact ÷ (−10% × total).
+- **AUD rises 10% against the USD**: each US dollar is then worth 1 ÷ 1.1 of what it was in AUD, so US
+  holdings lose 1 − 1/1.1 = **9.09%** in AUD.
+
+**Example.** A$6,000 of BHP (beta 2) and A$4,000 of a US stock (beta 1). ASX 200 −10%: 6,000 × 2 ×
+−10% = **−A$1,200** (a whole-portfolio beta of 1.2). S&P 500 −10%: 4,000 × 1 × −10% = **−A$400**
+(0.4). AUD +10%: 4,000 × −9.09% = **−A$364**.
+
+The marker next to each percentage shows how big the hit is: red at 20% or more of the holdings, amber
+from 10%, grey below.

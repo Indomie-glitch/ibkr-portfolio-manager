@@ -304,3 +304,29 @@ def simulated_var(weights, cov, confidence, days=1, runs=SIMULATION_RUNS, seed=S
     daily = rng.multivariate_normal(np.zeros(len(w)), np.asarray(cov, dtype=float), size=(runs, days)) @ w
     totals = np.prod(1 + daily, axis=1) - 1
     return float(np.percentile(totals, (1 - confidence) * 100))
+
+
+# ---------- Stress tests (#241) ----------
+
+def period_return(closes, start, end, slack_days=START_SLACK_DAYS):
+    """The return from the last close on or before `start` to the last close on or before `end`.
+
+    closes: {date: close}. None when there's no close within slack_days before either date (the
+    series didn't exist then, or has a gap).
+    """
+    def close_at(day):
+        before = [d for d in closes if d <= day]
+        if not before:
+            return None
+        last = max(before)
+        return closes[last] if (day - last).days <= slack_days else None
+
+    first, last = close_at(start), close_at(end)
+    if first is None or last is None:
+        return None
+    return last / first - 1
+
+
+def usd_in_aud_return(audusd_return):
+    """The return of one US dollar in AUD when AUDUSD changed by audusd_return: 1 / (1 + r) − 1."""
+    return 1 / (1 + audusd_return) - 1

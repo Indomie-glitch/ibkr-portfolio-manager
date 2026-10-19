@@ -144,6 +144,7 @@ export const EXPLAINERS = {
     title: 'Stress tests',
     what: 'What would happen to what you own today if a past crash, or a made up shock, happened again.',
     consider: 'The scenarios that hurt most point to what your portfolio depends on.',
+    yours: ({ section }) => stressYours(section),
   },
   var: {
     title: 'Value at Risk',
@@ -329,4 +330,23 @@ export function varYours({ levels }) {
   const day99 = levels['99'].formula.day.aud
   const month95 = levels['95'].formula.month.aud
   return `On about 1 trading day in 20 you could lose more than ${money(-day95)}, and on 1 day in 100 more than ${money(-day99)}. Over a month, the 1 in 20 figure is about ${money(-month95)}.`
+}
+
+// "A repeat of 2008 would take about A$34,030 (47%). A 20% fall in Apple alone would cost about A$9,870, …"
+export function stressYours({ scenarios }) {
+  const byId = Object.fromEntries(scenarios.map((s) => [s.id, s]))
+  const worstReplay = scenarios.find((s) => s.kind === 'replay' && s.impact_aud != null)
+  const parts = []
+  if (worstReplay) {
+    const what = { gfc: 'A repeat of 2008', covid: 'A repeat of the 2020 COVID crash', tech2022: 'A repeat of 2022' }[worstReplay.id]
+    parts.push(`${what} would take about ${money(-worstReplay.impact_aud)} (${pct(-worstReplay.impact_pct, { decimals: 0 })}).`)
+  }
+  const largest = byId.largest
+  const sp = byId.index_us
+  if (largest) {
+    let text = `A 20% fall in ${largest.name.replace(/ falls 20%$/, '')} alone would cost about ${money(-largest.impact_aud)}`
+    if (sp && largest.impact_aud < sp.impact_aud) text += ', more than a 10% fall in the whole S&P 500'
+    parts.push(`${text}.`)
+  }
+  return parts.join(' ') || null
 }

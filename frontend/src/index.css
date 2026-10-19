@@ -4987,6 +4987,48 @@ button.ai-source:hover {
   margin: 0;
 }
 
+/* RSK 07: stress tests */
+.risk-stress-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1.4fr) minmax(90px, 1fr) minmax(80px, 100px) 64px;
+  gap: 10px;
+  align-items: center;
+}
+
+.risk-estimated {
+  margin-left: 2px;
+  color: var(--risk-amber);
+}
+
+.risk-stress-pct {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.risk-severity {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.risk-severity.high {
+  background: var(--pill-loss);
+}
+
+.risk-severity.medium {
+  background: var(--risk-key-on);
+}
+
+.risk-severity.low {
+  background: var(--risk-faint);
+}
+
 /* RSK 04: holding 52 · market 30 · bar · volatility 52 · beta 44 · index 70 */
 .risk-vol-row {
   display: grid;

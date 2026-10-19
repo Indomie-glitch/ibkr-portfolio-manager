@@ -7,6 +7,8 @@ import numpy as np
 
 import config
 import risk
+import risk_data
+import yahoo
 from portfolio_facts import CURRENCY_PCT, SECTOR_PCT, SINGLE_STOCK_PCT
 
 
@@ -267,6 +269,83 @@ def var_section(inputs):
             "month_days": risk.MONTH_DAYS}
 
 
+SHOCK = -0.10  # index falls and the AUD rise
+SINGLE_STOCK_SHOCK = -0.20
+
+
+def home_betas(inputs):
+    """Each holding's beta against its home index (own-currency returns); 1 when it can't be measured."""
+    betas = []
+    for i, holding in enumerate(inputs.holdings):
+        b = risk.beta(inputs.local_returns[:, i], inputs.benchmark_returns[holding["market"]])
+        betas.append(1.0 if b is None or not np.isfinite(b) else b)
+    return betas
+
+
+def _index_return(scenarios, market, scenario):
+    """A market's return over a past crash: its total return index, else its price index."""
+    choice = yahoo.RISK_BENCHMARKS[market]
+    for symbol in (choice["symbol"], choice["fallback"]):
+        ret = scenarios.get(symbol, {}).get(scenario)
+        if ret is not None:
+            return ret
+    return None
+
+
+def replay(inputs, betas, scenario):
+    """What today's holdings would have done over a past crash, in AUD: each holding's own return
+    then, or its home index × its beta if it had no prices then. (None, estimated) if not possible."""
+    scenarios = inputs.scenarios
+    audusd = scenarios.get(yahoo.AUDUSD, {}).get(scenario)
+    fx = None if audusd is None else risk.usd_in_aud_return(audusd)
+    impact, estimated = 0.0, []
+    for holding, b in zip(inputs.holdings, betas):
+        ret = scenarios.get(holding["yahoo"], {}).get(scenario)
+        if ret is None:
+            market_ret = _index_return(scenarios, holding["market"], scenario)
+            if market_ret is None:
+                return None, []
+            ret = b * market_ret
+            estimated.append(holding["symbol"])
+        if holding["currency"] == "USD":
+            if fx is None:
+                return None, []
+            ret = (1 + ret) * (1 + fx) - 1
+        impact += holding["value_aud"] * ret
+    return impact, estimated
+
+
+def stress_section(inputs):
+    """What today's holdings would lose in past crashes and simple shocks, worst first (#241)."""
+    total = sum(h["value_aud"] for h in inputs.holdings)
+    betas = home_betas(inputs)
+    rows = []
+
+    def row(kind, key, name, label, impact, **extra):
+        rows.append({"kind": kind, "id": key, "name": name, "label": label,
+                     "impact_aud": None if impact is None else round(impact, 2),
+                     "impact_pct": None if impact is None or not total else _round(impact / total), **extra})
+
+    for key, scenario in risk_data.SCENARIOS.items():
+        impact, estimated = replay(inputs, betas, key)
+        row("replay", key, scenario["name"], scenario["label"], impact, estimated=estimated)
+
+    largest = max(inputs.holdings, key=lambda h: h["value_aud"])
+    row("shock", "largest", f"{largest['name'] or largest['symbol']} falls 20%", "Custom",
+        SINGLE_STOCK_SHOCK * largest["value_aud"], symbol=largest["symbol"])
+    for market, name in (("US", "S&P 500"), ("ASX", "ASX 200")):
+        impact = sum(h["value_aud"] * b * SHOCK for h, b in zip(inputs.holdings, betas) if h["market"] == market)
+        # The beta of the whole portfolio this works out to, for the "Using your beta" label
+        implied = impact / (SHOCK * total) if total else None
+        row("shock", f"index_{market.lower()}", f"{name} falls 10%", f"Using your beta {implied:.2f}", impact,
+            implied_beta=_round(implied, 3))
+    usd = sum(h["value_aud"] for h in inputs.holdings if h["currency"] == "USD")
+    row("shock", "aud", "AUD rises 10% vs USD", "Currency", usd * (1 / 1.1 - 1))
+
+    known = sorted((r for r in rows if r["impact_aud"] is not None), key=lambda r: r["impact_aud"])
+    return {"scenarios": known + [r for r in rows if r["impact_aud"] is None], "value_aud": round(total, 2)}
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
     "concentration": concentration_section,
@@ -277,4 +356,5 @@ SECTIONS = {
     "factors": factors_section,
     "performance": performance_section,
     "var": var_section,
+    "stress": stress_section,
 }

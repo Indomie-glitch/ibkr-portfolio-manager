@@ -418,6 +418,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | News sentiment per article | `news_sentiment.sqlite` | 90 days |
 | Claude API usage: tokens and estimated cost per call | `usage.sqlite` | kept (`GET /usage` totals a month) |
 | Daily closes for the risk analysis (holdings, indexes, AUD/USD) | `risk_prices.sqlite` | about 3 years, updated once a day per symbol |
+| Returns over past crashes (2008, 2020, 2022) for the stress tests | `risk_prices.sqlite` (table `risk_scenarios`) | kept (fetched once per symbol) |
 | App settings (Gateway port, AI model, username) | `settings.json` | until changed |
 | Anthropic API key, Flex token | backend memory only (Mac app) or `.env` (dev) | until the app quits |
 | IBKR password | sent to Gateway once, never stored | not kept |

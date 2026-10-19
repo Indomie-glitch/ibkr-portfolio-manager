@@ -362,15 +362,16 @@ RISK_BENCHMARKS = {
 AUDUSD = "AUDUSD=X"  # US dollars per Australian dollar
 
 
-def _fetch_daily_closes(symbol, start):
+def _fetch_daily_closes(symbol, start, end=None):
     # auto_adjust folds dividends and splits into the prices, so a stock's returns are total returns
-    history = yf.Ticker(symbol).history(start=start.isoformat(), interval="1d", auto_adjust=True)
+    history = yf.Ticker(symbol).history(start=start.isoformat(), end=end.isoformat() if end else None,
+                                        interval="1d", auto_adjust=True)
     closes = history["Close"].dropna() if "Close" in history else None
     if closes is None or closes.empty:
         raise YahooUnavailable(f"Yahoo has no daily prices for {symbol}")
     return [(day.date(), float(v)) for day, v in closes.items() if v > 0]
 
 
-async def fetch_daily_closes(symbol, start):
-    """[(date, close)] from start to the latest close, dividend-adjusted."""
-    return await _run(_fetch_daily_closes, symbol, start)
+async def fetch_daily_closes(symbol, start, end=None):
+    """[(date, close)] from start to end (or the latest close), dividend-adjusted."""
+    return await _run(_fetch_daily_closes, symbol, start, end)
