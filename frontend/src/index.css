@@ -4094,6 +4094,10 @@ button.ai-source:hover {
 /* ---------- Risk page (Milestone 8, Figma Risk / V5A) ---------- */
 
 .risk-page {
+  /* The containing block for anything absolutely positioned inside (e.g. the screen-reader-only
+     table headings): without it they're placed against the whole document, below the scrolling
+     body, and the window itself scrolls, sidebar and all (#265) */
+  position: relative;
   container-type: inline-size;
   gap: 14px;
   padding-top: 16px;
