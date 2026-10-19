@@ -127,6 +127,13 @@ async def risk_overview(period: Literal["3M", "1Y", "3Y"] = "1Y"):
             inputs.cash_aud = cash_in_aud(await account())
         except Exception as exc:
             print(f"Risk: no cash figure: {mask_secrets(exc)}")
+        # Past crashes for the stress tests: fetched once per symbol, then kept
+        symbols = [h["yahoo"] for h in inputs.holdings] + [yahoo.AUDUSD] + [
+            s for b in yahoo.RISK_BENCHMARKS.values() for s in (b["symbol"], b["fallback"])]
+        try:
+            inputs.scenarios = await risk_data.scenario_returns(symbols)
+        except Exception as exc:
+            print(f"Risk: no stress test prices: {mask_secrets(exc)}")
         return build_response(inputs, now)
 
     try:
