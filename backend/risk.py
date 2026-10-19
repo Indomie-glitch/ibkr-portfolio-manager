@@ -213,3 +213,34 @@ def currency_effect_aud(value_aud, fx_return):
     currency effect: value_aud × r_fx / (1 + r_fx).
     """
     return value_aud * fx_return / (1 + fx_return)
+
+
+# ---------- Hidden factors: principal component analysis (#105) ----------
+
+def pca(returns):
+    """Principal components of the correlation matrix of daily returns.
+
+    Returns (shares, loadings, factor_returns):
+    - shares: each factor's share of the total variance, largest first (they add up to 1)
+    - loadings: rows = holdings, columns = factors: each holding's correlation with each factor
+      (eigenvector × √eigenvalue)
+    - factor_returns: rows = days, columns = factors: the standardised returns combined by each
+      eigenvector
+
+    Each factor's sign is chosen so its loadings add up to a positive number (an eigenvector and its
+    negative describe the same pattern).
+    """
+    returns = np.asarray(returns, dtype=float)
+    sd = returns.std(axis=0, ddof=1)
+    sd[sd == 0] = 1.0  # a holding that never moved stays at 0
+    z = (returns - returns.mean(axis=0)) / sd
+    values, vectors = np.linalg.eigh(correlation(returns))
+    order = np.argsort(values)[::-1]
+    values = np.clip(values[order], 0, None)
+    vectors = vectors[:, order]
+    signs = np.where(vectors.sum(axis=0) < 0, -1.0, 1.0)
+    vectors = vectors * signs
+    total = values.sum()
+    shares = values / total if total > 0 else values
+    loadings = vectors * np.sqrt(values)
+    return shares, loadings, z @ vectors
