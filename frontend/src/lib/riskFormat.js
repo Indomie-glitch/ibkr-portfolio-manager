@@ -167,3 +167,13 @@ export function pairTooltip(pair, period) {
   }
   return parts.join(' ')
 }
+
+const COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five']
+
+// "Two factors explain 68% of how your holdings move." (one factor when there are only two holdings,
+// since two factors would always explain all of it)
+export function factorsHeadline({ factors, count }) {
+  const used = count <= 2 ? 1 : 2
+  const share = factors.slice(0, used).reduce((sum, f) => sum + (f.share ?? 0), 0)
+  return `${COUNT_WORDS[used]} ${used === 1 ? 'factor explains' : 'factors explain'} ${pct(share, { decimals: 0 })} of how your holdings move.`
+}

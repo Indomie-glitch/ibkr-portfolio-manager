@@ -7,6 +7,7 @@ import ConcentrationPanel from '../components/risk/ConcentrationPanel.jsx'
 import CorrelationPanel from '../components/risk/CorrelationPanel.jsx'
 import CurrencyPanel from '../components/risk/CurrencyPanel.jsx'
 import ExposurePanel from '../components/risk/ExposurePanel.jsx'
+import FactorsPanel from '../components/risk/FactorsPanel.jsx'
 import RiskPanel from '../components/risk/RiskPanel.jsx'
 import RiskTile from '../components/risk/RiskTile.jsx'
 import VolatilityPanel from '../components/risk/VolatilityPanel.jsx'
@@ -21,6 +22,7 @@ const BODIES = {
   correlation: CorrelationPanel,
   currency: CurrencyPanel,
   exposure: ExposurePanel,
+  factors: FactorsPanel,
   volatility: VolatilityPanel,
 }
 const LABELS = {
@@ -28,6 +30,7 @@ const LABELS = {
   correlation: (section, period) => `${period} daily returns`,
   currency: (section, period) => (section.holdings[0] ? `${section.holdings[0].symbol} · ${period}` : period),
   exposure: () => '% of holdings',
+  factors: (section, period) => `PCA · ${period}`,
   volatility: () => 'Per holding',
 }
 
