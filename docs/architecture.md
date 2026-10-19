@@ -149,6 +149,7 @@ flowchart TB
     r_risk --> rdata & rsec & cache & ib_core
     rsec --> rmath
     r_risk -.->|reuses| r_pos
+    r_sum -.->|D:risk| r_risk
     rdata --> yahoo & rmath
 
     lots --> flex

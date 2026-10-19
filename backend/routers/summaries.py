@@ -18,6 +18,7 @@ from cache import cached
 from ib_core import get_bars, get_contract_info, require_ib
 from secrets_guard import mask_secrets
 from web import check_origin, sse
+from routers import risk as risk_routes
 from routers.positions import account, news_items, performance_data, positions, prices, quotes, yahoo_info
 
 router = APIRouter()
@@ -144,8 +145,14 @@ async def portfolio_facts_for():
         if position["sec_type"] == "STK":
             holdings.append(await holding_inputs(position, quote_by_id.get(position["con_id"]), today, missing))
     previous = summary_store.latest_portfolio()
+    # The Risk page's findings (1Y) for D:risk; without them the summary still works
+    try:
+        risk = await risk_routes.risk_overview(period="1Y")
+    except Exception as exc:
+        print(f"Portfolio facts: risk analysis unavailable: {mask_secrets(exc)}")
+        risk = None
     return portfolio_facts.build_portfolio_facts(await account(), holdings, now, missing,
-                                                 previous=previous["facts"] if previous else None)
+                                                 previous=previous["facts"] if previous else None, risk=risk)
 
 @router.get("/portfolio-summary/facts", dependencies=[Depends(require_ib)])
 async def portfolio_summary_facts():

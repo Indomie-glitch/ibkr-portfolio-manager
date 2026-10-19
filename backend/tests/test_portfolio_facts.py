@@ -98,10 +98,13 @@ class PortfolioFactsTest(unittest.TestCase):
         self.assertEqual([m["holding"] for m in moves], ["H:1"])
         self.assertEqual(moves[0]["benchmark_pct"], 0.0)
         self.assertEqual(moves[0]["rest_pct"], moves[0]["stock_pct"])
-        self.assertEqual(self.facts["D:missing"], ["BHP company data (Yahoo Finance unavailable)"])
+        # No risk analysis was given (setUp), so D:risk says so and D:missing lists it
+        self.assertEqual(self.facts["D:missing"], ["BHP company data (Yahoo Finance unavailable)",
+                                                   "Risk analysis: couldn't be calculated (daily prices unavailable)"])
+        self.assertEqual(self.facts["D:risk"], {"available": False})
         self.assertEqual(set(source_ids(self.facts)), {
             "H:1", "H:2", "H:3", "D:portfolio", "D:allocation", "D:pnl", "D:market_moves",
-            "D:concentration", "D:events", "D:income", "D:since_last", "D:missing"})
+            "D:concentration", "D:events", "D:income", "D:risk", "D:since_last", "D:missing"})
 
     def test_missing_exchange_rate_skips_holding(self):
         facts = build_portfolio_facts({**ACCOUNT, "fx_rates": {}}, HOLDINGS, NOW)

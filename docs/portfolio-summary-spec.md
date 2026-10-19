@@ -24,7 +24,7 @@ section by section, saved summaries with "what changed since last time".
 | 4 | `concentration` | The largest positions, the top three's share, and any single stock, sector or currency above the thresholds | `D:concentration` |
 | 5 | `upcoming_events` | Earnings and ex-dividend dates across holdings in the next 60 days, in date order | `D:events`, `H:*` |
 | 6 | `income` | Expected yearly dividends in total and by holding, and as a yield on today's value | `D:income`, `H:*` |
-| 7 | `key_risks` | Two to four portfolio-level risks that follow from the facts (concentration, currency exposure, events clustered together), never general market risk | any |
+| 7 | `key_risks` | Two to four portfolio-level risks that follow from the facts (concentration, currency exposure, events clustered together, and the Risk page's findings in `D:risk`), never general market risk | any, including `D:risk` |
 | 8 | `changes_since_last` | What changed since the previous portfolio summary: value, P&L, weights, holdings added or sold | `D:since_last` |
 
 Section 8 comes with summary history (#23); until then it says this is the first summary.
@@ -47,6 +47,13 @@ Section 8 comes with summary history (#23); until then it says this is the first
   the facts).
 - `D:events`: upcoming dated events across holdings (next 60 days).
 - `D:income`: expected yearly dividends per holding and in total, converted to base currency.
+- `D:risk` (#108): the Risk page's main findings over the last year (GET /risk?period=1Y, see
+  docs/risk-maths.md): volatility and the ASX 200's, betas vs the ASX 200 and S&P 500, effective
+  holdings, the largest risk contributor (H: id, share of money vs share of risk), max drawdown with
+  dates and the same fall on today's holdings, the 1-day 95% Value at Risk, the worst stress test, and
+  the concentration warnings, all in AUD with a basis line (past prices of today's holdings, not
+  forecasts). `{"available": false}` when the analysis couldn't run; sections that failed are listed
+  under `unavailable`.
 - `D:missing`: data that couldn't be loaded (e.g. Yahoo unavailable for one holding).
 
 ## API (#21)
