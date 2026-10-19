@@ -122,3 +122,48 @@ export function currencySentence(section, period) {
     ? `A weaker Australian dollar added to your US gains ${when}.`
     : `A weaker Australian dollar softened your US losses ${when}.`
 }
+
+// +0.48, −0.10, 1.00 for the diagonal
+export function corr(value, { signed = true } = {}) {
+  if (value == null) return '—'
+  const text = Math.abs(value).toFixed(2)
+  if (Number(text) === 0) return '0.00'
+  return `${value < 0 ? MINUS : signed ? '+' : ''}${text}`
+}
+
+// A heatmap cell's colour: amber for moving together, blue for opposite, stronger further from 0
+export function corrColour(value) {
+  // Opacity 10% at 0 up to 95% at ±1 (Figma RSK 03); color-mix works in older macOS web views too
+  const share = Math.round((0.1 + 0.85 * Math.min(1, Math.abs(value))) * 100)
+  return `color-mix(in srgb, var(${value < 0 ? '--accent' : '--risk-key-on'}) ${share}%, transparent)`
+}
+
+// How related a pair is, in words
+export function describePair(value) {
+  if (value <= -0.3) return 'Usually move in opposite directions'
+  if (value <= -0.1) return 'Tend to move in opposite directions'
+  if (value < 0.1) return 'Move almost independently'
+  if (value < 0.3) return 'Sometimes rise and fall together'
+  if (value < 0.6) return 'Often rise and fall on the same days'
+  return 'Usually rise and fall on the same days'
+}
+
+export function describeAverage(value) {
+  if (value < 0.3) return 'Your holdings mostly move independently'
+  if (value < 0.6) return 'Your holdings often move together'
+  return 'Your holdings mostly move together'
+}
+
+// The heatmap's hover text for a pair: "Moved the same way on 66% of days in the last year. When CBA
+// fell 2%, BHP tended to fall about 1%."
+export function pairTooltip(pair, period) {
+  const when = { '3M': 'in the last 3 months', '1Y': 'in the last year', '3Y': 'in the last 3 years' }[period] ?? ''
+  const parts = []
+  if (pair.same_direction != null) parts.push(`Moved the same way on ${pct(pair.same_direction, { decimals: 0 })} of days ${when}.`.replace(' .', '.'))
+  if (pair.b_per_a != null) {
+    const move = pair.b_per_a * 2
+    if (Math.abs(move) < 0.1) parts.push(`When ${pair.a} fell 2%, ${pair.b} barely moved.`)
+    else parts.push(`When ${pair.a} fell 2%, ${pair.b} tended to ${move > 0 ? 'fall' : 'rise'} about ${Math.abs(move).toFixed(Math.abs(move) < 1 ? 1 : 0)}%.`)
+  }
+  return parts.join(' ')
+}

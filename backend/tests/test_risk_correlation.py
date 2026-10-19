@@ -72,6 +72,9 @@ class CorrelationSectionTests(unittest.TestCase):
         self.assertEqual(section["most_related"]["b"], "BBB")
         self.assertEqual(section["least_related"]["correlation"], -1.0)  # AAA and CCC
         self.assertEqual(section["least_related"]["same_direction"], 0.0)
+        # B moved 0.0003 / 0.0004 = 0.75% for each 1% A moved; C exactly opposite
+        self.assertEqual(section["pairs"][0]["b_per_a"], 0.75)
+        self.assertEqual(section["least_related"]["b_per_a"], -1.0)
         # (0.866 − 1 − 0.866) / 3
         self.assertAlmostEqual(section["average"], -0.333, places=3)
 
