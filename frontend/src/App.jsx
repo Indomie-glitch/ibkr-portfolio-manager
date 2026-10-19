@@ -15,6 +15,8 @@ import OrderTicket from './components/OrderTicket.jsx'
 import Markets from './pages/Markets.jsx'
 import Orders from './pages/Orders.jsx'
 import Positions from './pages/Positions.jsx'
+import Risk from './pages/Risk.jsx'
+import { riskSubtitle } from './lib/riskFormat.js'
 import Watchlist from './pages/Watchlist.jsx'
 import { useWatchlists } from './lib/watchlists.js'
 import SettingsSheet from './components/SettingsSheet.jsx'
@@ -28,7 +30,7 @@ import { useLogin } from './hooks/useLogin.js'
 import { RefreshContext } from './hooks/useFetch.js'
 
 const AUTO_REFRESH_MS = 60_000
-const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', markets: 'Markets', orders: 'Orders' }
+const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', markets: 'Markets', orders: 'Orders', risk: 'Risk' }
 // /health is a cheap local request, so check it often to notice drops and recoveries quickly
 const HEALTH_CHECK_MS = 5_000
 
@@ -84,6 +86,8 @@ function App() {
   const [trading, setTrading] = useState(null)
   // The open order ticket: { stock, side, review (the preview being confirmed), nonce } or null
   const [ticket, setTicket] = useState(null)
+  // The Risk page's { meta, failed } (days used, last close), for its toolbar subtitle
+  const [riskState, setRiskState] = useState(null)
   // Only the newest request may update state, in case an older one finishes later
   const latestRequest = useRef(0)
   const [appearance, setAppearance] = useAppearance()
@@ -246,6 +250,11 @@ function App() {
   if (connection === 'stopped') subtitle = 'Not running'
   if (page === 'orders' && connected) subtitle = updated
   if (page === 'markets' && connected) subtitle = 'Search stocks on the ASX and US exchanges'
+  // The Risk page uses daily closes, not the delayed quotes
+  if (page === 'risk' && connected) {
+    const stocks = holdings.filter((h) => h.sec_type === 'STK').length
+    subtitle = riskSubtitle(riskState?.meta, stocks, riskState?.failed)
+  }
   if (page === 'watchlist' && watchlist && connected) {
     subtitle = `Watchlist · ${watchlist.stocks.length} ${watchlist.stocks.length === 1 ? 'stock' : 'stocks'}`
   }
@@ -399,6 +408,9 @@ function App() {
                 }
               />
             )}
+
+            {/* Daily prices come from Yahoo, but the holdings come from IB */}
+            {showData && connected && page === 'risk' && <Risk onMeta={setRiskState} />}
 
             {ticket && connected && (
               <>

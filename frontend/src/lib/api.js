@@ -189,6 +189,12 @@ export function fetchSummaryComparison(conId, a, b) {
   return getJson(`/summary/${conId}/compare?a=${a}&b=${b}`)
 }
 
+// Risk analysis (Milestone 8): every section for a period ('3M', '1Y', '3Y'). The first answer of
+// the day downloads daily prices from Yahoo, so it may take a while
+export function fetchRisk(period) {
+  return getJson(`/risk?period=${encodeURIComponent(period)}`, { timeoutMs: SLOW_TIMEOUT_MS })
+}
+
 // Start a new AI summary and call onEvent(name, data) for each Server-Sent Event the
 // backend streams: status, facts, section (one per finished section), done, error.
 // (EventSource can't send POST requests, so this reads the stream with fetch.)

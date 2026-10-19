@@ -43,6 +43,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Trading (paper or live account, in the browser and the Mac app): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders. See [Trading safety](#trading-safety)
 * Purchase dates and 12-month CGT discount dates per lot from an IBKR Flex Query ([setup](docs/flex-query.md)), shown in Your position and used in the AI summary (browser version; the Mac app can't take a Flex token yet)
 * Mac app that sets up and runs IB Gateway itself, with nothing secret stored
+* Risk page (in progress, Milestone 8): 3M / 1Y / 3Y periods, headline tiles and twelve panels, each with an ⓘ that explains the number in plain words using your own figures; worked out from daily closes in Australian dollars ([the maths](docs/risk-maths.md))
 
 ### Planned
 * Flex purchase dates in the Mac app's Settings (needs a design, #89), and entering purchase dates by hand
@@ -60,7 +61,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 5.2: AI portfolio summary** on the Overview page: 8 sections, citations to the facts and holdings, history and compare
 * [ ] **Milestone 6: Trade placement:** built; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
-* [ ] **Milestone 8: Risk analysis** (in progress): daily AUD returns pipeline and correlation done; Risk page and the other metrics next ([the maths](docs/risk-maths.md))
+* [ ] **Milestone 8: Risk analysis** (in progress): daily AUD returns pipeline, correlation and the Risk page with its explainers done; the metrics' panels next ([the maths](docs/risk-maths.md))
 * [ ] **Milestone 9:** Company connections
 * [ ] **Milestone 10:** Supply chain graph foundation
 * [ ] **Milestone 11:** Extraction agents
