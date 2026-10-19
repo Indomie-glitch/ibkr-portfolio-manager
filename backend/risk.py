@@ -267,3 +267,40 @@ def tracking_error(returns, index_returns):
     """How far returns drift from an index in a typical year: sd(r − index) × √252."""
     difference = np.asarray(returns, dtype=float) - np.asarray(index_returns, dtype=float)
     return float(annual_volatility(difference))
+
+
+# ---------- Value at Risk (#240) ----------
+
+Z_SCORES = {0.95: 1.645, 0.99: 2.326}  # one-sided normal quantiles
+MONTH_DAYS = 21
+SIMULATION_RUNS = 10_000
+SIMULATION_SEED = 2026  # fixed, so the simulated figures don't change between refreshes
+
+
+def parametric_var(weights, cov, confidence, days=1):
+    """Formula VaR as a return: −z × σₚ × √days, with σₚ = √(wᵀΣw) the daily portfolio volatility."""
+    w = np.asarray(weights, dtype=float)
+    sigma = float(np.sqrt(w @ np.asarray(cov, dtype=float) @ w))
+    return -Z_SCORES[confidence] * sigma * np.sqrt(days)
+
+
+def historical_var(portfolio_returns, confidence, days=1):
+    """VaR from what actually happened: the (1 − confidence) percentile of daily returns, or of every
+    overlapping run of `days` compounded returns."""
+    r = np.asarray(portfolio_returns, dtype=float)
+    if days > 1:
+        growth = np.cumprod(np.concatenate([[1.0], 1 + r]))
+        r = growth[days:] / growth[:-days] - 1
+    if len(r) == 0:
+        return None
+    return float(np.percentile(r, (1 - confidence) * 100))
+
+
+def simulated_var(weights, cov, confidence, days=1, runs=SIMULATION_RUNS, seed=SIMULATION_SEED):
+    """Monte Carlo VaR: `runs` random paths of `days` daily returns drawn from a multivariate normal
+    with covariance Σ (mean 0), compounded, and the (1 − confidence) percentile of the results."""
+    w = np.asarray(weights, dtype=float)
+    rng = np.random.default_rng(seed)
+    daily = rng.multivariate_normal(np.zeros(len(w)), np.asarray(cov, dtype=float), size=(runs, days)) @ w
+    totals = np.prod(1 + daily, axis=1) - 1
+    return float(np.percentile(totals, (1 - confidence) * 100))

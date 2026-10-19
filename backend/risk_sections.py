@@ -243,6 +243,30 @@ def performance_section(inputs):
     }
 
 
+def var_section(inputs):
+    """Value at Risk (#240): the loss on today's holdings that only the worst 1 day in 20 (95%) or 1 in
+    100 (99%) should exceed, for 1 day and 1 month (21 trading days), worked out three ways."""
+    value = sum(h["value_aud"] for h in inputs.holdings)
+    cov = risk.covariance(inputs.returns)
+    portfolio = risk.portfolio_returns(inputs.returns, inputs.weights)
+
+    def entry(ret):
+        return None if ret is None else {"return": _round(ret, 5), "aud": round(float(ret * value), 2)}
+
+    levels = {}
+    for confidence in (0.95, 0.99):
+        levels[f"{round(confidence * 100)}"] = {
+            "formula": {"day": entry(risk.parametric_var(inputs.weights, cov, confidence)),
+                        "month": entry(risk.parametric_var(inputs.weights, cov, confidence, risk.MONTH_DAYS))},
+            "history": {"day": entry(risk.historical_var(portfolio, confidence)),
+                        "month": entry(risk.historical_var(portfolio, confidence, risk.MONTH_DAYS))},
+            "simulated": {"day": entry(risk.simulated_var(inputs.weights, cov, confidence)),
+                          "month": entry(risk.simulated_var(inputs.weights, cov, confidence, risk.MONTH_DAYS))},
+        }
+    return {"value_aud": round(value, 2), "levels": levels, "runs": risk.SIMULATION_RUNS,
+            "month_days": risk.MONTH_DAYS}
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
     "concentration": concentration_section,
@@ -252,4 +276,5 @@ SECTIONS = {
     "currency": currency_section,
     "factors": factors_section,
     "performance": performance_section,
+    "var": var_section,
 }

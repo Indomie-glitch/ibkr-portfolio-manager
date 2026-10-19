@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { RefreshContext, useFetch } from '../hooks/useFetch.js'
+import { formatCompactMoney } from '../lib/format.js'
 import { loadRisk } from '../lib/riskData.js'
 import { PANELS, TILE_ROWS } from '../lib/riskLayout.js'
 import { DEFAULT_PERIOD, PERIODS, asOfText, calculatedNote, extraNotes, leftOutNote } from '../lib/riskFormat.js'
@@ -10,6 +11,7 @@ import ExposurePanel from '../components/risk/ExposurePanel.jsx'
 import FactorsPanel from '../components/risk/FactorsPanel.jsx'
 import RiskPanel from '../components/risk/RiskPanel.jsx'
 import RiskTile from '../components/risk/RiskTile.jsx'
+import VarPanel from '../components/risk/VarPanel.jsx'
 import VolatilityPanel from '../components/risk/VolatilityPanel.jsx'
 
 const PERIOD_KEY = 'riskPeriod'
@@ -23,6 +25,7 @@ const BODIES = {
   currency: CurrencyPanel,
   exposure: ExposurePanel,
   factors: FactorsPanel,
+  var: VarPanel,
   volatility: VolatilityPanel,
 }
 const LABELS = {
@@ -31,6 +34,7 @@ const LABELS = {
   currency: (section, period) => (section.holdings[0] ? `${section.holdings[0].symbol} · ${period}` : period),
   exposure: () => '% of holdings',
   factors: (section, period) => `PCA · ${period}`,
+  var: (section) => `${formatCompactMoney(section.value_aud, 'AUD')} holdings`,
   volatility: () => 'Per holding',
 }
 
