@@ -353,3 +353,55 @@ def attribution(w_au, r_au, w_us, r_us, benchmark, us_index, fx):
     currency = w_us * fx
     cross = w_us * r_us * fx
     return portfolio, allocation, selection, currency, cross
+
+
+# ---------- Example mixes and hedges (#243) ----------
+
+def cap_weights(weights, cap):
+    """Weights with none above `cap`: the excess is spread over the others in proportion to their
+    weights, repeated until nothing is over. None if it can't be done (cap × n < 1)."""
+    w = np.asarray(weights, dtype=float).copy()
+    if cap * len(w) < 1 - 1e-12:
+        return None
+    for _ in range(len(w)):
+        over = w > cap + 1e-12
+        if not over.any():
+            break
+        excess = float((w[over] - cap).sum())
+        w[over] = cap
+        under = ~over & (w < cap)
+        base = w[under].sum()
+        if base > 0:
+            w[under] += excess * w[under] / base
+        else:
+            w[under] += excess / under.sum()
+    return w
+
+
+def project_to_simplex(v):
+    """The nearest point to v with every weight ≥ 0 and the weights adding up to 1 (Duchi et al. 2008)."""
+    v = np.asarray(v, dtype=float)
+    u = np.sort(v)[::-1]
+    cumulative = np.cumsum(u) - 1
+    k = np.arange(1, len(v) + 1)
+    rho = np.nonzero(u - cumulative / k > 0)[0][-1]
+    theta = cumulative[rho] / (rho + 1)
+    return np.maximum(v - theta, 0)
+
+
+def min_variance_weights(cov, iterations=5000, tolerance=1e-12):
+    """The long-only mix (weights 0 to 1, adding up to 1) with the lowest variance wᵀΣw, found by
+    projected gradient descent: step downhill, then project back onto the allowed weights."""
+    cov = np.asarray(cov, dtype=float)
+    n = len(cov)
+    w = np.full(n, 1 / n)
+    largest = float(np.linalg.eigvalsh(cov).max())
+    if largest <= 0:
+        return w
+    step = 1 / (2 * largest)  # small enough for the gradient 2Σw never to overshoot
+    for _ in range(iterations):
+        new = project_to_simplex(w - step * 2 * cov @ w)
+        if np.abs(new - w).max() < tolerance:
+            return new
+        w = new
+    return w
