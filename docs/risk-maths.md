@@ -304,3 +304,33 @@ A warning shows when one stock is over **20%** of the holdings, one sector over 
 currency over **80%**. These are the same levels the AI portfolio summary uses (`portfolio_facts.py`),
 so the two always flag the same things. Sectors come from each company's Yahoo profile; holdings
 without one aren't counted towards any sector.
+
+## 5. Currency effect on US holdings
+
+A US share earns you two things at once in Australian dollars: its price change in US dollars, and the
+change in what a US dollar is worth in AUD (section 1). Over a whole period each compounds day by day:
+
+$$r^{USD} = \prod_t (1 + r^{USD}_t) - 1, \qquad r^{FX} = \prod_t (1 + r^{FX}_t) - 1$$
+
+and they combine the same way as on a single day:
+
+$$1 + r^{AUD} = (1 + r^{USD})(1 + r^{FX})$$
+
+*Compounding* means each day's return applies to the value after the day before: +10% then −10% is
+1.1 × 0.9 − 1 = **−1%**, not 0%.
+
+### In dollars
+
+The currency effect in A$ answers: how much more (or less) are my US holdings worth today than they
+would be if the exchange rate hadn't moved over the period? At the old rate, today's value $V$ would be
+$V / (1 + r^{FX})$, so:
+
+$$\text{effect} = V - \frac{V}{1 + r^{FX}} = V \times \frac{r^{FX}}{1 + r^{FX}}$$
+
+The panel's total adds this up over every US holding. Like the other figures, it uses today's
+holdings over the whole period.
+
+**Example.** A US share rose **+20%** in US dollars over the year, while a US dollar lost 5% against
+the Australian dollar twice in a row: $r^{FX}$ = 0.95 × 0.95 − 1 = **−9.75%**. In AUD the share
+returned 1.20 × 0.9025 − 1 = **+8.3%**. If it's worth A$10,830 today, at the old exchange rate it would
+be worth 10,830 ÷ 0.9025 = A$12,000, so the stronger Australian dollar cost **A$1,170**.

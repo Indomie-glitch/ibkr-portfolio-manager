@@ -1,5 +1,5 @@
 import { formatCompactMoney, formatMoney } from './format.js'
-import { listNames, pct, ratio, shortDate, tenPercentMove } from './riskFormat.js'
+import { listNames, pct, periodPhrase, ratio, shortDate, tenPercentMove } from './riskFormat.js'
 
 const money = (value) => formatMoney(value, 'AUD', { decimals: 0 })
 
@@ -109,6 +109,8 @@ export const EXPLAINERS = {
     what: 'For a US stock, how much of your return in AUD came from the share price and how much from the exchange rate.',
     consider:
       'Currency can just as easily help next year. Some investors avoid this with currency hedged funds; most accept it as part of owning US shares.',
+    value: ({ section }) => (section.holdings.length ? formatMoney(section.total_effect_aud, 'AUD', { decimals: 0, signed: true }) : null),
+    yours: ({ section, meta }) => currencyYours(section, meta?.period),
   },
   factors: {
     title: 'Hidden factors',
@@ -241,4 +243,17 @@ export function exposureYours({ currency, sector }) {
     )
   }
   return parts.join(' ')
+}
+
+// "Apple rose 39.3% in US dollars, but the Australian dollar strengthened, so in AUD you got 31.8%. …"
+export function currencyYours(section, period) {
+  const top = section.holdings[0]
+  if (!top) return 'You have no US holdings, so exchange rates don’t change your returns.'
+  const moved = top.price_return >= 0 ? `rose ${pct(top.price_return)}` : `fell ${pct(-top.price_return)}`
+  const aud = section.fx_return < 0 ? 'strengthened' : 'weakened'
+  const but = (top.price_return >= 0) === (section.fx_return < 0) ? 'but' : 'and'
+  const got = top.aud_return >= 0 ? `you got ${pct(top.aud_return)}` : `it fell ${pct(-top.aud_return)}`
+  const effect = section.total_effect_aud
+  const cost = effect < 0 ? `cost you about ${money(-effect)}` : `added about ${money(effect)}`
+  return `${top.name} ${moved} in US dollars, ${but} the Australian dollar ${aud}, so in AUD ${got}. The exchange rate ${cost} ${periodPhrase(period)}.`
 }

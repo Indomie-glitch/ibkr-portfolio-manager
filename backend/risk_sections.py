@@ -149,10 +149,34 @@ def exposure_section(inputs):
     }
 
 
+def currency_section(inputs):
+    """For each US holding over the window: its price return in USD, the AUD/USD effect and the return
+    in AUD, where 1 + AUD return = (1 + USD return)(1 + FX return); and the portfolio's total currency
+    effect in A$ (#101)."""
+    fx = float(risk.compound(inputs.fx_returns))
+    rows = []
+    for i, holding in enumerate(inputs.holdings):
+        if holding["currency"] != "USD":
+            continue
+        price = float(risk.compound(inputs.local_returns[:, i]))
+        rows.append({
+            "symbol": holding["symbol"], "name": holding["name"], "value_aud": round(holding["value_aud"], 2),
+            "price_return": _round(price), "fx_return": _round(fx), "aud_return": _round((1 + price) * (1 + fx) - 1),
+            "effect_aud": round(risk.currency_effect_aud(holding["value_aud"], fx), 2),
+        })
+    rows.sort(key=lambda r: -r["value_aud"])
+    return {
+        "holdings": rows,
+        "fx_return": _round(fx),
+        "total_effect_aud": round(sum(r["effect_aud"] for r in rows), 2),
+    }
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
     "concentration": concentration_section,
     "exposure": exposure_section,
     "correlation": correlation_section,
     "volatility": volatility_section,
+    "currency": currency_section,
 }
