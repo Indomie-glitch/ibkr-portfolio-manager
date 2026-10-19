@@ -349,3 +349,28 @@ def _fetch_index_intraday(index_symbol):
 async def fetch_index_intraday(index_symbol):
     """[(bar start time with time zone, close)] in 5-minute bars, about the last month."""
     return await _run(_fetch_index_intraday, index_symbol)
+
+
+# ---------- Daily closes for the risk analysis (Milestone 8) ----------
+
+# Total return indexes for comparisons with the market (dividends on both sides); the price
+# indexes are the fallback when Yahoo has no total return series
+RISK_BENCHMARKS = {
+    "ASX": {"symbol": "^AXJT", "fallback": "^AXJO", "short": "ASX 200"},
+    "US": {"symbol": "^SP500TR", "fallback": "^GSPC", "short": "S&P 500"},
+}
+AUDUSD = "AUDUSD=X"  # US dollars per Australian dollar
+
+
+def _fetch_daily_closes(symbol, start):
+    # auto_adjust folds dividends and splits into the prices, so a stock's returns are total returns
+    history = yf.Ticker(symbol).history(start=start.isoformat(), interval="1d", auto_adjust=True)
+    closes = history["Close"].dropna() if "Close" in history else None
+    if closes is None or closes.empty:
+        raise YahooUnavailable(f"Yahoo has no daily prices for {symbol}")
+    return [(day.date(), float(v)) for day, v in closes.items() if v > 0]
+
+
+async def fetch_daily_closes(symbol, start):
+    """[(date, close)] from start to the latest close, dividend-adjusted."""
+    return await _run(_fetch_daily_closes, symbol, start)

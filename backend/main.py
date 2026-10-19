@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import config  # first: loads .env before other modules read settings
 import lots
 from ib_core import NOT_CONNECTED, ib, keep_connected
-from routers import app as app_routes, flex, positions, summaries, trading
+from routers import app as app_routes, flex, positions, risk, summaries, trading
 from web import ALLOWED_ORIGINS, end_streams_on_stop
 
 @asynccontextmanager
@@ -57,5 +57,5 @@ app.add_middleware(PathCORS)
 async def connection_error(request: Request, exc: ConnectionError):
     return JSONResponse(status_code=503, content={"detail": NOT_CONNECTED})
 
-for routes in (app_routes, positions, flex, summaries, trading):
+for routes in (app_routes, positions, flex, summaries, trading, risk):
     app.include_router(routes.router)

@@ -64,7 +64,7 @@ flowchart TB
     end
 
     gw["IB Gateway<br/>(installed separately,<br/>port 4012)"]
-    disk[("Application Support/<br/>settings.json, lots.sqlite,<br/>summaries.sqlite, news_sentiment.sqlite,<br/>usage.sqlite, gateway/")]
+    disk[("Application Support/<br/>settings.json, lots.sqlite,<br/>summaries.sqlite, news_sentiment.sqlite,<br/>usage.sqlite, risk_prices.sqlite, gateway/")]
 
     shell -->|"opens window, injects<br/>backend URL + token"| ui
     ui -->|"Tauri commands<br/>(sign_in, set_api_key, ...)"| shell
@@ -106,6 +106,7 @@ flowchart TB
         r_flex["flex.py<br/>/lots/status /lots/{id}"]
         r_sum["summaries.py<br/>/summary/... /portfolio-summary/...<br/>/usage"]
         r_trade["trading.py<br/>/trading/status /orders<br/>/orders/preview /stream<br/>cancel, modify"]
+        r_risk["risk.py<br/>/risk"]
     end
 
     subgraph core["Shared"]
@@ -130,6 +131,8 @@ flowchart TB
         store["summary_store.py<br/>saved summaries (SQLite)"]
         senti["news_sentiment.py<br/>news good/bad + strength,<br/>saved per article (SQLite)"]
         usage["usage_store.py<br/>tokens + cost of every<br/>Claude call (SQLite)"]
+        rdata["risk_data.py<br/>daily closes (SQLite),<br/>AUD returns per window"]
+        rmath["risk.py<br/>risk maths (numpy, pure)"]
     end
 
     main --> routers
@@ -142,6 +145,9 @@ flowchart TB
     r_trade --> trading & ib_core & web
     r_sum --> sfacts & pfacts & ai & pai & store & lots & web & usage
     r_sum -.->|reuses| r_pos
+    r_risk --> rdata & rmath & cache & ib_core
+    r_risk -.->|reuses| r_pos
+    rdata --> yahoo & rmath
 
     lots --> flex
     sfacts --> yahoo
@@ -404,6 +410,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | Saved AI summaries | `summaries.sqlite` | last 20 per stock, last 20 portfolio |
 | News sentiment per article | `news_sentiment.sqlite` | 90 days |
 | Claude API usage: tokens and estimated cost per call | `usage.sqlite` | kept (`GET /usage` totals a month) |
+| Daily closes for the risk analysis (holdings, indexes, AUD/USD) | `risk_prices.sqlite` | about 3 years, updated once a day per symbol |
 | App settings (Gateway port, AI model, username) | `settings.json` | until changed |
 | Anthropic API key, Flex token | backend memory only (Mac app) or `.env` (dev) | until the app quits |
 | IBKR password | sent to Gateway once, never stored | not kept |
