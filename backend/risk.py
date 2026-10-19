@@ -441,3 +441,18 @@ def altman_zone(score):
     if score >= Z_DISTRESS:
         return "grey"
     return "distress"
+
+
+# ---------- Liquidity (#245) ----------
+
+VOLUME_SHARE = 0.10  # sell no more than 10% of a normal day's volume, so your selling doesn't move the price
+SESSION_MINUTES = {"US": 390, "ASX": 360}  # 9:30-16:00 New York, 10:00-16:00 Sydney
+
+
+def time_to_sell(shares, avg_volume, market):
+    """(trading days, minutes) to sell `shares` trading at most 10% of the average daily volume.
+    Minutes are within one session; None when the volume isn't known."""
+    if not avg_volume or avg_volume <= 0:
+        return None, None
+    days = abs(shares) / (VOLUME_SHARE * avg_volume)
+    return days, days * SESSION_MINUTES.get(market, 390)

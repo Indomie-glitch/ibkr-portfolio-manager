@@ -5160,6 +5160,18 @@ button.ai-source:hover {
   color: var(--risk-faint);
 }
 
+/* RSK 12: liquidity */
+.risk-liq-row {
+  display: grid;
+  grid-template-columns: minmax(50px, 60px) minmax(70px, 90px) minmax(100px, 130px) minmax(90px, 120px);
+  gap: 10px;
+  align-items: center;
+}
+
+.risk-mono.dim {
+  color: var(--text-2);
+}
+
 /* RSK 04: holding 52 · market 30 · bar · volatility 52 · beta 44 · index 70 */
 .risk-vol-row {
   display: grid;
