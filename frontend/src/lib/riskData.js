@@ -1,6 +1,6 @@
 // The Risk page's data (Milestone 8). Every panel loads its own section with useFetch, so one failure
 // only shows "unavailable" in that panel, but they all share one GET /risk request per period.
-import { fetchRisk } from './api.js'
+import { fetchRisk, fetchRiskBankruptcy } from './api.js'
 
 const requests = new Map() // `${period}:${version}` -> promise of the whole answer
 
@@ -26,6 +26,12 @@ export async function loadSection(period, version, name, fetcher = fetchRisk) {
   if (section == null) throw new Error('Not calculated yet.')
   if (section.error) throw new Error(section.error)
   return { section, meta: data.meta, holdings: data.holdings }
+}
+
+// RSK 11's own answer (GET /risk/bankruptcy), shaped like a section; it doesn't depend on the period
+export async function loadBankruptcy(version, fetcher = fetchRiskBankruptcy) {
+  const section = await loadRisk('bankruptcy', version, fetcher)
+  return { section, meta: null, holdings: null }
 }
 
 // For tests

@@ -10,7 +10,7 @@ const betaSub = (market) => (beta) =>
 //
 // Tile: { id, label, caption, explainer, section, value?(section, meta) -> text, sub?(section, meta),
 //         tone?(section) -> 'loss' | 'amber' | undefined }
-// Panel: { code, id, title, section, explainer, column ('left' | 'right'), order (1-12) }
+// Panel: { code, id, title, section, explainer, column ('left' | 'right'), order (1-12), own (its own endpoint) }
 
 export const TILE_ROWS = [
   [
@@ -76,6 +76,6 @@ export const PANELS = [
   { code: 'RSK 08', id: 'var', title: 'Value at Risk', section: 'var', explainer: 'var', column: 'left', order: 8 },
   { code: 'RSK 09', id: 'attribution', title: 'Attribution', section: 'attribution', explainer: 'attribution', column: 'right', order: 9 },
   { code: 'RSK 10', id: 'mixes', title: 'Optimisation and hedging', section: 'mixes', explainer: 'mixes', column: 'left', order: 10 },
-  { code: 'RSK 11', id: 'bankruptcy', title: 'Bankruptcy risk', section: 'bankruptcy', explainer: 'bankruptcy', column: 'right', order: 11 },
+  { code: 'RSK 11', id: 'bankruptcy', title: 'Bankruptcy risk', section: 'bankruptcy', explainer: 'bankruptcy', column: 'right', order: 11, own: true },
   { code: 'RSK 12', id: 'liquidity', title: 'Liquidity', section: 'liquidity', explainer: 'liquidity', column: 'right', order: 12 },
 ]

@@ -5131,6 +5131,35 @@ button.ai-source:hover {
   font-size: 11px;
 }
 
+/* RSK 11: bankruptcy risk */
+.risk-z-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 140px) minmax(40px, 60px) minmax(90px, 120px) minmax(60px, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.risk-zone {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.risk-zone.gain {
+  color: var(--gain);
+}
+
+.risk-zone.amber {
+  color: var(--risk-amber);
+}
+
+.risk-zone.loss {
+  color: var(--loss);
+}
+
+.risk-zone.muted {
+  color: var(--risk-faint);
+}
+
 /* RSK 04: holding 52 · market 30 · bar · volatility 52 · beta 44 · index 70 */
 .risk-vol-row {
   display: grid;

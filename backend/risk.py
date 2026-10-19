@@ -405,3 +405,39 @@ def min_variance_weights(cov, iterations=5000, tolerance=1e-12):
             return new
         w = new
     return w
+
+
+# ---------- Bankruptcy risk: the Altman Z score (#244) ----------
+
+Z_SAFE = 3.0
+Z_DISTRESS = 1.8
+
+
+def altman_z(working_capital, retained_earnings, ebit, market_cap, total_liabilities, revenue, total_assets):
+    """The original Altman Z score: 1.2·A + 1.4·B + 3.3·C + 0.6·D + 1.0·E, where
+    A = working capital / total assets, B = retained earnings / total assets, C = EBIT / total assets,
+    D = market value of equity / total liabilities, E = revenue / total assets.
+
+    Returns (score, parts) with parts = {A, B, C, D, E}; (None, {}) when an input is missing.
+    """
+    inputs = (working_capital, retained_earnings, ebit, market_cap, total_liabilities, revenue, total_assets)
+    if any(v is None for v in inputs) or total_assets <= 0 or total_liabilities <= 0:
+        return None, {}
+    parts = {
+        "A": working_capital / total_assets,
+        "B": retained_earnings / total_assets,
+        "C": ebit / total_assets,
+        "D": market_cap / total_liabilities,
+        "E": revenue / total_assets,
+    }
+    score = 1.2 * parts["A"] + 1.4 * parts["B"] + 3.3 * parts["C"] + 0.6 * parts["D"] + 1.0 * parts["E"]
+    return score, parts
+
+
+def altman_zone(score):
+    """"safe" above 3, "grey" from 1.8 to 3, "distress" below 1.8."""
+    if score > Z_SAFE:
+        return "safe"
+    if score >= Z_DISTRESS:
+        return "grey"
+    return "distress"

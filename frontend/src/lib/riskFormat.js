@@ -236,3 +236,19 @@ export function mixLabel(mix, count) {
       return { name: 'Lowest risk mix', caption: weightsCaption(mix.weights) }
   }
 }
+
+// RSK 11's zone text: "Safe", "Grey", "Distress*" for a utility, "Not used for banks"
+export function zoneLabel(row) {
+  switch (row.zone) {
+    case 'safe':
+      return 'Safe'
+    case 'grey':
+      return `Grey${row.low_by_design ? '*' : ''}`
+    case 'distress':
+      return `Distress${row.low_by_design ? '*' : ''}`
+    case 'bank':
+      return 'Not used for banks'
+    default:
+      return 'Unavailable'
+  }
+}

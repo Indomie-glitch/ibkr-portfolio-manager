@@ -195,6 +195,12 @@ export function fetchRisk(period) {
   return getJson(`/risk?period=${encodeURIComponent(period)}`, { timeoutMs: SLOW_TIMEOUT_MS })
 }
 
+// Each holding's Altman Z score from its latest annual accounts (separate, so a Yahoo failure here only
+// affects that panel)
+export function fetchRiskBankruptcy() {
+  return getJson('/risk/bankruptcy', { timeoutMs: SLOW_TIMEOUT_MS })
+}
+
 // Start a new AI summary and call onEvent(name, data) for each Server-Sent Event the
 // backend streams: status, facts, section (one per finished section), done, error.
 // (EventSource can't send POST requests, so this reads the stream with fetch.)

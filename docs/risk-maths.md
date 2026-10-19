@@ -624,3 +624,42 @@ risk, the rule stops its weight at 0 instead of going negative.
 - **Cash or bonds**: cash doesn't move with the share market, so with a cash share $c$ of the whole
   account, the account swings about $(1 - c)$ times as much as the holdings. With 75% in cash, a 20%
   volatility in the shares is only about 5% for the whole account.
+
+## 12. Bankruptcy risk: the Altman Z score
+
+A quick financial-distress score from a company's latest **annual accounts**, published by Edward
+Altman in 1968 for manufacturing companies:
+
+$$Z = 1.2A + 1.4B + 3.3C + 0.6D + 1.0E$$
+
+| Ratio | Formula | What it says |
+|---|---|---|
+| $A$ | working capital ÷ total assets | short-term cushion: current assets left after paying current debts |
+| $B$ | retained earnings ÷ total assets | how much of the company was built from profits it kept |
+| $C$ | EBIT ÷ total assets | how much the assets earn before interest and tax |
+| $D$ | market value of the shares ÷ total liabilities | how far the share value could fall before debts exceed it |
+| $E$ | revenue ÷ total assets | how hard the assets work to make sales |
+
+The weights (1.2, 1.4, …) are the ones Altman fitted to tell companies that later failed from ones
+that didn't. **Zones:** above 3 is *safe*, 1.8 to 3 a *grey zone*, below 1.8 *distress*. The bar on the
+panel goes up to 10.
+
+**Where it doesn't fit:**
+
+- **Banks and other financial companies** (Yahoo sector Financial Services): borrowing and lending is
+  their business, so their balance sheets look nothing like a manufacturer's. The panel says "Not used
+  for banks".
+- **Utilities and property companies** carry a lot of long-term debt by design, backed by steady
+  income, so they often score low without being in trouble. They're marked with *.
+
+The market value $D$ uses the share price today but the accounts are from the latest annual report.
+When a company's shares and accounts are in different currencies (BHP is listed in AUD but reports in
+USD), the market value is converted with the latest AUD/USD rate first.
+
+**Example.** Total assets 100, working capital 20, retained earnings 30, EBIT 10, revenue 80, total
+liabilities 50 and a market value of 150:
+
+- A = 0.2, B = 0.3, C = 0.1, D = 150 ÷ 50 = 3, E = 0.8
+- Z = 1.2 × 0.2 + 1.4 × 0.3 + 3.3 × 0.1 + 0.6 × 3 + 1.0 × 0.8 = 0.24 + 0.42 + 0.33 + 1.8 + 0.8 = **3.59**: safe.
+
+A low score is a prompt to look at the company's debt and cash flow, not a prediction that it will fail.

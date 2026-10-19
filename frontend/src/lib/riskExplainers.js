@@ -171,6 +171,7 @@ export const EXPLAINERS = {
     title: 'Bankruptcy risk · Altman Z',
     what: 'A score from a company’s accounts that estimates the risk of financial distress.',
     consider: 'A low score is a prompt to read the company’s debt and cash flow, not a prediction that it will fail.',
+    yours: ({ section }) => bankruptcyYours(section),
   },
   liquidity: {
     title: 'Liquidity',
@@ -392,5 +393,29 @@ export function mixesYours({ mixes, cash }, period) {
     if (lowest) parts.push(`The lowest risk mix of your stocks would have swung ${pct(lowest.volatility)} a year, against ${pct(current.volatility)} for your current mix.`)
   }
   if (cash && cash.share >= 0.05) parts.push(`Your ${pct(cash.share)} cash already cushions your whole account.`)
+  return parts.join(' ') || null
+}
+
+// "AAPL (9.8) and BHP (4.6) are comfortably safe. TLS is in the grey zone, and APA scores low mainly
+// because utilities carry a lot of debt by design. The score doesn't work for banks like CBA."
+export function bankruptcyYours({ holdings }) {
+  const scored = (zone) => holdings.filter((h) => h.zone === zone)
+  const parts = []
+  const safe = scored('safe')
+  if (safe.length) {
+    const names = listNames(safe.map((h) => `${h.symbol} (${h.score.toFixed(1)})`))
+    parts.push(`${names} ${safe.length === 1 ? 'is' : 'are'} comfortably safe.`)
+  }
+  const grey = scored('grey')
+  if (grey.length) parts.push(`${listNames(grey.map((h) => h.symbol))} ${grey.length === 1 ? 'is' : 'are'} in the grey zone.`)
+  const distress = scored('distress')
+  const byDesign = distress.filter((h) => h.low_by_design)
+  const other = distress.filter((h) => !h.low_by_design)
+  if (byDesign.length) {
+    parts.push(`${listNames(byDesign.map((h) => h.symbol))} ${byDesign.length === 1 ? 'scores' : 'score'} low mainly because utilities and property companies carry a lot of debt by design.`)
+  }
+  if (other.length) parts.push(`${listNames(other.map((h) => h.symbol))} ${other.length === 1 ? 'is' : 'are'} in the distress zone.`)
+  const banks = scored('bank')
+  if (banks.length) parts.push(`The score doesn’t work for banks like ${listNames(banks.map((h) => h.symbol))}.`)
   return parts.join(' ') || null
 }
