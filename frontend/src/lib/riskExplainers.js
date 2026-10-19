@@ -1,5 +1,5 @@
 import { formatCompactMoney, formatMoney } from './format.js'
-import { listNames, pct, periodPhrase, ratio, shortDate, tenPercentMove } from './riskFormat.js'
+import { corr, listNames, pct, periodPhrase, ratio, shortDate, tenPercentMove } from './riskFormat.js'
 
 const money = (value) => formatMoney(value, 'AUD', { decimals: 0 })
 
@@ -97,6 +97,7 @@ export const EXPLAINERS = {
     title: 'Correlation',
     what: 'How closely two holdings move together, from −1 (opposite) to +1 (always together).',
     consider: 'A holding with a low correlation to your largest one steadies a portfolio the most.',
+    yours: ({ section }) => correlationYours(section),
   },
   volatility_beta: {
     title: 'Volatility and beta per holding',
@@ -256,4 +257,15 @@ export function currencyYours(section, period) {
   const effect = section.total_effect_aud
   const cost = effect < 0 ? `cost you about ${money(-effect)}` : `added about ${money(effect)}`
   return `${top.name} ${moved} in US dollars, ${but} the Australian dollar ${aud}, so in AUD ${got}. The exchange rate ${cost} ${periodPhrase(period)}.`
+}
+
+// "Your average is +0.23: your holdings mostly move independently, which helps, … CBA and BHP move
+// together most (+0.48)."
+export function correlationYours({ average, most_related: most }) {
+  if (average == null || !most) return null
+  let text = `Your average is ${corr(average)}: `
+  if (average < 0.3) text += 'your holdings mostly move independently, which helps, because when one falls the others often don’t.'
+  else if (average < 0.6) text += 'your holdings often move together, so a fall in one is often matched by falls in others.'
+  else text += 'your holdings mostly move together, so they tend to fall at the same time.'
+  return `${text} ${most.a} and ${most.b} move together most (${corr(most.correlation)}).`
 }

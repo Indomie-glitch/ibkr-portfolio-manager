@@ -21,6 +21,8 @@ def correlation_section(inputs):
         pair_rows.append({
             "a": symbols[i], "b": symbols[j], "correlation": round(value, 3),
             "same_direction": risk.same_direction_share(inputs.returns[:, i], inputs.returns[:, j]),
+            # How much b tended to move for a 1% move in a (for "when A fell 2%, B tended to fall …")
+            "b_per_a": _round(risk.beta(inputs.returns[:, j], inputs.returns[:, i]), 3),
         })
     ranked = sorted(pair_rows, key=lambda p: p["correlation"])
     return {

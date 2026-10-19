@@ -61,7 +61,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 5.2: AI portfolio summary** on the Overview page: 8 sections, citations to the facts and holdings, history and compare
 * [ ] **Milestone 6: Trade placement:** built; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
-* [ ] **Milestone 8: Risk analysis** (in progress): daily AUD returns pipeline, correlation, the Risk page with its explainers, volatility, beta and max drawdown, concentration, exposure and the currency effect done; the other panels next ([the maths](docs/risk-maths.md))
+* [ ] **Milestone 8: Risk analysis** (in progress): daily AUD returns pipeline, correlation, the Risk page with its explainers, volatility, beta and max drawdown, concentration, exposure, the currency effect and the correlation heatmap done; the other panels next ([the maths](docs/risk-maths.md))
 * [ ] **Milestone 9:** Company connections
 * [ ] **Milestone 10:** Supply chain graph foundation
 * [ ] **Milestone 11:** Extraction agents
