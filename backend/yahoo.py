@@ -375,3 +375,40 @@ def _fetch_daily_closes(symbol, start, end=None):
 async def fetch_daily_closes(symbol, start, end=None):
     """[(date, close)] from start to end (or the latest close), dividend-adjusted."""
     return await _run(_fetch_daily_closes, symbol, start, end)
+
+
+# ---------- Altman Z score inputs (#244) ----------
+
+def _latest(frame, *names):
+    """The most recent value of the first of these statement lines that Yahoo has."""
+    for name in names:
+        values = _row(frame, name)
+        if values:
+            return values[max(values)]
+    return None
+
+
+def _fetch_altman_inputs(symbol):
+    ticker = yf.Ticker(symbol)
+    balance, income = ticker.balance_sheet, ticker.income_stmt
+    if balance is None or balance.empty or income is None or income.empty:
+        raise YahooUnavailable(f"Yahoo has no annual accounts for {symbol}")
+    current_assets = _latest(balance, "Current Assets")
+    current_liabilities = _latest(balance, "Current Liabilities")
+    working_capital = _latest(balance, "Working Capital")
+    if working_capital is None and current_assets is not None and current_liabilities is not None:
+        working_capital = current_assets - current_liabilities
+    return {
+        "balance_date": balance.columns[0].date().isoformat(),
+        "total_assets": _latest(balance, "Total Assets"),
+        "working_capital": working_capital,
+        "retained_earnings": _latest(balance, "Retained Earnings"),
+        "total_liabilities": _latest(balance, "Total Liabilities Net Minority Interest", "Total Liabilities"),
+        "ebit": _latest(income, "EBIT", "Operating Income"),
+        "revenue": _latest(income, "Total Revenue", "Operating Revenue"),
+    }
+
+
+async def fetch_altman_inputs(symbol):
+    """The latest annual balance sheet and income statement lines the Altman Z score needs."""
+    return await _run(_fetch_altman_inputs, symbol)

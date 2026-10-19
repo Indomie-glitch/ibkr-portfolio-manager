@@ -1,5 +1,5 @@
 import { useFetch } from '../../hooks/useFetch.js'
-import { loadSection } from '../../lib/riskData.js'
+import { loadBankruptcy, loadSection } from '../../lib/riskData.js'
 import { explainerText } from '../../lib/riskExplainers.js'
 import InfoButton from './InfoButton.jsx'
 
@@ -8,9 +8,11 @@ import InfoButton from './InfoButton.jsx'
 // Body: the panel's component ({ section, meta, holdings, period }), or none yet (empty frame).
 // label(section, period): the right-hand label; the period by default.
 export default function RiskPanel({ panel, Body, label, period, version }) {
+  // RSK 11 has its own endpoint; the others are sections of GET /risk
+  const load = () => (panel.own ? loadBankruptcy(version) : loadSection(period, version, panel.section))
   const { data, error, loading } = useFetch(
-    () => (Body ? loadSection(period, version, panel.section) : Promise.resolve(null)),
-    `${panel.id}:${period}:${version}`,
+    () => (Body ? load() : Promise.resolve(null)),
+    `${panel.id}:${panel.own ? '' : period}:${version}`,
   )
   const section = data?.section
   let content

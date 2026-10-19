@@ -106,7 +106,7 @@ flowchart TB
         r_flex["flex.py<br/>/lots/status /lots/{id}"]
         r_sum["summaries.py<br/>/summary/... /portfolio-summary/...<br/>/usage"]
         r_trade["trading.py<br/>/trading/status /orders<br/>/orders/preview /stream<br/>cancel, modify"]
-        r_risk["risk.py<br/>/risk"]
+        r_risk["risk.py<br/>/risk /risk/bankruptcy"]
     end
 
     subgraph core["Shared"]

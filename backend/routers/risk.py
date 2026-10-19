@@ -10,6 +10,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 
 import config
+import risk
 import risk_data
 import risk_sections
 import yahoo
@@ -110,6 +111,63 @@ def build_response(inputs, now):
             print(f"Risk section {name} failed: {mask_secrets(exc)}")
             response[name] = {"error": "Couldn't calculate this section."}
     return response
+
+
+# Altman Z doesn't suit companies whose debts are their business, or that carry debt by design
+NOT_FOR_Z = {"Financial Services"}
+LOW_BY_DESIGN = {"Utilities", "Real Estate"}
+
+
+async def market_cap_in(info, currency, today):
+    """The company's market value in the currency of its accounts (BHP is listed in AUD but reports in
+    USD). None if the two currencies differ and aren't AUD and USD."""
+    market_cap, quoted = info.get("marketCap"), info.get("currency")
+    if market_cap is None or not currency or not quoted or quoted == currency:
+        return market_cap
+    if {quoted, currency} != {"AUD", "USD"}:
+        return None
+    audusd = await risk_data.update(yahoo.AUDUSD, today)  # stored daily closes
+    rate = audusd[max(audusd)]
+    return market_cap * rate if quoted == "AUD" else market_cap / rate
+
+
+async def altman_row(holding):
+    """One holding's Altman Z score from its latest annual accounts (cached a day)."""
+    row = {"symbol": holding["symbol"], "name": holding["name"], "sector": holding["sector"]}
+    if holding["sector"] in NOT_FOR_Z:
+        return {**row, "zone": "bank", "score": None}
+    if not holding["yahoo"]:
+        return {**row, "zone": "unavailable", "score": None}
+    try:
+        accounts = await cached(("altman", holding["yahoo"]), 24 * 60 * 60,
+                                lambda: yahoo.fetch_altman_inputs(holding["yahoo"]))
+        info = await yahoo_info(holding["yahoo"])
+        market_cap = await market_cap_in(info, info.get("financialCurrency"), datetime.now().date())
+    except Exception as exc:
+        print(f"Altman Z for {holding['symbol']} unavailable: {mask_secrets(exc)}")
+        return {**row, "zone": "unavailable", "score": None}
+    score, parts = risk.altman_z(accounts["working_capital"], accounts["retained_earnings"], accounts["ebit"],
+                                 market_cap, accounts["total_liabilities"], accounts["revenue"], accounts["total_assets"])
+    if score is None:
+        return {**row, "zone": "unavailable", "score": None, "balance_date": accounts["balance_date"]}
+    return {**row, "zone": risk.altman_zone(score), "score": round(score, 2),
+            "parts": {k: round(v, 4) for k, v in parts.items()}, "balance_date": accounts["balance_date"],
+            "low_by_design": holding["sector"] in LOW_BY_DESIGN}
+
+
+@router.get("/risk/bankruptcy", dependencies=[Depends(require_ib)])
+async def risk_bankruptcy():
+    """RSK 11: each holding's Altman Z score. Separate from GET /risk so a Yahoo failure here only
+    affects this panel (502 when no holding could be scored)."""
+    holdings = await risk_holdings()
+    if not holdings:
+        raise HTTPException(404, "There are no share holdings to analyse.")
+    rows = [await altman_row(h) for h in holdings]
+    if all(r["zone"] == "unavailable" for r in rows):
+        raise HTTPException(502, "Couldn't get the companies' accounts from Yahoo.")
+    order = {"safe": 0, "grey": 0, "distress": 0, "bank": 1, "unavailable": 2}
+    rows.sort(key=lambda r: (order[r["zone"]], -(r["score"] or 0)))
+    return {"holdings": rows, "thresholds": {"safe": risk.Z_SAFE, "distress": risk.Z_DISTRESS}}
 
 
 @router.get("/risk", dependencies=[Depends(require_ib)])
