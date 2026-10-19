@@ -123,11 +123,22 @@ export const EXPLAINERS = {
     title: 'Sharpe ratio',
     what: 'How much return you got for each unit of risk you took, after subtracting what cash would have earned.',
     consider: 'A high number over one year can come from one great stock. The 3Y view and concentration put it in context.',
+    value: ({ section }) => ratio(section.portfolio.sharpe),
+    yours: ({ section, meta }) => sharpeYours(section, meta?.period),
   },
-  tracking_error: {
+  tracking_asx: {
     title: 'Tracking error',
     what: 'How far your returns drift from a market index in a typical year.',
     consider: 'A big number isn’t bad by itself; it means your results won’t look like the index’s.',
+    value: ({ section }) => `${pct(section.tracking_error.ASX)} vs ASX 200`,
+    yours: ({ section }) => trackingYours(section),
+  },
+  tracking_us: {
+    title: 'Tracking error',
+    what: 'How far your returns drift from a market index in a typical year.',
+    consider: 'A big number isn’t bad by itself; it means your results won’t look like the index’s.',
+    value: ({ section }) => `${pct(section.tracking_error.US)} vs S&P 500`,
+    yours: ({ section }) => trackingYours(section),
   },
   stress: {
     title: 'Stress tests',
@@ -288,4 +299,24 @@ export function factorsYours({ factors, loadings, count }) {
   if (count <= 2) return `One pattern explains ${pct(factors[0].share, { decimals: 0 })}: ${describe(factors[0], 'f1')}.`
   const share = pct(factors[0].share + factors[1].share, { decimals: 0 })
   return `Two patterns explain ${share}: ${describe(factors[0], 'f1')} and ${describe(factors[1], 'f2')}. The rest is each holding moving on its own.`
+}
+
+// "Your holdings returned 26.2% with 19.8% volatility. After the 4.6% you'd have earned in cash, …"
+export function sharpeYours({ portfolio, benchmarks, risk_free_rate: rf }, period) {
+  if (portfolio.sharpe == null) return null
+  const returned = period === '1Y' ? `returned ${pct(portfolio.annual_return)}` : `returned the equivalent of ${pct(portfolio.annual_return)} a year`
+  let text = `Your holdings ${returned} with ${pct(portfolio.volatility)} volatility. After the ${pct(rf)} you’d have earned in cash, that’s ${ratio(portfolio.sharpe)} units of return per unit of risk.`
+  if (benchmarks.ASX.sharpe != null) text += ` The ASX 200 managed ${ratio(benchmarks.ASX.sharpe)}.`
+  return text
+}
+
+// "Your results can easily end up 21% above or below the ASX 200 in a year, … Against the S&P 500 it's only 9.8%."
+export function trackingYours({ tracking_error: te }) {
+  if (te.ASX == null || te.US == null) return null
+  const asx = pct(te.ASX, { decimals: 0 })
+  let text = `Your results can easily end up ${asx} above or below the ASX 200 in a year, because you hold different things from it.`
+  if (te.US < te.ASX * 0.8) text += ` Against the S&P 500 it’s only ${pct(te.US)}, because more of your results follow the US market.`
+  else if (te.US > te.ASX * 1.25) text += ` Against the S&P 500 it’s ${pct(te.US)}, because more of your results follow the Australian market.`
+  else text += ` Against the S&P 500 it’s ${pct(te.US)}.`
+  return text
 }

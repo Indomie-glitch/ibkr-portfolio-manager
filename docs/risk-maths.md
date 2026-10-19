@@ -379,3 +379,49 @@ the remaining **7%**.
 With three holdings, two of which move identically and a third that moves on its own, $R$ =
 [[1, 1, 0], [1, 1, 0], [0, 0, 1]] has eigenvalues 2, 1 and 0. **Two factors explain 100%**: F1 (2/3)
 is the pair, with loadings 1, 1, 0, and F2 (1/3) is the third holding, with loadings 0, 0, 1.
+
+## 7. Sharpe ratio and tracking error
+
+### Yearly return
+
+The period's daily returns compound to a total growth $G = \prod_t (1 + r_t)$. The yearly rate that
+grows to the same amount over $n$ trading days is:
+
+$$r_{year} = G^{252/n} - 1$$
+
+For the 1Y window ($n$ ≈ 252) that's simply the year's return. For 3M it's the 3-month return scaled
+up to a year, which is jumpy: a good quarter looks like a spectacular year.
+
+**Example.** 63 days (a quarter) that add up to +5%: at that pace a year would be
+1.05^(252/63) − 1 = 1.05⁴ − 1 = **+21.6%**.
+
+### Sharpe ratio
+
+$$\text{Sharpe} = \frac{r_{year} - r_f}{\sigma}$$
+
+- $r_f$: the *risk-free rate*, what cash would have earned (`RISK_FREE_RATE`, 4.60%)
+- $\sigma$: the yearly volatility (section 3)
+
+It's the extra return you got for each unit of swing you sat through. Cash has a Sharpe ratio of 0 by
+definition. As a rough guide, the share market as a whole often lands somewhere around 0.3 to 0.6 over
+long periods; a single year can be far higher or below zero. It's shown for the ASX 200 (total return)
+over the same days for comparison.
+
+**Example.** A return of 26.2% with 19.8% volatility: (26.2% − 4.6%) ÷ 19.8% = **1.09**.
+
+### Tracking error
+
+How far your returns drift from an index in a typical year: the volatility of the *difference*
+between your daily return and the index's.
+
+$$\text{TE} = \text{sd}(r_{p,t} - m_t) \times \sqrt{252}$$
+
+A portfolio that copied the index exactly would have 0. Being steadily ahead or behind by the same
+amount every day is also 0 — only the *variation* of the gap counts. A large tracking error isn't good
+or bad by itself: it says your results won't look like the index's, in either direction.
+
+The portfolio's AUD returns are compared with each index as quoted (the S&P 500 in US dollars), the
+same choice as for the portfolio's betas (section 3).
+
+**Example.** Daily gaps of +1%, −1%, +1%, −1%: their standard deviation is 1.15% a day, so the tracking
+error is 1.15% × √252 = **18.3%** a year.

@@ -5,6 +5,7 @@ becomes {"error"} in the response (routers/risk.py), so one failure doesn't brea
 """
 import numpy as np
 
+import config
 import risk
 from portfolio_facts import CURRENCY_PCT, SECTOR_PCT, SINGLE_STOCK_PCT
 
@@ -222,6 +223,26 @@ def factors_section(inputs):
     }
 
 
+def performance_section(inputs):
+    """Return per unit of risk for the portfolio and the ASX 200 (Sharpe ratio), and how far the
+    portfolio drifts from each index (tracking error) (#239). Indexes are total return, as quoted."""
+    rf = config.risk_free_rate()
+    portfolio = risk.portfolio_returns(inputs.returns, inputs.weights)
+
+    def summary(returns):
+        return {"annual_return": _round(risk.annual_return(returns)),
+                "volatility": _round(risk.annual_volatility(returns)),
+                "sharpe": _round(risk.sharpe_ratio(returns, rf), 3)}
+
+    return {
+        "portfolio": summary(portfolio),
+        "benchmarks": {"ASX": summary(inputs.benchmark_returns["ASX"])},
+        "tracking_error": {market: _round(risk.tracking_error(portfolio, inputs.benchmark_returns[market]))
+                           for market in ("ASX", "US")},
+        "risk_free_rate": rf,
+    }
+
+
 # Section name -> function(inputs), in the order of the page
 SECTIONS = {
     "concentration": concentration_section,
@@ -230,4 +251,5 @@ SECTIONS = {
     "volatility": volatility_section,
     "currency": currency_section,
     "factors": factors_section,
+    "performance": performance_section,
 }
