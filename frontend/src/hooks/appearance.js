@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 
-// 'system' follows the macOS setting; 'light' and 'dark' override it.
+// 'system' follows the macOS setting; 'light', 'dark' and 'terminal' (dark on near-black) override it.
 // index.html applies the same rules before React loads, to avoid a flash of the wrong theme.
 const STORAGE_KEY = 'appearance'
-const CHOICES = ['system', 'light', 'dark']
+const CHOICES = ['system', 'light', 'dark', 'terminal']
 
 function loadAppearance() {
   try {
@@ -19,6 +19,7 @@ export const APPEARANCES = [
   { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
+  { value: 'terminal', label: 'Terminal' },
 ]
 
 export function useAppearance() {
@@ -29,7 +30,7 @@ export function useAppearance() {
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const apply = () => {
       const dark = appearance === 'dark' || (appearance === 'system' && media.matches)
-      document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      document.documentElement.dataset.theme = appearance === 'terminal' ? 'terminal' : dark ? 'dark' : 'light'
     }
     apply()
     // Only follow macOS changes while on System

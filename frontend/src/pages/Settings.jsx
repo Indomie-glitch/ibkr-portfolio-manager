@@ -317,7 +317,10 @@ function ModelRow({ settings, onSave }) {
 function AppearanceGroup({ appearance, onAppearanceChange }) {
   return (
     <Group title="Appearance">
-      <Row label="Theme">
+      <Row
+        label="Theme"
+        note={{ text: 'System follows your Mac\'s light or dark setting. Terminal is all black, like a trading terminal.' }}
+      >
         <div className="segmented settings-segmented" role="group" aria-label="Appearance">
           {APPEARANCES.map((a) => (
             <button
