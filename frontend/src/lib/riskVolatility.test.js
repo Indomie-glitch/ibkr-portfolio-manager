@@ -12,9 +12,9 @@ const SECTION = {
     { symbol: 'APA', market: 'ASX', weight: 0.013, volatility: 0.162, beta: 0.54, beta_vs: 'ASX 200' },
     { symbol: 'TLS', market: 'ASX', weight: 0.01, volatility: 0.148, beta: 0.48, beta_vs: 'ASX 200' },
   ],
-  portfolio: { volatility: 0.198, beta_asx: 0.47, beta_us: 0.89, value_aud: 72400, us_weight: 0.68 },
+  portfolio: { volatility: 0.198, beta_asx: 0.47, beta_us: 0.89, value_base: 72400, us_weight: 0.68 },
   benchmarks: { ASX: { name: 'ASX 200', volatility: 0.13 }, US: { name: 'S&P 500', volatility: 0.16 } },
-  max_drawdown: { fall: -0.163, peak: '2026-04-02', trough: '2026-04-21', loss_aud: -11801 },
+  max_drawdown: { fall: -0.163, peak: '2026-04-02', trough: '2026-04-21', loss_base: -11801 },
 }
 const tile = (id) => TILE_ROWS.flat().find((t) => t.id === id)
 
@@ -47,7 +47,7 @@ describe('volatility tiles (Figma values)', () => {
 })
 
 describe('What yours means', () => {
-  const yours = (id) => explainerText(id, { section: SECTION, meta: {} })
+  const yours = (id) => explainerText(id, { section: SECTION, meta: { currency: 'AUD' } })
 
   it('volatility in dollars and against the ASX 200', () => {
     expect(yours('volatility').title).toBe('Volatility · 19.8%')

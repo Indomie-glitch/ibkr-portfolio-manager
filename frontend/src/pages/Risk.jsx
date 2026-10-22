@@ -3,7 +3,7 @@ import { RefreshContext, useFetch } from '../hooks/useFetch.js'
 import { formatCompactMoney } from '../lib/format.js'
 import { loadRisk } from '../lib/riskData.js'
 import { PANELS, TILE_ROWS } from '../lib/riskLayout.js'
-import { DEFAULT_PERIOD, PERIODS, asOfText, calculatedNote, extraNotes, leftOutNote } from '../lib/riskFormat.js'
+import { DEFAULT_PERIOD, PERIODS, asOfText, benchmarkNames, calculatedNote, extraNotes, leftOutNote } from '../lib/riskFormat.js'
 import AttributionPanel from '../components/risk/AttributionPanel.jsx'
 import BankruptcyPanel from '../components/risk/BankruptcyPanel.jsx'
 import ConcentrationPanel from '../components/risk/ConcentrationPanel.jsx'
@@ -39,7 +39,7 @@ const BODIES = {
   volatility: VolatilityPanel,
 }
 const LABELS = {
-  attribution: (section, period) => `vs ASX 200 · ${period}`,
+  attribution: (section, period) => `vs ${section.benchmark} · ${period}`,
   bankruptcy: () => 'Altman Z score',
   concentration: () => 'Money vs risk',
   correlation: (section, period) => `${period} daily returns`,
@@ -48,8 +48,8 @@ const LABELS = {
   factors: (section, period) => `PCA · ${period}`,
   liquidity: () => 'Days to sell',
   mixes: (section, period) => `Examples · ${period} data`,
-  stress: (section) => `Impact on ${formatCompactMoney(section.value_aud, 'AUD')}`,
-  var: (section) => `${formatCompactMoney(section.value_aud, 'AUD')} holdings`,
+  stress: (section, period, meta) => `Impact on ${formatCompactMoney(section.value_base, meta.currency)}`,
+  var: (section, period, meta) => `${formatCompactMoney(section.value_base, meta.currency)} holdings`,
   volatility: () => 'Per holding',
 }
 
@@ -82,7 +82,7 @@ function CommandBar({ period, onPeriod, meta }) {
         ))}
       </div>
       <span className="risk-bar-label">Benchmarks</span>
-      <span className="risk-bar-value">ASX 200 · S&amp;P 500</span>
+      <span className="risk-bar-value">{benchmarkNames(meta)}</span>
       <span className="spacer" />
       {meta && <span className="risk-as-of">{asOfText(meta)}</span>}
     </div>

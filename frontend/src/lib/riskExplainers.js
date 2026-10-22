@@ -1,9 +1,26 @@
-import { formatCompactMoney, formatMoney } from './format.js'
-import { corr, listNames, pct, periodPhrase, ratio, sellTime, shortDate, tenPercentMove } from './riskFormat.js'
+import { currencyName, currencyPlace, formatCompactMoney, formatMoney } from './format.js'
+import {
+  corr,
+  currencyPlaces,
+  foreignCurrencies,
+  foreignMarketPlaces,
+  homeIndexName,
+  listNames,
+  pct,
+  periodPhrase,
+  ratio,
+  sellTime,
+  shortDate,
+  tenPercentMove,
+} from './riskFormat.js'
 
 const pts = (v) => Math.abs(v * 100).toFixed(1)
 
-const money = (value) => formatMoney(value, 'AUD', { decimals: 0 })
+// "a US", "an Australian" ("US" is said "you-ess", so it takes "a")
+const withArticle = (word) => `${/^[AEIO]/.test(word) ? 'an' : 'a'} ${word}`
+
+// Money in the account's currency (meta.currency; AUD for an Australian account, #271)
+const money = (value, currency) => formatMoney(value, currency, { decimals: 0 })
 
 // "rise" or "fall" with the move a 10% fall in an index would give
 function betaMove(index, beta) {
@@ -20,6 +37,8 @@ function betaMove(index, beta) {
 //   value(data) -> text after the title ("Volatility · 19.8%")
 //   yours(data) -> the "What yours means" paragraph, or null while the number isn't known
 // data is whatever the tile or panel passes (usually its section of GET /risk plus meta).
+// what and consider can also be functions of meta (null until the numbers arrive), for wording that
+// depends on the account's currency.
 
 export const EXPLAINERS = {
   volatility: {
@@ -27,10 +46,10 @@ export const EXPLAINERS = {
     what: 'How much your holdings typically swing in a year, up or down.',
     consider: 'Holdings that don’t move with your largest one are what usually brings this number down.',
     value: ({ section }) => pct(section.portfolio.volatility),
-    yours: ({ section }) => {
-      const { volatility, value_aud: value } = section.portfolio
+    yours: ({ section, meta }) => {
+      const { volatility, value_base: value } = section.portfolio
       const asx = section.benchmarks.ASX.volatility
-      const swing = `In a normal year your ${formatCompactMoney(value, 'AUD')} of holdings could end about ${money(value * volatility)} above or below its average.`
+      const swing = `In a normal year your ${formatCompactMoney(value, meta.currency)} of holdings could end about ${money(value * volatility, meta.currency)} above or below its average.`
       if (asx == null) return swing
       const compared = Math.abs(volatility - asx) < 0.01 ? 'about the same as' : volatility > asx ? 'more than' : 'less than'
       return `${swing} That’s ${compared} the ASX 200, which swung about ${pct(asx, { decimals: 0 })} over the same period.`
@@ -76,10 +95,10 @@ export const EXPLAINERS = {
     what: 'The largest drop from a high to a low in the period.',
     consider: 'A fall this size has already happened with this mix of holdings. Less concentrated portfolios usually fall less.',
     value: ({ section }) => pct(section.max_drawdown.fall),
-    yours: ({ section }) => {
+    yours: ({ section, meta }) => {
       const dd = section.max_drawdown
       if (!dd.peak) return 'Your holdings never fell below an earlier high in this period.'
-      return `Between ${shortDate(dd.peak)} and ${shortDate(dd.trough, true)} your holdings fell ${pct(-dd.fall)}. At today’s size that’s about ${money(-dd.loss_aud)}.`
+      return `Between ${shortDate(dd.peak)} and ${shortDate(dd.trough, true)} your holdings fell ${pct(-dd.fall)}. At today’s size that’s about ${money(-dd.loss_base, meta.currency)}.`
     },
   },
   concentration: {
@@ -92,8 +111,9 @@ export const EXPLAINERS = {
   exposure: {
     title: 'Exposure',
     what: 'Where your money is: by currency, by country, and by industry.',
-    consider: 'Holdings in other industries and in Australian dollars would make you less dependent on one area.',
-    yours: ({ section }) => exposureYours(section),
+    consider: (meta) =>
+      `Holdings in other industries and in ${meta ? `${currencyName(meta.currency)}s` : 'your account’s currency'} would make you less dependent on one area.`,
+    yours: ({ section, meta }) => exposureYours(section, meta.currency),
   },
   correlation: {
     title: 'Correlation',
@@ -109,11 +129,15 @@ export const EXPLAINERS = {
   },
   currency: {
     title: 'Currency effect',
-    what: 'For a US stock, how much of your return in AUD came from the share price and how much from the exchange rate.',
-    consider:
-      'Currency can just as easily help next year. Some investors avoid this with currency hedged funds; most accept it as part of owning US shares.',
-    value: ({ section }) => (section.holdings.length ? formatMoney(section.total_effect_aud, 'AUD', { decimals: 0, signed: true }) : null),
-    yours: ({ section, meta }) => currencyYours(section, meta?.period),
+    what: (meta) =>
+      meta
+        ? `For ${withArticle(currencyPlaces(foreignCurrencies(meta), 'or'))} stock, how much of your return in ${meta.currency} came from the share price and how much from the exchange rate.`
+        : 'For a stock in another currency, how much of your return came from the share price and how much from the exchange rate.',
+    consider: (meta) =>
+      `Currency can just as easily help next year. Some investors avoid this with currency hedged funds; most accept it as part of owning ${meta ? currencyPlaces(foreignCurrencies(meta)) : 'foreign'} shares.`,
+    value: ({ section, meta }) =>
+      section.holdings.length ? formatMoney(section.total_effect_base, meta.currency, { decimals: 0, signed: true }) : null,
+    yours: ({ section, meta }) => currencyYours(section, meta?.period, meta.currency),
   },
   factors: {
     title: 'Hidden factors',
@@ -146,18 +170,19 @@ export const EXPLAINERS = {
     title: 'Stress tests',
     what: 'What would happen to what you own today if a past crash, or a made up shock, happened again.',
     consider: 'The scenarios that hurt most point to what your portfolio depends on.',
-    yours: ({ section }) => stressYours(section),
+    yours: ({ section, meta }) => stressYours(section, meta.currency),
   },
   var: {
     title: 'Value at Risk',
     what: 'A loss you’d expect to exceed only on rare bad days, worked out three ways.',
     consider: 'It isn’t the worst case: losses can be bigger than this. It gives a sense of what a normal bad day looks like.',
-    value: ({ section }) => formatMoney(section.levels['95'].formula.day.aud, 'AUD', { decimals: 0 }),
-    yours: ({ section }) => varYours(section),
+    value: ({ section, meta }) => formatMoney(section.levels['95'].formula.day.base, meta.currency, { decimals: 0 }),
+    yours: ({ section, meta }) => varYours(section, meta.currency),
   },
   attribution: {
     title: 'Attribution',
-    what: 'Why your returns differed from the ASX 200, split into choosing markets, picking stocks, and currency.',
+    what: (meta) =>
+      `Why your returns differed from the ${homeIndexName(meta) ?? 'home market’s index'}, split into choosing markets, picking stocks, and currency.`,
     consider: 'If most of the difference comes from one choice, your results depend on that choice continuing to work.',
     yours: ({ section }) => attributionYours(section),
   },
@@ -189,9 +214,9 @@ export function explainerText(id, data) {
   const value = known && entry.value ? entry.value(data) : null
   return {
     title: value ? `${entry.title} · ${value}` : entry.title,
-    what: entry.what,
+    what: typeof entry.what === 'function' ? entry.what(data?.meta ?? null) : entry.what,
     yours: known && entry.yours ? entry.yours(data) : null,
-    consider: entry.consider,
+    consider: typeof entry.consider === 'function' ? entry.consider(data?.meta ?? null) : entry.consider,
   }
 }
 
@@ -245,16 +270,20 @@ export function concentrationYours({ holdings }) {
   return `${top.symbol} is ${money} of your money and causes about the same share of the swings (${swings}).`
 }
 
-// "68% is in US dollars, so … 68% is also in one industry, Technology."
-export function exposureYours({ currency, sector }) {
-  const usd = currency.find((c) => c.name === 'USD')?.share ?? 0
+// "68% is in US dollars, so … 68% is also in one industry, Technology." base: the account's currency
+export function exposureYours({ currency, sector }, base) {
+  const foreign = currency.filter((c) => c.name !== base && c.share > 0).map((c) => c.name)
+  const share = currency.filter((c) => foreign.includes(c.name)).reduce((sum, c) => sum + c.share, 0)
   const parts = []
-  if (usd > 0) {
-    parts.push(
-      `${pct(usd, { decimals: 0 })} is in US dollars, so the exchange rate between the Australian and US dollar changes your returns even on days your US shares don’t move.`,
-    )
+  if (share > 0) {
+    const names = listNames(foreign.map((c) => `${currencyName(c)}s`))
+    const rates =
+      foreign.length === 1
+        ? `the exchange rate between the ${currencyPlace(base)} and ${currencyPlace(foreign[0])} dollar changes`
+        : `the exchange rates between the ${currencyName(base)} and the ${currencyPlaces(foreign)} dollars change`
+    parts.push(`${pct(share, { decimals: 0 })} is in ${names}, so ${rates} your returns even on days your ${currencyPlaces(foreign)} shares don’t move.`)
   } else {
-    parts.push('All of it is in Australian dollars, so exchange rates don’t change your returns.')
+    parts.push(`All of it is in ${currencyName(base)}s, so exchange rates don’t change your returns.`)
   }
   const top = sector.find((s) => s.name !== 'Unknown')
   if (top) {
@@ -268,16 +297,17 @@ export function exposureYours({ currency, sector }) {
 }
 
 // "Apple rose 39.3% in US dollars, but the Australian dollar strengthened, so in AUD you got 31.8%. …"
-export function currencyYours(section, period) {
+// base: the account's currency (#271)
+export function currencyYours(section, period, base) {
   const top = section.holdings[0]
-  if (!top) return 'You have no US holdings, so exchange rates don’t change your returns.'
+  if (!top) return `You have no ${currencyPlaces(section.currencies.map((c) => c.currency))} holdings, so exchange rates don’t change your returns.`
   const moved = top.price_return >= 0 ? `rose ${pct(top.price_return)}` : `fell ${pct(-top.price_return)}`
-  const aud = section.fx_return < 0 ? 'strengthened' : 'weakened'
-  const but = (top.price_return >= 0) === (section.fx_return < 0) ? 'but' : 'and'
-  const got = top.aud_return >= 0 ? `you got ${pct(top.aud_return)}` : `it fell ${pct(-top.aud_return)}`
-  const effect = section.total_effect_aud
-  const cost = effect < 0 ? `cost you about ${money(-effect)}` : `added about ${money(effect)}`
-  return `${top.name} ${moved} in US dollars, ${but} the Australian dollar ${aud}, so in AUD ${got}. The exchange rate ${cost} ${periodPhrase(period)}.`
+  const stronger = top.fx_return < 0 ? 'strengthened' : 'weakened'
+  const but = (top.price_return >= 0) === (top.fx_return < 0) ? 'but' : 'and'
+  const got = top.base_return >= 0 ? `you got ${pct(top.base_return)}` : `it fell ${pct(-top.base_return)}`
+  const effect = section.total_effect_base
+  const cost = effect < 0 ? `cost you about ${money(-effect, base)}` : `added about ${money(effect, base)}`
+  return `${top.name} ${moved} in ${currencyName(top.currency)}s, ${but} the ${currencyName(base)} ${stronger}, so in ${base} ${got}. The exchange rate ${cost} ${periodPhrase(period)}.`
 }
 
 // "Your average is +0.23: your holdings mostly move independently, which helps, … CBA and BHP move
@@ -331,39 +361,43 @@ export function trackingYours({ tracking_error: te }) {
 }
 
 // "On about 1 trading day in 20 you could lose more than A$1,485, and on 1 day in 100 more than A$2,100. …"
-export function varYours({ levels }) {
-  const day95 = levels['95'].formula.day.aud
-  const day99 = levels['99'].formula.day.aud
-  const month95 = levels['95'].formula.month.aud
-  return `On about 1 trading day in 20 you could lose more than ${money(-day95)}, and on 1 day in 100 more than ${money(-day99)}. Over a month, the 1 in 20 figure is about ${money(-month95)}.`
+export function varYours({ levels }, currency) {
+  const day95 = levels['95'].formula.day.base
+  const day99 = levels['99'].formula.day.base
+  const month95 = levels['95'].formula.month.base
+  return `On about 1 trading day in 20 you could lose more than ${money(-day95, currency)}, and on 1 day in 100 more than ${money(-day99, currency)}. Over a month, the 1 in 20 figure is about ${money(-month95, currency)}.`
 }
 
 // "A repeat of 2008 would take about A$34,030 (47%). A 20% fall in Apple alone would cost about A$9,870, …"
-export function stressYours({ scenarios }) {
+export function stressYours({ scenarios }, currency) {
   const byId = Object.fromEntries(scenarios.map((s) => [s.id, s]))
-  const worstReplay = scenarios.find((s) => s.kind === 'replay' && s.impact_aud != null)
+  const worstReplay = scenarios.find((s) => s.kind === 'replay' && s.impact_base != null)
   const parts = []
   if (worstReplay) {
     const what = { gfc: 'A repeat of 2008', covid: 'A repeat of the 2020 COVID crash', tech2022: 'A repeat of 2022' }[worstReplay.id]
-    parts.push(`${what} would take about ${money(-worstReplay.impact_aud)} (${pct(-worstReplay.impact_pct, { decimals: 0 })}).`)
+    parts.push(`${what} would take about ${money(-worstReplay.impact_base, currency)} (${pct(-worstReplay.impact_pct, { decimals: 0 })}).`)
   }
   const largest = byId.largest
   const sp = byId.index_us
   if (largest) {
-    let text = `A 20% fall in ${largest.name.replace(/ falls 20%$/, '')} alone would cost about ${money(-largest.impact_aud)}`
-    if (sp && largest.impact_aud < sp.impact_aud) text += ', more than a 10% fall in the whole S&P 500'
+    let text = `A 20% fall in ${largest.name.replace(/ falls 20%$/, '')} alone would cost about ${money(-largest.impact_base, currency)}`
+    if (sp && largest.impact_base < sp.impact_base) text += ', more than a 10% fall in the whole S&P 500'
     parts.push(`${text}.`)
   }
   return parts.join(' ') || null
 }
 
 // "You beat the ASX 200 by 16.7 points. Most of it (13.9) came from being in US shares rather than the
-// local market, 4.6 from the stocks you picked, and the exchange rate cost 1.8."
-export function attributionYours({ difference, allocation, selection, currency }) {
+// local market, 4.6 from the stocks you picked, and the exchange rate cost 1.8." The index is the
+// account's home market's (the STI for a Singapore dollar account, #271).
+export function attributionYours(section) {
+  const { difference, allocation, selection, currency, benchmark } = section
   if (difference == null) return null
-  const verdict = difference >= 0 ? `You beat the ASX 200 by ${pts(difference)} points.` : `You trailed the ASX 200 by ${pts(difference)} points.`
+  const verdict = difference >= 0 ? `You beat the ${benchmark} by ${pts(difference)} points.` : `You trailed the ${benchmark} by ${pts(difference)} points.`
+  const places = foreignMarketPlaces(section)
   const phrases = {
-    allocation: (v) => (v >= 0 ? `${pts(v)} came from being in US shares rather than the local market` : `being in US shares rather than the local market cost ${pts(v)}`),
+    allocation: (v) =>
+      v >= 0 ? `${pts(v)} came from being in ${places} shares rather than the local market` : `being in ${places} shares rather than the local market cost ${pts(v)}`,
     selection: (v) => (v >= 0 ? `${pts(v)} from the stocks you picked` : `the stocks you picked cost ${pts(v)}`),
     currency: (v) => (v >= 0 ? `the exchange rate added ${pts(v)}` : `the exchange rate cost ${pts(v)}`),
   }

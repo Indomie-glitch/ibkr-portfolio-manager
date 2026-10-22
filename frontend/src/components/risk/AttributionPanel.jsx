@@ -1,14 +1,17 @@
-import { pct, points } from '../../lib/riskFormat.js'
+import { foreignMarketPlaces, pct, points } from '../../lib/riskFormat.js'
 
-const PARTS = [
-  ['allocation', 'Allocation', 'Being in US shares instead of the ASX mix'],
-  ['selection', 'Selection', 'Picking these stocks within their markets'],
-  ['currency', 'Currency', 'Exchange rate on US holdings'],
-]
+// The home index as a mix of shares: "the ASX mix", "the STI mix"
+const mixName = (benchmark) => (benchmark === 'ASX 200' ? 'ASX' : benchmark)
 
-// RSK 09 Attribution (Figma 106:1293): your return against the ASX 200's, and the difference split
-// into allocation, selection and currency
+// RSK 09 Attribution (Figma 106:1293): your return against the home market index's (the ASX 200 for
+// an Australian account), and the difference split into allocation, selection and currency
 export default function AttributionPanel({ section }) {
+  const places = foreignMarketPlaces(section)
+  const PARTS = [
+    ['allocation', 'Allocation', `Being in ${places} shares instead of the ${mixName(section.benchmark)} mix`],
+    ['selection', 'Selection', 'Picking these stocks within their markets'],
+    ['currency', 'Currency', `Exchange rate on ${places} holdings`],
+  ]
   const tone = (v) => (v > 0 ? 'gain' : v < 0 ? 'loss' : '')
   const scale = Math.max(Math.abs(section.difference ?? 0), ...PARTS.map(([key]) => Math.abs(section[key] ?? 0))) || 1
   return (
@@ -19,7 +22,7 @@ export default function AttributionPanel({ section }) {
           <p className={`risk-kpi-big ${tone(section.portfolio_return)}`}>{pct(section.portfolio_return, { signed: true })}</p>
         </div>
         <div>
-          <p className="risk-small-caps tight">ASX 200</p>
+          <p className="risk-small-caps tight">{section.benchmark}</p>
           <p className="risk-kpi-big">{pct(section.benchmark_return, { signed: true })}</p>
         </div>
         <div>

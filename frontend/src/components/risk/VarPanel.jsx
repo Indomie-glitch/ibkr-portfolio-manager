@@ -1,12 +1,12 @@
 import { formatMoney } from '../../lib/format.js'
 import { varPlainWords } from '../../lib/riskFormat.js'
 
-const money = (entry) => (entry ? formatMoney(entry.aud, 'AUD', { decimals: 0 }) : '—')
+const money = (entry, currency) => (entry ? formatMoney(entry.base, currency, { decimals: 0 }) : '—')
 const PAST = { '3M': 'Past 3 months', '1Y': 'Past year', '3Y': 'Past 3 years' }
 
 // RSK 08 Value at Risk (Figma 106:1256): the loss only the worst 1 day in 20 (or 100) should exceed,
 // for a day and a month, by formula, from history and simulated; then the same in plain words.
-export default function VarPanel({ section, period }) {
+export default function VarPanel({ section, meta, period }) {
   const { levels } = section
   const rows = [
     { label: '95% (1 in 20)', figures: levels['95'].formula, method: 'Formula' },
@@ -37,10 +37,10 @@ export default function VarPanel({ section, period }) {
               {r.label}
             </span>
             <span role="cell" className="num risk-mono loss">
-              {money(r.figures.day)}
+              {money(r.figures.day, meta.currency)}
             </span>
             <span role="cell" className="num risk-mono loss">
-              {money(r.figures.month)}
+              {money(r.figures.month, meta.currency)}
             </span>
             <span role="cell" className="num risk-mono-2 small">
               {r.method}
@@ -50,7 +50,7 @@ export default function VarPanel({ section, period }) {
       </div>
       <div className="risk-plain">
         <p className="risk-small-caps tight">In plain words</p>
-        <p>{varPlainWords(section, period)}</p>
+        <p>{varPlainWords(section, period, meta.currency)}</p>
       </div>
     </>
   )

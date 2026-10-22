@@ -1,5 +1,5 @@
 // Text for the Risk page's command bar, data notes and toolbar subtitle (Figma Risk / V5A).
-import { formatDate } from './format.js'
+import { currencyName, currencyPlace, formatDate, prefixFor } from './format.js'
 
 export const PERIODS = ['3M', '1Y', '3Y']
 export const DEFAULT_PERIOD = '1Y'
@@ -16,12 +16,12 @@ export function calculatedText(iso) {
 
 // Right side of the command bar
 export function asOfText(meta) {
-  return `As of ${calculatedText(meta.calculated_at)} · AUD · ${meta.days_used} trading days · Cash excluded`
+  return `As of ${calculatedText(meta.calculated_at)} · ${meta.currency} · ${meta.days_used} trading days · Cash excluded`
 }
 
 // Left side of the data notes row
 export function calculatedNote(meta) {
-  return `Calculated ${calculatedText(meta.calculated_at)} · Daily returns in AUD · ${meta.days_used} trading days · Cash excluded`
+  return `Calculated ${calculatedText(meta.calculated_at)} · Daily returns in ${meta.currency} · ${meta.days_used} trading days · Cash excluded`
 }
 
 // Right side of the data notes row: which holdings were left out and why
@@ -107,20 +107,54 @@ export function periodPhrase(period) {
   return { '3M': 'over the last 3 months', '1Y': 'this year', '3Y': 'over the last 3 years' }[period] ?? 'over this period'
 }
 
-// The one-line explanation under the total currency effect
-export function currencySentence(section, period) {
+// The command bar's benchmarks: "ASX 200 · S&P 500" (and the home index, e.g. STI, #271)
+export function benchmarkNames(meta) {
+  return meta ? Object.values(meta.benchmarks).map((b) => b.short).join(' · ') : ''
+}
+
+// The home index's name, from meta: "ASX 200", "STI"
+export function homeIndexName(meta) {
+  return meta?.benchmarks?.[meta.home_market]?.short ?? null
+}
+
+// ['USD'] -> "US", ['AUD', 'USD'] -> "Australian and US" (for "US holdings")
+export function currencyPlaces(currencies, joiner = 'and') {
+  const places = currencies.map(currencyPlace)
+  return joiner === 'and' ? listNames(places) : places.join(` ${joiner} `)
+}
+
+// The currencies an account holds or is compared with, besides its own: ['USD'] for an AUD account
+export function foreignCurrencies(meta) {
+  return (meta?.fx_pairs ?? []).map((p) => p.currency)
+}
+
+const MARKET_PLACES = { ASX: 'Australian', US: 'US' }
+
+// The markets attribution compares against the home index: "US" for an Australian account
+export function foreignMarketPlaces(section) {
+  const foreign = (section.segments ?? []).filter((s) => !s.home)
+  const held = foreign.filter((s) => s.weight > 0)
+  return listNames((held.length ? held : foreign).map((s) => MARKET_PLACES[s.market] ?? s.market))
+}
+
+// The one-line explanation under the total currency effect, about the largest foreign holding's
+// currency against the account's (base)
+export function currencySentence(section, period, base) {
   const fx = section.fx_return
-  const gains = section.holdings.reduce((sum, h) => sum + h.value_aud * (h.price_return ?? 0), 0) >= 0
+  const holdings = section.holdings.filter((h) => h.currency === section.fx_currency)
+  const gains = holdings.reduce((sum, h) => sum + h.value_base * (h.price_return ?? 0), 0) >= 0
   const when = periodPhrase(period)
+  const name = currencyName(base)
+  const place = currencyPlace(section.fx_currency)
   if (fx == null || Math.abs(fx) < 0.0005) return `The exchange rate barely moved ${when}, so it made little difference.`
   if (fx < 0) {
     return gains
-      ? `A stronger Australian dollar shrank your US gains ${when}.`
-      : `A stronger Australian dollar added to your US losses ${when}.`
+      ? `A stronger ${name} shrank your ${place} gains ${when}.`
+      : `A stronger ${name} added to your ${place} losses ${when}.`
   }
   return gains
-    ? `A weaker Australian dollar added to your US gains ${when}.`
-    : `A weaker Australian dollar softened your US losses ${when}.`
+    ? `A weaker ${name} added to your ${place} gains ${when}.`
+    : `A weaker ${name} softened your ${place} losses ${when}.`
 }
 
 // +0.48, −0.10, 1.00 for the diagonal
@@ -179,16 +213,16 @@ export function factorsHeadline({ factors, count }) {
 }
 
 // RSK 08's "In plain words": the 1-day 95% figure, and how the history based one compares
-export function varPlainWords({ levels }, period) {
+export function varPlainWords({ levels }, period, currency) {
   const formula = levels['95'].formula.day
   const history = levels['95'].history.day
-  const loss = formatCompactLoss(formula.aud)
+  const loss = formatCompactLoss(formula.base, currency)
   let text = `On about 1 trading day in 20, expect to lose more than ${loss}.`
   if (history) {
     const past = { '3M': 'the past 3 months', '1Y': 'the past year', '3Y': 'the past 3 years' }[period] ?? 'this period'
-    if (history.aud < formula.aud * 1.05) {
+    if (history.base < formula.base * 1.05) {
       text += ' The history based figure is higher because real markets have more extreme days than the formula assumes.'
-    } else if (history.aud > formula.aud * 0.95) {
+    } else if (history.base > formula.base * 0.95) {
       text += ` The history based figure is lower: ${past} had fewer extreme days than the formula assumes.`
     } else {
       text += ' The three methods roughly agree.'
@@ -197,9 +231,9 @@ export function varPlainWords({ levels }, period) {
   return text
 }
 
-// −1485.3 -> "A$1,485" (the size of a loss)
-function formatCompactLoss(aud) {
-  return `A$${Math.round(Math.abs(aud)).toLocaleString('en-AU')}`
+// −1485.3, 'AUD' -> "A$1,485" (the size of a loss)
+function formatCompactLoss(value, currency) {
+  return `${prefixFor(currency)}${Math.round(Math.abs(value)).toLocaleString('en-AU')}`
 }
 
 // A stress test's severity marker: high at a 20% loss or more, medium from 10%, low below

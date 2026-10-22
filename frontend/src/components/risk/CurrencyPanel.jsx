@@ -1,22 +1,25 @@
 import { formatMoney } from '../../lib/format.js'
-import { currencySentence, pct } from '../../lib/riskFormat.js'
+import { currencyPlaces, currencySentence, pct } from '../../lib/riskFormat.js'
 
-// RSK 05 Currency effect (Figma 106:1075): for the largest US holding, its price return in USD, the
-// exchange rate's effect and the return in AUD; then the total currency effect on all US holdings.
-export default function CurrencyPanel({ section, period }) {
+// RSK 05 Currency effect (Figma 106:1075): for the largest holding in another currency, its price
+// return in that currency, the exchange rate's effect and the return in the account's currency
+// (AUD for an Australian account); then the total currency effect on all such holdings.
+export default function CurrencyPanel({ section, meta, period }) {
+  const base = meta.currency
   const top = section.holdings[0]
   if (!top) {
-    return <p className="risk-panel-note">You have no US holdings, so exchange rates don’t change your returns.</p>
+    const places = currencyPlaces(section.currencies.map((c) => c.currency))
+    return <p className="risk-panel-note">You have no {places} holdings, so exchange rates don’t change your returns.</p>
   }
   const sign = (v) => (v > 0 ? 'gain' : v < 0 ? 'loss' : '')
   const rows = [
-    { label: `${top.name}’s price, in USD`, value: top.price_return, tone: sign(top.price_return) },
-    { label: 'Exchange rate, AUD vs USD', value: top.fx_return, tone: sign(top.fx_return) },
-    { label: 'Your return, in AUD', value: top.aud_return, tone: 'plain' },
+    { label: `${top.name}’s price, in ${top.currency}`, value: top.price_return, tone: sign(top.price_return) },
+    { label: `Exchange rate, ${base} vs ${top.currency}`, value: top.fx_return, tone: sign(top.fx_return) },
+    { label: `Your return, in ${base}`, value: top.base_return, tone: 'plain' },
   ]
   // Bars are drawn against the largest move rounded up to the next 10%
   const scale = Math.max(0.1, Math.ceil(Math.max(...rows.map((r) => Math.abs(r.value ?? 0))) * 10) / 10)
-  const total = section.total_effect_aud
+  const total = section.total_effect_base
   return (
     <>
       {rows.map((r) => (
@@ -32,8 +35,8 @@ export default function CurrencyPanel({ section, period }) {
       ))}
       <div className="risk-total">
         <p className="risk-small-caps tight">Total currency effect · Portfolio</p>
-        <p className={`risk-total-value ${sign(total)}`}>{formatMoney(total, 'AUD', { decimals: 0, signed: true })}</p>
-        <p className="risk-total-note">{currencySentence(section, period)}</p>
+        <p className={`risk-total-value ${sign(total)}`}>{formatMoney(total, base, { decimals: 0, signed: true })}</p>
+        <p className="risk-total-note">{currencySentence(section, period, base)}</p>
       </div>
     </>
   )

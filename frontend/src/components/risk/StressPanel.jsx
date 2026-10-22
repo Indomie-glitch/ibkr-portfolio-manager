@@ -3,7 +3,7 @@ import { listNames, pct, severity } from '../../lib/riskFormat.js'
 
 // RSK 07 Stress tests (Figma 106:1207): what today's holdings would lose in past crashes and simple
 // shocks, worst first, with a small severity marker
-export default function StressPanel({ section }) {
+export default function StressPanel({ section, meta }) {
   const estimated = [...new Set(section.scenarios.flatMap((s) => s.estimated ?? []))]
   return (
     <>
@@ -29,8 +29,8 @@ export default function StressPanel({ section }) {
               <span role="cell" className="risk-mono-2 small">
                 {s.label}
               </span>
-              <span role="cell" className={`num risk-mono ${s.impact_aud < 0 ? 'loss' : ''}`}>
-                {s.impact_aud == null ? 'Unavailable' : formatMoney(s.impact_aud, 'AUD', { decimals: 0 })}
+              <span role="cell" className={`num risk-mono ${s.impact_base < 0 ? 'loss' : ''}`}>
+                {s.impact_base == null ? 'Unavailable' : formatMoney(s.impact_base, meta.currency, { decimals: 0 })}
               </span>
               <span role="cell" className="num risk-stress-pct">
                 {level && <span className={`risk-severity ${level}`} aria-label={`${level} impact`} />}
