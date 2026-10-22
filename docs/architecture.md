@@ -31,6 +31,7 @@ flowchart LR
     ibkr[("IBKR servers<br/>accounts, prices, orders")]
     flex[("IBKR Flex Web Service<br/>purchase history report")]
     yahoo[("Yahoo Finance<br/>key stats, news,<br/>company info")]
+    funds[("ETF holdings files<br/>State Street, iShares;<br/>Nasdaq screener")]
     claude[("Anthropic API<br/>Claude writes the<br/>AI summaries and<br/>judges news sentiment")]
     gh[("GitHub Releases<br/>new app versions")]
 
@@ -39,6 +40,7 @@ flowchart LR
     gw <-->|"encrypted session<br/>(username + password once)"| ibkr
     app -->|"daily report<br/>(Flex token)"| flex
     app -->|"public data<br/>(yfinance)"| yahoo
+    app -->|"index members,<br/>weekly (no key)"| funds
     app -->|"facts sheet or headlines in,<br/>summary or sentiment out (API key)"| claude
     app -->|"check for update,<br/>download signed update"| gh
 ```
@@ -64,7 +66,7 @@ flowchart TB
     end
 
     gw["IB Gateway<br/>(installed separately,<br/>port 4012)"]
-    disk[("Application Support/<br/>settings.json, lots.sqlite,<br/>summaries.sqlite, news_sentiment.sqlite,<br/>usage.sqlite, risk_prices.sqlite, gateway/")]
+    disk[("Application Support/<br/>settings.json, lots.sqlite,<br/>summaries.sqlite, news_sentiment.sqlite,<br/>usage.sqlite, risk_prices.sqlite,<br/>indices.sqlite, gateway/")]
 
     shell -->|"opens window, injects<br/>backend URL + token"| ui
     ui -->|"Tauri commands<br/>(sign_in, set_api_key, ...)"| shell
@@ -107,6 +109,7 @@ flowchart TB
         r_sum["summaries.py<br/>/summary/... /portfolio-summary/...<br/>/usage"]
         r_trade["trading.py<br/>/trading/status /orders<br/>/orders/preview /stream<br/>cancel, modify"]
         r_risk["risk.py<br/>/risk /risk/bankruptcy"]
+        r_idx["indices.py<br/>/indices /indices/{id}<br/>/indices/{index}/members"]
     end
 
     subgraph core["Shared"]
@@ -135,11 +138,13 @@ flowchart TB
         rdata["risk_data.py<br/>daily closes (SQLite),<br/>base currency returns<br/>per window"]
         rmath["risk.py<br/>risk maths (numpy, pure)"]
         rsec["risk_sections.py<br/>one function per<br/>Risk page section"]
+        cons["constituents.py<br/>members of 6 indexes,<br/>weights, market caps,<br/>sectors (SQLite), weekly"]
     end
 
     main --> routers
     main -->|"keep_connected task"| ib_core
     main -->|"keep_refreshed task"| lots
+    main -->|"keep_refreshed task"| cons
     ib_core --> ib_conn
 
     r_pos --> ib_core & yahoo & cache & names & senti & fx
@@ -156,6 +161,8 @@ flowchart TB
     r_risk -.->|reuses| r_pos
     r_sum -.->|D:risk| r_risk
     rdata --> yahoo & rmath
+    r_idx --> cons & ib_core
+    cons --> yahoo & names
 
     lots --> flex
     sfacts --> yahoo
@@ -165,6 +172,7 @@ flowchart TB
     ib_core -->|ib_async| GW[["IB Gateway"]]
     yahoo -->|yfinance| YF[["Yahoo Finance"]]
     flex -->|HTTPS| FX[["Flex Web Service"]]
+    cons -->|HTTPS| FUNDS[["ETF holdings files,<br/>Nasdaq screener"]]
     ai -->|anthropic SDK| AN[["Anthropic API"]]
     senti -->|anthropic SDK| AN
     senti --> usage
@@ -174,7 +182,8 @@ flowchart TB
 
 **Background tasks** (started by `main.py` when the server starts):
 * `keep_connected`: keeps trying to connect to IB Gateway every 5 seconds, so the backend starts fine even when Gateway isn't running and reconnects after drops.
-* `keep_refreshed`: downloads the Flex purchase report once a day.
+* `keep_refreshed` (lots.py): downloads the Flex purchase report once a day.
+* `keep_refreshed` (constituents.py): checks every 3 hours; reloads each index's members when its copy is a week old (a failed download keeps the last copy), then market caps, then looks up missing sectors and industries on Yahoo one company at a time.
 
 ---
 
@@ -423,6 +432,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | Saved AI summaries | `summaries.sqlite` | last 20 per stock, last 20 portfolio |
 | News sentiment per article | `news_sentiment.sqlite` | 90 days |
 | Claude API usage: tokens and estimated cost per call | `usage.sqlite` | kept (`GET /usage` totals a month) |
+| Index members (S&P 500, Nasdaq 100, Dow, ASX 20 / 50 / 200) with weights, market caps, sectors and industries | `indices.sqlite` | replaced weekly per index; the last good copy stays if a download fails |
 | Daily closes for the risk analysis (holdings, indexes, exchange rate pairs against the account's currency) | `risk_prices.sqlite` | about 3 years, updated once a day per symbol |
 | Returns over past crashes (2008, 2020, 2022) for the stress tests | `risk_prices.sqlite` (table `risk_scenarios`) | kept (fetched once per symbol) |
 | App settings (Gateway port, AI model, username) | `settings.json` | until changed |
