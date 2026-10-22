@@ -368,14 +368,17 @@ fn is_web_link(url: &Url) -> bool {
     matches!(url.scheme(), "http" | "https")
 }
 
-/// Opens a web link in the default browser.
+/// Opens a web link in the default browser. If it can't, the page is told (link-open-failed,
+/// desktop/appLinks.js) so the user sees a message instead of nothing happening.
 fn open_in_browser(app: &AppHandle, url: &Url) {
     if !is_web_link(url) {
         log::warn!("Not opening a link with the {} scheme", url.scheme());
+        let _ = app.emit("link-open-failed", "Only web links can be opened from the app.");
         return;
     }
     if let Err(e) = app.opener().open_url(url.as_str(), None::<&str>) {
         log::warn!("Couldn't open a link in the browser: {e}");
+        let _ = app.emit("link-open-failed", "Your default browser didn't open it.");
     }
 }
 
@@ -433,7 +436,10 @@ fn stop_backend(child: &mut Child) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_opener::init())
+        // The plugin's own click script would take over target="_blank" links, call the opener from
+        // JavaScript (not allowed by our capabilities, so the click did nothing, #276) and stop the
+        // window's new-window handler below from seeing them. Links are opened there instead.
+        .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -513,5 +519,15 @@ mod tests {
         assert!(is_app_page(&url("about:blank")));
         assert!(!is_app_page(&url("https://finance.yahoo.com/news/story")));
         assert!(!is_app_page(&url("https://localhost.evil.example/")));
+    }
+
+    // #276: the opener plugin's own click script swallowed every target="_blank" link (its
+    // JavaScript call isn't allowed by our capabilities), so links must be left to open_main_window's
+    // handlers. Split with concat! so this test's own text doesn't match.
+    #[test]
+    fn the_opener_plugin_leaves_link_clicks_to_the_window() {
+        let source = include_str!("lib.rs");
+        assert!(source.contains(concat!("open_js_links_on_click", "(false)")));
+        assert!(!source.contains(concat!("tauri_plugin_opener", "::init()")));
     }
 }
