@@ -1,9 +1,25 @@
-// Symbols used in the design: A$ for AUD, US$ for USD. Other currencies use their code.
-const CURRENCY_PREFIX = { AUD: 'A$', USD: 'US$' }
+// Symbols used in the design: A$ for AUD, US$ for USD (and S$ for SGD). Other currencies use their code.
+const CURRENCY_PREFIX = { AUD: 'A$', USD: 'US$', SGD: 'S$' }
+// A currency in sentences: its name and the adjective for its country (#271)
+const CURRENCY_NAMES = {
+  AUD: ['Australian dollar', 'Australian'],
+  USD: ['US dollar', 'US'],
+  SGD: ['Singapore dollar', 'Singapore'],
+}
 const MINUS = '−' // a proper minus sign; lines up better than a hyphen
 
 export function prefixFor(currency) {
   return CURRENCY_PREFIX[currency] ?? `${currency} `
+}
+
+// currencyName('SGD') -> "Singapore dollar"; other currencies use their code
+export function currencyName(currency) {
+  return CURRENCY_NAMES[currency]?.[0] ?? currency
+}
+
+// currencyPlace('AUD') -> "Australian" (for "Australian shares"); other currencies use their code
+export function currencyPlace(currency) {
+  return CURRENCY_NAMES[currency]?.[1] ?? currency
 }
 
 export function formatNumber(value, decimals = 2) {

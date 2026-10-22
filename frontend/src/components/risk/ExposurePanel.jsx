@@ -32,16 +32,17 @@ function Split({ title, parts }) {
 }
 
 // RSK 02 Exposure (Figma 106:845): the holdings split by currency, market and sector
-export default function ExposurePanel({ section }) {
-  const holdings = formatCompactMoney(section.holdings_value_aud, 'AUD')
-  const cash = section.cash_aud == null ? 'Cash' : `Cash (${formatCompactMoney(section.cash_aud, 'AUD')})`
+export default function ExposurePanel({ section, meta }) {
+  const base = meta.currency
+  const holdings = formatCompactMoney(section.holdings_value_base, base)
+  const cash = section.cash_base == null ? 'Cash' : `Cash (${formatCompactMoney(section.cash_base, base)})`
   return (
     <>
       {GROUPS.map(([key, title]) => (
         <Split key={key} title={title} parts={section[key]} />
       ))}
       <p className="risk-footnote">
-        Measured in AUD. {cash} is left out, so these split your {holdings} in holdings.
+        Measured in {base}. {cash} is left out, so these split your {holdings} in holdings.
       </p>
     </>
   )

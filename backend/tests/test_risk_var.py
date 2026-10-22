@@ -53,17 +53,17 @@ class VarSectionTests(unittest.TestCase):
         returns = rng.normal(0, 0.01, size=(120, 2))
         inputs = risk_data.RiskInputs(
             period="1Y", start=date(2025, 10, 19), base_date=date(2025, 10, 20), dates=list(range(120)),
-            holdings=[{"symbol": "CBA", "value_aud": 6000.0}, {"symbol": "BHP", "value_aud": 4000.0}],
+            holdings=[{"symbol": "CBA", "value_base": 6000.0}, {"symbol": "BHP", "value_base": 4000.0}],
             returns=returns, local_returns=returns, weights=np.array([0.6, 0.4]), benchmark_returns={},
-            fx_returns=np.zeros(120), benchmarks={},
+            fx_returns={"USD": np.zeros(120)}, benchmarks={},
         )
         section = risk_sections.var_section(inputs)
-        self.assertEqual(section["value_aud"], 10000.0)
+        self.assertEqual(section["value_base"], 10000.0)
         formula = section["levels"]["95"]["formula"]
         # The return is rounded to 5 decimals, so A$ can differ by up to 5 cents
-        self.assertAlmostEqual(formula["day"]["aud"], formula["day"]["return"] * 10000, delta=0.06)
-        self.assertLess(section["levels"]["99"]["formula"]["day"]["aud"], formula["day"]["aud"])  # bigger loss
-        self.assertLess(formula["month"]["aud"], formula["day"]["aud"])
+        self.assertAlmostEqual(formula["day"]["base"], formula["day"]["return"] * 10000, delta=0.06)
+        self.assertLess(section["levels"]["99"]["formula"]["day"]["base"], formula["day"]["base"])  # bigger loss
+        self.assertLess(formula["month"]["base"], formula["day"]["base"])
         self.assertEqual(set(section["levels"]["95"]), {"formula", "history", "simulated"})
 
 

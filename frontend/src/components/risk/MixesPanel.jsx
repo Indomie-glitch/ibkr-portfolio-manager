@@ -1,9 +1,9 @@
 import { formatMoney } from '../../lib/format.js'
-import { mixLabel, pct, ratio } from '../../lib/riskFormat.js'
+import { currencyPlaces, mixLabel, pct, ratio } from '../../lib/riskFormat.js'
 
 // RSK 10 Optimisation and hedging (Figma 106:1339): other ways the same stocks could have been
 // weighted, worked out from the period's data, and two hedges. Examples only: no ranking, no "best".
-export default function MixesPanel({ section }) {
+export default function MixesPanel({ section, meta }) {
   const { mixes, currency_hedge: hedge, cash, count } = section
   const current = mixes[0]
   return (
@@ -45,9 +45,10 @@ export default function MixesPanel({ section }) {
       <p className="risk-small-caps tight">Hedges</p>
       {hedge && (
         <div className="risk-plain">
-          <p className="risk-hedge-title">Currency hedge on US holdings</p>
+          <p className="risk-hedge-title">Currency hedge on {currencyPlaces(hedge.currencies)} holdings</p>
           <p className="risk-hedge-text">
-            Removes AUD vs USD swings. Over this period: {formatMoney(hedge.result_aud, 'AUD', { decimals: 0, signed: true })};
+            Removes {meta.currency} vs {hedge.currencies.join('/')} swings. Over this period:{' '}
+            {formatMoney(hedge.result_base, meta.currency, { decimals: 0, signed: true })};
             volatility {pct(current.volatility)} → {pct(hedge.volatility)}
           </p>
         </div>

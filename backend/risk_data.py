@@ -1,5 +1,6 @@
-"""Daily prices for the risk analysis (Milestone 8, #98): every stock held, both total return indexes
-and the AUD/USD rate, from Yahoo, kept in risk_prices.sqlite and turned into AUD returns for a window.
+"""Daily prices for the risk analysis (Milestone 8, #98): every stock held, the market indexes and
+the exchange rates against the account's base currency (#271), from Yahoo, kept in
+risk_prices.sqlite and turned into base currency returns for a window.
 
 Yahoo is asked at most once a day per symbol, and only for the days not stored yet. Stock prices are
 dividend-adjusted, and Yahoo rewrites a stock's past adjusted prices after each dividend, so every
@@ -14,6 +15,7 @@ from datetime import date, timedelta
 
 import numpy as np
 
+import fx
 import risk
 import yahoo
 from config import DATA_DIR
@@ -158,37 +160,67 @@ async def scenario_returns(symbols, fetch=yahoo.fetch_daily_closes):
 
 @dataclass
 class RiskInputs:
-    """Everything the risk sections share, for one window."""
+    """Everything the risk sections share, for one window. Money is in the account's base currency."""
     period: str
     start: date  # first day of the window
     base_date: date  # the first close in the window: the starting point of the first return
     dates: list  # the day of each return row (its close)
-    holdings: list  # included holdings: con_id, symbol, name, market, currency, yahoo, sector, value_aud, weight
-    returns: np.ndarray  # rows = days, columns = holdings: daily returns of each holding's value in AUD
+    holdings: list  # included holdings: con_id, symbol, name, market, currency, yahoo, sector, value_base, weight
+    returns: np.ndarray  # rows = days, columns = holdings: daily returns of each holding's value in base currency
     local_returns: np.ndarray  # the same in each holding's own currency (price return only)
-    weights: np.ndarray  # each holding's share of the AUD value of the included holdings
-    benchmark_returns: dict  # {"ASX": array, "US": array}: total return index, daily
-    fx_returns: np.ndarray  # daily return of one US dollar in AUD
-    benchmarks: dict  # {"ASX": {symbol, short, total_return}, "US": ...}
+    weights: np.ndarray  # each holding's share of the base currency value of the included holdings
+    benchmark_returns: dict  # {"ASX": array, "US": array, and the home market's if another}: index, daily
+    fx_returns: dict  # {currency: array}: daily return of one unit of each foreign currency in base currency
+    benchmarks: dict  # {"ASX": {symbol, short, total_return}, "US": ..., and the home market's}
     left_out: list = field(default_factory=list)  # [{con_id, symbol, reason}]
-    cash_aud: float = None  # the account's cash in AUD (set by the route; not part of any weight)
-    scenarios: dict = field(default_factory=dict)  # scenario_returns() for the holdings, indexes and AUDUSD
+    cash_base: float = None  # the account's cash in base currency (set by the route; not part of any weight)
+    scenarios: dict = field(default_factory=dict)  # scenario_returns() for the holdings, indexes and rate pairs
     stale: list = field(default_factory=list)  # symbols whose update failed (older prices used)
+    base_currency: str = "AUD"  # the account's currency (GET /account)
+    home_market: str = "ASX"  # the market whose index attribution compares with (yahoo.HOME_MARKETS)
+    notes: list = field(default_factory=list)  # extra lines for meta.benchmark_note
 
     @property
     def days_used(self):
         return len(self.dates)
+
+    def pair(self, currency):
+        """The exchange rate series a foreign currency uses against the base currency."""
+        return fx.Pair(currency, self.base_currency)
 
 
 class NotEnoughData(Exception):
     """Too few holdings or common days to calculate anything."""
 
 
+# The markets every analysis compares with: the holdings' own markets
+MARKETS = ("ASX", "US")
+# The currency each market's shares trade in (attribution's currency step per market)
+MARKET_CURRENCY = {"ASX": "AUD", "US": "USD", "SG": "SGD"}
+
+
+def home_market(base):
+    """(market, note): the home index for an account in this currency, and a note when there is
+    none and the S&P 500 is used instead."""
+    if base in yahoo.HOME_MARKETS:
+        return yahoo.HOME_MARKETS[base], None
+    short = yahoo.RISK_BENCHMARKS[yahoo.DEFAULT_HOME]["short"]
+    return yahoo.DEFAULT_HOME, f"No home market index for {base} accounts: attribution compares with the {short}"
+
+
+def benchmark_symbols(markets):
+    """The index symbols (total return and fallback) for these markets."""
+    return [s for m in markets for s in (yahoo.RISK_BENCHMARKS[m]["symbol"], yahoo.RISK_BENCHMARKS[m]["fallback"]) if s]
+
+
 async def _benchmark(market, start, today, fetch, stale):
     """The total return index for a market, or its price index when the total return series is
-    missing or too short. Returns (info, closes)."""
+    missing or too short (or, like the STI, there's only a price index). Returns (info, closes)."""
     choice = yahoo.RISK_BENCHMARKS[market]
-    for symbol, total_return in ((choice["symbol"], True), (choice["fallback"], False)):
+    tries = ((choice["symbol"], not choice.get("price_only")), (choice["fallback"], False))
+    for symbol, total_return in tries:
+        if not symbol:
+            continue
         try:
             closes = await update(symbol, today, fetch, stale)
         except Exception as exc:
@@ -199,33 +231,50 @@ async def _benchmark(market, start, today, fetch, stale):
     raise NotEnoughData(f"No prices for the {choice['short']}")
 
 
-async def build_inputs(holdings, period, today, fetch=yahoo.fetch_daily_closes):
-    """Prices -> aligned AUD returns for the window.
+async def build_inputs(holdings, period, today, fetch=yahoo.fetch_daily_closes, base="AUD"):
+    """Prices -> aligned base currency returns for the window.
 
     holdings: [{con_id, symbol, name, market ("ASX"/"US"/None), currency, yahoo (symbol or None),
-    market_value (in its own currency), sector (optional)}].
+    market_value (in its own currency), sector (optional)}]. base: the account's currency.
     """
     start = risk.window_start(period, today)
     stale, left_out = [], []
+    home, home_note = home_market(base)
 
-    audusd = await update(yahoo.AUDUSD, today, fetch, stale)
-    if not audusd:
-        raise NotEnoughData("No AUD/USD exchange rates")
+    # Exchange rates: the US dollar's always (the US market is always compared with), plus every
+    # other currency of a holding with prices. Holdings in a currency without rates are left out;
+    # without the US dollar's there's nothing to compare with.
+    rates = {}
+    for currency in sorted({"USD"} | {h["currency"] for h in holdings if h.get("currency") and h.get("yahoo")}):
+        if currency == base:
+            continue
+        pair = fx.Pair(currency, base)
+        try:
+            closes = await update(pair.symbol, today, fetch, stale)
+        except Exception as exc:
+            if currency == "USD":
+                raise
+            print(f"Risk prices for {pair.symbol} unavailable: {mask_secrets(exc)}")
+            closes = {}
+        if closes:
+            rates[currency] = closes
+        elif currency == "USD":
+            raise NotEnoughData(f"No {pair.label} exchange rates")
     benchmarks, index_closes = {}, {}
-    for market in ("ASX", "US"):
+    for market in dict.fromkeys((*MARKETS, home)):
         benchmarks[market], index_closes[market] = await _benchmark(market, start, today, fetch, stale)
 
-    latest_rate = audusd[max(audusd)]
-    included, aud_prices, local_prices = [], {}, {}
+    included, base_prices, local_prices = [], {}, {}
     for holding in holdings:
         def leave_out(reason):
             left_out.append({"con_id": holding["con_id"], "symbol": holding["symbol"], "reason": reason})
 
-        if holding["currency"] not in ("AUD", "USD"):
-            leave_out(f"Only AUD and USD holdings are included ({holding['currency']})")
-            continue
+        currency = holding["currency"]
         if not holding.get("yahoo"):
             leave_out("No daily prices for this exchange")
+            continue
+        if currency != base and currency not in rates:
+            leave_out(f"No exchange rates for {currency}")
             continue
         if not holding.get("market_value") or holding["market_value"] <= 0:
             leave_out("No market value")
@@ -243,32 +292,38 @@ async def build_inputs(holdings, period, today, fetch=yahoo.fetch_daily_closes):
         in_window = {day: c for day, c in closes.items() if day >= start}
         key = str(holding["con_id"])
         local_prices[key] = in_window
-        aud_prices[key] = in_window if holding["currency"] == "AUD" else risk.to_aud(in_window, audusd)
-        value_aud = holding["market_value"] if holding["currency"] == "AUD" else holding["market_value"] / latest_rate
+        if currency == base:
+            base_prices[key], value_base = in_window, holding["market_value"]
+        else:
+            pair, quotes = fx.Pair(currency, base), rates[currency]
+            base_prices[key] = pair.convert(in_window, quotes)
+            value_base = pair.to_base(holding["market_value"], quotes[max(quotes)])
         included.append({**{k: holding[k] for k in ("con_id", "symbol", "name", "market", "currency", "yahoo")},
-                         "sector": holding.get("sector"), "quantity": holding.get("quantity"), "value_aud": value_aud})
+                         "sector": holding.get("sector"), "quantity": holding.get("quantity"), "value_base": value_base})
 
     if not included:
         raise NotEnoughData("No holdings have prices for the whole period")
 
     window = lambda closes: {day: c for day, c in closes.items() if day >= start}  # noqa: E731
     keys = [str(h["con_id"]) for h in included]
-    series = {**{f"aud:{k}": aud_prices[k] for k in keys}, **{f"local:{k}": local_prices[k] for k in keys},
-              "index:ASX": window(index_closes["ASX"]), "index:US": window(index_closes["US"]),
-              "fx": window(audusd)}
+    series = {**{f"base:{k}": base_prices[k] for k in keys}, **{f"local:{k}": local_prices[k] for k in keys},
+              **{f"index:{m}": window(index_closes[m]) for m in benchmarks},
+              **{f"fx:{c}": window(rates[c]) for c in rates}}
     dates, prices = risk.align(series)
     if len(dates) < MIN_DAYS + 1:
         raise NotEnoughData(f"Only {max(len(dates) - 1, 0)} days with prices for everything")
 
     n = len(keys)
+    columns = {name: i for i, name in enumerate(series)}
     returns_all = risk.simple_returns(prices)
-    w = risk.weights([h["value_aud"] for h in included])
+    w = risk.weights([h["value_base"] for h in included])
     for holding, weight in zip(included, w):
         holding["weight"] = float(weight)
     return RiskInputs(
         period=period, start=start, base_date=dates[0], dates=dates[1:], holdings=included,
         returns=returns_all[:, :n], local_returns=returns_all[:, n:2 * n], weights=w,
-        benchmark_returns={"ASX": returns_all[:, 2 * n], "US": returns_all[:, 2 * n + 1]},
-        fx_returns=risk.fx_returns(prices[:, 2 * n + 2]), benchmarks=benchmarks,
-        left_out=left_out, stale=sorted(set(stale)),
+        benchmark_returns={m: returns_all[:, columns[f"index:{m}"]] for m in benchmarks},
+        fx_returns={c: fx.Pair(c, base).returns(prices[:, columns[f"fx:{c}"]]) for c in rates},
+        benchmarks=benchmarks, left_out=left_out, stale=sorted(set(stale)),
+        base_currency=base, home_market=home, notes=[home_note] if home_note else [],
     )

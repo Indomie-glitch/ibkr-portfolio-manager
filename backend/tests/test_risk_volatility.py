@@ -66,11 +66,11 @@ class VolatilitySectionTests(unittest.TestCase):
         self.inputs = risk_data.RiskInputs(
             period="1Y", start=date(2025, 10, 19), base_date=date(2026, 10, 9), dates=days,
             holdings=[
-                {"con_id": 1, "symbol": "BHP", "market": "ASX", "weight": 0.75, "value_aud": 7500.0},
-                {"con_id": 2, "symbol": "AAPL", "market": "US", "weight": 0.25, "value_aud": 2500.0},
+                {"con_id": 1, "symbol": "BHP", "market": "ASX", "weight": 0.75, "value_base": 7500.0},
+                {"con_id": 2, "symbol": "AAPL", "market": "US", "weight": 0.25, "value_base": 2500.0},
             ],
             returns=aud, local_returns=local, weights=np.array([0.75, 0.25]),
-            benchmark_returns={"ASX": index, "US": index}, fx_returns=fx, benchmarks={},
+            benchmark_returns={"ASX": index, "US": index}, fx_returns={"USD": fx}, benchmarks={},
         )
 
     def test_section(self):
@@ -79,7 +79,7 @@ class VolatilitySectionTests(unittest.TestCase):
         self.assertEqual((bhp["beta"], bhp["beta_vs"]), (2.0, "ASX 200"))
         self.assertEqual((aapl["beta"], aapl["beta_vs"]), (1.0, "S&P 500"))  # own currency, so FX doesn't change it
         self.assertAlmostEqual(bhp["volatility"], 2 * 0.1833, places=3)
-        self.assertEqual(section["portfolio"]["value_aud"], 10000.0)
+        self.assertEqual(section["portfolio"]["value_base"], 10000.0)
         self.assertEqual(section["portfolio"]["us_weight"], 0.25)
         self.assertAlmostEqual(section["benchmarks"]["ASX"]["volatility"], 0.1833, places=4)
 
@@ -91,7 +91,7 @@ class VolatilitySectionTests(unittest.TestCase):
         # 0.9994. The high is after day 1 (12 Oct) and the low after day 4 (15 Oct): −1.9%
         self.assertEqual((dd["peak"], dd["trough"]), ("2026-10-12", "2026-10-15"))
         self.assertAlmostEqual(dd["fall"], 0.99938 / 1.01876 - 1, places=3)
-        self.assertAlmostEqual(dd["loss_aud"], dd["fall"] * 10000, delta=1)
+        self.assertAlmostEqual(dd["loss_base"], dd["fall"] * 10000, delta=1)
 
 
 if __name__ == "__main__":

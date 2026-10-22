@@ -117,7 +117,7 @@ flowchart TB
         cfg["config.py<br/>.env + app settings"]
         guard["secrets_guard.py<br/>masks secrets in errors"]
         names["names.py<br/>tidy company names"]
-        fx["fx.py<br/>exchange rates: ledger,<br/>IB forex, Yahoo"]
+        fx["fx.py<br/>exchange rates: ledger,<br/>IB forex, Yahoo;<br/>daily rate pairs"]
     end
 
     subgraph data["Data and AI"]
@@ -132,7 +132,7 @@ flowchart TB
         store["summary_store.py<br/>saved summaries (SQLite)"]
         senti["news_sentiment.py<br/>news good/bad + strength,<br/>saved per article (SQLite)"]
         usage["usage_store.py<br/>tokens + cost of every<br/>Claude call (SQLite)"]
-        rdata["risk_data.py<br/>daily closes (SQLite),<br/>AUD returns per window"]
+        rdata["risk_data.py<br/>daily closes (SQLite),<br/>base currency returns<br/>per window"]
         rmath["risk.py<br/>risk maths (numpy, pure)"]
         rsec["risk_sections.py<br/>one function per<br/>Risk page section"]
     end
@@ -144,6 +144,8 @@ flowchart TB
 
     r_pos --> ib_core & yahoo & cache & names & senti & fx
     r_trade -.-> fx
+    r_risk -.-> fx
+    rdata -.->|rate pairs| fx
     fx --> ib_core & yahoo & cache
     r_flex --> lots & ib_core
     r_trade --> trading & ib_core & web
@@ -421,7 +423,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | Saved AI summaries | `summaries.sqlite` | last 20 per stock, last 20 portfolio |
 | News sentiment per article | `news_sentiment.sqlite` | 90 days |
 | Claude API usage: tokens and estimated cost per call | `usage.sqlite` | kept (`GET /usage` totals a month) |
-| Daily closes for the risk analysis (holdings, indexes, AUD/USD) | `risk_prices.sqlite` | about 3 years, updated once a day per symbol |
+| Daily closes for the risk analysis (holdings, indexes, exchange rate pairs against the account's currency) | `risk_prices.sqlite` | about 3 years, updated once a day per symbol |
 | Returns over past crashes (2008, 2020, 2022) for the stress tests | `risk_prices.sqlite` (table `risk_scenarios`) | kept (fetched once per symbol) |
 | App settings (Gateway port, AI model, username) | `settings.json` | until changed |
 | Anthropic API key, Flex token | backend memory only (Mac app) or `.env` (dev) | until the app quits |

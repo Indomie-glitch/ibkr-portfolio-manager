@@ -43,7 +43,7 @@ class ConcentrationSectionTests(unittest.TestCase):
                 {"symbol": "MSFT", "currency": "USD", "sector": "Technology"},
             ],
             returns=returns, local_returns=returns, weights=np.array([0.1, 0.6, 0.3]),
-            benchmark_returns={}, fx_returns=np.zeros(60), benchmarks={},
+            benchmark_returns={}, fx_returns={"USD": np.zeros(60)}, benchmarks={},
         )
         section = risk_sections.concentration_section(inputs)
         self.assertEqual([r["symbol"] for r in section["holdings"]], ["AAPL", "MSFT", "CBA"])  # by money

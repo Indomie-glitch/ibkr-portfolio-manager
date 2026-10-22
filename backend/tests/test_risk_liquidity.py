@@ -34,7 +34,7 @@ class LiquiditySectionTests(unittest.TestCase):
                       {"symbol": "XYZ", "market": "ASX", "quantity": 20_000, "avg_volume": 100_000},
                       {"symbol": "NEW", "market": "ASX", "quantity": 10, "avg_volume": None}],
             returns=np.zeros((0, 3)), local_returns=np.zeros((0, 3)), weights=np.full(3, 1 / 3),
-            benchmark_returns={}, fx_returns=np.zeros(0), benchmarks={},
+            benchmark_returns={}, fx_returns={}, benchmarks={},
         )
         section = risk_sections.liquidity_section(inputs)
         self.assertEqual(section["slowest"]["symbol"], "XYZ")

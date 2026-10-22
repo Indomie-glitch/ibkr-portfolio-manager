@@ -8,6 +8,7 @@ from unittest import mock
 
 import numpy as np
 
+import fx
 import risk
 import risk_data
 import risk_sections
@@ -26,7 +27,7 @@ class PeriodReturnTests(unittest.TestCase):
 
     def test_us_dollar_in_aud(self):
         # AUDUSD 0.80 -> 0.60 (−25%): a US dollar went from A$1.25 to A$1.667, +33.3%
-        self.assertAlmostEqual(risk.usd_in_aud_return(-0.25), 1 / 0.75 - 1)
+        self.assertAlmostEqual(fx.Pair("USD", "AUD").period_return(-0.25), 1 / 0.75 - 1)
 
 
 class ScenarioStoreTests(unittest.TestCase):
@@ -64,11 +65,11 @@ class StressSectionTests(unittest.TestCase):
         self.inputs = risk_data.RiskInputs(
             period="1Y", start=date(2025, 10, 19), base_date=date(2025, 10, 20), dates=list(range(4)),
             holdings=[
-                {"symbol": "BHP", "name": "BHP Group", "market": "ASX", "currency": "AUD", "yahoo": "BHP.AX", "value_aud": 6000.0},
-                {"symbol": "AAPL", "name": "Apple", "market": "US", "currency": "USD", "yahoo": "AAPL", "value_aud": 4000.0},
+                {"symbol": "BHP", "name": "BHP Group", "market": "ASX", "currency": "AUD", "yahoo": "BHP.AX", "value_base": 6000.0},
+                {"symbol": "AAPL", "name": "Apple", "market": "US", "currency": "USD", "yahoo": "AAPL", "value_base": 4000.0},
             ],
             returns=local, local_returns=local, weights=np.array([0.6, 0.4]),
-            benchmark_returns={"ASX": index, "US": index}, fx_returns=np.zeros(4), benchmarks={},
+            benchmark_returns={"ASX": index, "US": index}, fx_returns={"USD": np.zeros(4)}, benchmarks={},
             scenarios={
                 "BHP.AX": {"gfc": -0.5, "covid": None, "tech2022": None},
                 "AAPL": {"gfc": None, "covid": None, "tech2022": None},  # no prices then: S&P 500 × beta
@@ -82,26 +83,26 @@ class StressSectionTests(unittest.TestCase):
         rows = {r["id"]: r for r in section["scenarios"]}
         # GFC: BHP −50% of A$6,000 = −A$3,000. Apple: the S&P 500's −40% × beta 1 in USD, and a US dollar
         # gained 33.3% in AUD: 0.6 × 1.333 − 1 = −20% of A$4,000 = −A$800. Total −A$3,800 (−38%)
-        self.assertAlmostEqual(rows["gfc"]["impact_aud"], -3800.0)
+        self.assertAlmostEqual(rows["gfc"]["impact_base"], -3800.0)
         self.assertEqual(rows["gfc"]["impact_pct"], -0.38)
         self.assertEqual(rows["gfc"]["estimated"], ["AAPL"])
-        self.assertAlmostEqual(rows["largest"]["impact_aud"], -1200.0)  # BHP falls 20%
+        self.assertAlmostEqual(rows["largest"]["impact_base"], -1200.0)  # BHP falls 20%
         self.assertEqual(rows["largest"]["name"], "BHP Group falls 20%")
         # S&P 500 −10%: only Apple moves, 4,000 × 1 × −10% = −A$400; as a whole-portfolio beta, 0.40
-        self.assertAlmostEqual(rows["index_us"]["impact_aud"], -400.0)
+        self.assertAlmostEqual(rows["index_us"]["impact_base"], -400.0)
         self.assertEqual(rows["index_us"]["label"], "Using your beta 0.40")
-        self.assertAlmostEqual(rows["index_asx"]["impact_aud"], -1200.0)  # 6,000 × 2 × −10%
+        self.assertAlmostEqual(rows["index_asx"]["impact_base"], -1200.0)  # 6,000 × 2 × −10%
         # AUD +10%: US$ holdings lose 1 − 1/1.1 = 9.09% in AUD
-        self.assertAlmostEqual(rows["aud"]["impact_aud"], -363.64)
+        self.assertAlmostEqual(rows["currency"]["impact_base"], -363.64)
         # Worst first; crashes without data last, with no figure
-        self.assertEqual([r["id"] for r in section["scenarios"]][:5], ["gfc", "largest", "index_asx", "index_us", "aud"])
-        self.assertIsNone(rows["covid"]["impact_aud"])
+        self.assertEqual([r["id"] for r in section["scenarios"]][:5], ["gfc", "largest", "index_asx", "index_us", "currency"])
+        self.assertIsNone(rows["covid"]["impact_base"])
 
     def test_no_stress_prices_at_all(self):
         self.inputs.scenarios = {}
         rows = {r["id"]: r for r in risk_sections.stress_section(self.inputs)["scenarios"]}
-        self.assertIsNone(rows["gfc"]["impact_aud"])
-        self.assertAlmostEqual(rows["aud"]["impact_aud"], -363.64)  # the shocks still work
+        self.assertIsNone(rows["gfc"]["impact_base"])
+        self.assertAlmostEqual(rows["currency"]["impact_base"], -363.64)  # the shocks still work
 
 
 if __name__ == "__main__":

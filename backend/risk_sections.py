@@ -68,9 +68,9 @@ def volatility_section(inputs):
     """How much each holding and the portfolio swing, how much they move with the market, and the
     worst fall in the window (#102).
 
-    Volatility uses AUD returns (what you experience). A holding's beta compares its own-currency
-    returns with its home index, so the exchange rate doesn't blur how it moves with its market; the
-    portfolio's betas compare its AUD returns with each index as quoted.
+    Volatility uses base currency returns (what you experience). A holding's beta compares its
+    own-currency returns with its home index, so the exchange rate doesn't blur how it moves with its
+    market; the portfolio's betas compare its base currency returns with each index as quoted.
     """
     holdings = []
     vols = risk.annual_volatility(inputs.returns)
@@ -85,14 +85,14 @@ def volatility_section(inputs):
     portfolio = risk.portfolio_returns(inputs.returns, inputs.weights)
     fall, peak, trough = risk.max_drawdown(portfolio)
     days = [inputs.base_date, *inputs.dates]
-    total = sum(h["value_aud"] for h in inputs.holdings)
+    total = sum(h["value_base"] for h in inputs.holdings)
     return {
         "holdings": holdings,
         "portfolio": {
             "volatility": _round(risk.annual_volatility(portfolio)),
             "beta_asx": _round(risk.beta(portfolio, inputs.benchmark_returns["ASX"])),
             "beta_us": _round(risk.beta(portfolio, inputs.benchmark_returns["US"])),
-            "value_aud": round(total, 2),
+            "value_base": round(total, 2),
             "us_weight": _round(sum(h["weight"] for h in inputs.holdings if h["market"] == "US")),
         },
         "benchmarks": {market: {"name": INDEX_NAMES[market],
@@ -103,7 +103,7 @@ def volatility_section(inputs):
             "peak": days[peak].isoformat() if fall < 0 else None,
             "trough": days[trough].isoformat() if fall < 0 else None,
             # The same fall on today's holdings
-            "loss_aud": round(fall * total, 2),
+            "loss_base": round(fall * total, 2),
         },
     }
 
@@ -143,7 +143,7 @@ def concentration_section(inputs):
 
 
 def exposure_section(inputs):
-    """How the holdings split by currency, market and sector, as shares of their AUD value (#100).
+    """How the holdings split by currency, market and sector, as shares of their base currency value (#100).
     Cash isn't a holding; it's reported separately for the footnote."""
     weights = inputs.weights
 
@@ -154,31 +154,41 @@ def exposure_section(inputs):
         "currency": split([h["currency"] for h in inputs.holdings]),
         "market": split([MARKET_NAMES.get(h["market"], h["market"]) for h in inputs.holdings]),
         "sector": split([sector_name(h) for h in inputs.holdings]),
-        "holdings_value_aud": round(sum(h["value_aud"] for h in inputs.holdings), 2),
-        "cash_aud": None if inputs.cash_aud is None else round(inputs.cash_aud, 2),
+        "holdings_value_base": round(sum(h["value_base"] for h in inputs.holdings), 2),
+        "cash_base": None if inputs.cash_base is None else round(inputs.cash_base, 2),
     }
 
 
 def currency_section(inputs):
-    """For each US holding over the window: its price return in USD, the AUD/USD effect and the return
-    in AUD, where 1 + AUD return = (1 + USD return)(1 + FX return); and the portfolio's total currency
-    effect in A$ (#101)."""
-    fx = float(risk.compound(inputs.fx_returns))
+    """For each holding in another currency over the window: its price return in its own currency, the
+    exchange rate's effect and the return in base currency, where 1 + base return = (1 + price return)
+    (1 + FX return); and the portfolio's total currency effect in base currency (#101, #271).
+
+    fx_return / fx_currency at the top: the currency of the largest foreign holding (the US dollar
+    when there is none), for the panel's one-line summary."""
+    base = inputs.base_currency
+    fx_totals = {currency: float(risk.compound(r)) for currency, r in inputs.fx_returns.items()}
     rows = []
     for i, holding in enumerate(inputs.holdings):
-        if holding["currency"] != "USD":
+        currency = holding["currency"]
+        if currency == base:
             continue
+        fx = fx_totals[currency]
         price = float(risk.compound(inputs.local_returns[:, i]))
         rows.append({
-            "symbol": holding["symbol"], "name": holding["name"], "value_aud": round(holding["value_aud"], 2),
-            "price_return": _round(price), "fx_return": _round(fx), "aud_return": _round((1 + price) * (1 + fx) - 1),
-            "effect_aud": round(risk.currency_effect_aud(holding["value_aud"], fx), 2),
+            "symbol": holding["symbol"], "name": holding["name"], "currency": currency,
+            "value_base": round(holding["value_base"], 2),
+            "price_return": _round(price), "fx_return": _round(fx), "base_return": _round((1 + price) * (1 + fx) - 1),
+            "effect_base": round(risk.currency_effect(holding["value_base"], fx), 2),
         })
-    rows.sort(key=lambda r: -r["value_aud"])
+    rows.sort(key=lambda r: -r["value_base"])
+    main = rows[0]["currency"] if rows else ("USD" if "USD" in fx_totals else None)
     return {
         "holdings": rows,
-        "fx_return": _round(fx),
-        "total_effect_aud": round(sum(r["effect_aud"] for r in rows), 2),
+        "fx_currency": main,
+        "fx_return": _round(fx_totals[main]) if main else None,
+        "currencies": [{"currency": c, "pair": inputs.pair(c).label, "fx_return": _round(r)} for c, r in sorted(fx_totals.items())],
+        "total_effect_base": round(sum(r["effect_base"] for r in rows), 2),
     }
 
 
@@ -248,12 +258,12 @@ def performance_section(inputs):
 def var_section(inputs):
     """Value at Risk (#240): the loss on today's holdings that only the worst 1 day in 20 (95%) or 1 in
     100 (99%) should exceed, for 1 day and 1 month (21 trading days), worked out three ways."""
-    value = sum(h["value_aud"] for h in inputs.holdings)
+    value = sum(h["value_base"] for h in inputs.holdings)
     cov = risk.covariance(inputs.returns)
     portfolio = risk.portfolio_returns(inputs.returns, inputs.weights)
 
     def entry(ret):
-        return None if ret is None else {"return": _round(ret, 5), "aud": round(float(ret * value), 2)}
+        return None if ret is None else {"return": _round(ret, 5), "base": round(float(ret * value), 2)}
 
     levels = {}
     for confidence in (0.95, 0.99):
@@ -265,11 +275,11 @@ def var_section(inputs):
             "simulated": {"day": entry(risk.simulated_var(inputs.weights, cov, confidence)),
                           "month": entry(risk.simulated_var(inputs.weights, cov, confidence, risk.MONTH_DAYS))},
         }
-    return {"value_aud": round(value, 2), "levels": levels, "runs": risk.SIMULATION_RUNS,
+    return {"value_base": round(value, 2), "levels": levels, "runs": risk.SIMULATION_RUNS,
             "month_days": risk.MONTH_DAYS}
 
 
-SHOCK = -0.10  # index falls and the AUD rise
+SHOCK = -0.10  # index falls, and the base currency's rise
 SINGLE_STOCK_SHOCK = -0.20
 
 
@@ -293,11 +303,10 @@ def _index_return(scenarios, market, scenario):
 
 
 def replay(inputs, betas, scenario):
-    """What today's holdings would have done over a past crash, in AUD: each holding's own return
-    then, or its home index × its beta if it had no prices then. (None, estimated) if not possible."""
+    """What today's holdings would have done over a past crash, in base currency: each holding's own
+    return then, or its home index × its beta if it had no prices then, and for a holding in another
+    currency the move of that currency's rate. (None, estimated) if not possible."""
     scenarios = inputs.scenarios
-    audusd = scenarios.get(yahoo.AUDUSD, {}).get(scenario)
-    fx = None if audusd is None else risk.usd_in_aud_return(audusd)
     impact, estimated = 0.0, []
     for holding, b in zip(inputs.holdings, betas):
         ret = scenarios.get(holding["yahoo"], {}).get(scenario)
@@ -307,68 +316,82 @@ def replay(inputs, betas, scenario):
                 return None, []
             ret = b * market_ret
             estimated.append(holding["symbol"])
-        if holding["currency"] == "USD":
-            if fx is None:
+        if holding["currency"] != inputs.base_currency:
+            pair = inputs.pair(holding["currency"])
+            quote = scenarios.get(pair.symbol, {}).get(scenario)
+            if quote is None:
                 return None, []
+            fx = pair.period_return(quote)
             ret = (1 + ret) * (1 + fx) - 1
-        impact += holding["value_aud"] * ret
+        impact += holding["value_base"] * ret
     return impact, estimated
 
 
 def stress_section(inputs):
     """What today's holdings would lose in past crashes and simple shocks, worst first (#241)."""
-    total = sum(h["value_aud"] for h in inputs.holdings)
+    base = inputs.base_currency
+    total = sum(h["value_base"] for h in inputs.holdings)
     betas = home_betas(inputs)
     rows = []
 
     def row(kind, key, name, label, impact, **extra):
         rows.append({"kind": kind, "id": key, "name": name, "label": label,
-                     "impact_aud": None if impact is None else round(impact, 2),
+                     "impact_base": None if impact is None else round(impact, 2),
                      "impact_pct": None if impact is None or not total else _round(impact / total), **extra})
 
     for key, scenario in risk_data.SCENARIOS.items():
         impact, estimated = replay(inputs, betas, key)
         row("replay", key, scenario["name"], scenario["label"], impact, estimated=estimated)
 
-    largest = max(inputs.holdings, key=lambda h: h["value_aud"])
+    largest = max(inputs.holdings, key=lambda h: h["value_base"])
     row("shock", "largest", f"{largest['name'] or largest['symbol']} falls 20%", "Custom",
-        SINGLE_STOCK_SHOCK * largest["value_aud"], symbol=largest["symbol"])
+        SINGLE_STOCK_SHOCK * largest["value_base"], symbol=largest["symbol"])
     for market, name in (("US", "S&P 500"), ("ASX", "ASX 200")):
-        impact = sum(h["value_aud"] * b * SHOCK for h, b in zip(inputs.holdings, betas) if h["market"] == market)
+        impact = sum(h["value_base"] * b * SHOCK for h, b in zip(inputs.holdings, betas) if h["market"] == market)
         # The beta of the whole portfolio this works out to, for the "Using your beta" label
         implied = impact / (SHOCK * total) if total else None
         row("shock", f"index_{market.lower()}", f"{name} falls 10%", f"Using your beta {implied:.2f}", impact,
             implied_beta=_round(implied, 3))
-    usd = sum(h["value_aud"] for h in inputs.holdings if h["currency"] == "USD")
-    row("shock", "aud", "AUD rises 10% vs USD", "Currency", usd * (1 / 1.1 - 1))
+    # The base currency rises 10% against the currencies held (those the rates were fetched for when
+    # everything is in the base currency): holdings in them lose 1 − 1/1.1 of their base value
+    foreign = sorted({h["currency"] for h in inputs.holdings if h["currency"] != base}) or sorted(inputs.fx_returns)
+    if foreign:
+        value = sum(h["value_base"] for h in inputs.holdings if h["currency"] != base)
+        row("shock", "currency", f"{base} rises 10% vs {' and '.join(foreign)}", "Currency", value * (1 / 1.1 - 1))
 
-    known = sorted((r for r in rows if r["impact_aud"] is not None), key=lambda r: r["impact_aud"])
-    return {"scenarios": known + [r for r in rows if r["impact_aud"] is None], "value_aud": round(total, 2)}
+    known = sorted((r for r in rows if r["impact_base"] is not None), key=lambda r: r["impact_base"])
+    return {"scenarios": known + [r for r in rows if r["impact_base"] is None], "value_base": round(total, 2)}
 
 
 def attribution_section(inputs):
-    """Why the holdings beat or trailed the ASX 200 over the window (#242): which market they're in
-    (allocation), which stocks within each market (selection), and the exchange rate (currency).
+    """Why the holdings beat or trailed the home market index over the window (#242; the ASX 200 for
+    an Australian account, yahoo.HOME_MARKETS, #271): which market they're in (allocation), which
+    stocks within each market (selection), and the exchange rates (currency).
 
     Each holding's return is compounded over the window and the segments use today's weights (a
     single period), so the parts add up exactly to the difference."""
     local = risk.compound(inputs.local_returns)
     weights = inputs.weights
-
-    def segment(market):
+    home = inputs.home_market
+    benchmark = float(risk.compound(inputs.benchmark_returns[home]))
+    segments = []
+    for market in risk_data.MARKETS:
         idx = [i for i, h in enumerate(inputs.holdings) if h["market"] == market]
         w = float(sum(weights[i] for i in idx))
         r = float(sum(weights[i] * local[i] for i in idx) / w) if w else 0.0
-        return w, r
-
-    w_au, r_au = segment("ASX")
-    w_us, r_us = segment("US")
-    benchmark = float(risk.compound(inputs.benchmark_returns["ASX"]))
-    us_index = float(risk.compound(inputs.benchmark_returns["US"]))
-    fx = float(risk.compound(inputs.fx_returns))
-    portfolio, allocation, selection, currency, cross = risk.attribution(w_au, r_au, w_us, r_us, benchmark, us_index, fx)
+        index = float(risk.compound(inputs.benchmark_returns[market]))
+        currency = risk_data.MARKET_CURRENCY[market]
+        fx_daily = inputs.fx_returns.get(currency)
+        # No rates for a currency nothing is held in: that segment's weight is 0 anyway
+        fx = 0.0 if currency == inputs.base_currency or fx_daily is None else float(risk.compound(fx_daily))
+        segments.append({"market": market, "weight": w, "return": r, "index_return": index,
+                         "currency": currency, "fx_return": fx})
+    portfolio, allocation, selection, currency, cross = risk.attribution(
+        [(s["weight"], s["return"], s["index_return"], s["fx_return"]) for s in segments], benchmark)
+    us = next(s for s in segments if s["market"] == "US")
     return {
         "portfolio_return": _round(portfolio),
+        "benchmark": yahoo.RISK_BENCHMARKS[home]["short"],
         "benchmark_return": _round(benchmark),
         "difference": _round(portfolio - benchmark),
         # The currency part includes the small cross term, so the three add up to the difference
@@ -376,9 +399,11 @@ def attribution_section(inputs):
         "selection": _round(selection),
         "currency": _round(currency + cross),
         "cross": _round(cross),
-        "us_weight": _round(w_us),
-        "us_index_return": _round(us_index),
-        "fx_return": _round(fx),
+        "segments": [{**s, **{k: _round(s[k]) for k in ("weight", "return", "index_return", "fx_return")},
+                      "home": s["market"] == home} for s in segments],
+        "us_weight": _round(us["weight"]),
+        "us_index_return": _round(us["index_return"]),
+        "fx_return": _round(us["fx_return"]),
     }
 
 
@@ -388,7 +413,7 @@ CAP = 0.40
 def mixes_section(inputs):
     """Other ways the same stocks could have been weighted, as examples from the window's data, not
     advice (#243): the current mix, the largest holding capped at 40%, equal weights and the lowest
-    risk mix; and two hedges (the currency on US holdings, and the account's cash)."""
+    risk mix; and two hedges (the currency on holdings in other currencies, and the account's cash)."""
     rf = config.risk_free_rate()
     symbols = _symbols(inputs)
     n = len(symbols)
@@ -410,23 +435,25 @@ def mixes_section(inputs):
         mixes.append(figures("equal", np.full(n, 1 / n)))
         mixes.append(figures("lowest_risk", risk.min_variance_weights(risk.covariance(inputs.returns))))
 
-    # Hedges. Currency: US holdings' own-currency returns in place of their AUD returns
-    us = [i for i, h in enumerate(inputs.holdings) if h["currency"] == "USD"]
+    # Hedges. Currency: foreign holdings' own-currency returns in place of their base currency returns
+    base = inputs.base_currency
+    foreign = [i for i, h in enumerate(inputs.holdings) if h["currency"] != base]
     hedge = None
-    if us:
+    if foreign:
         hedged = inputs.returns.copy()
-        hedged[:, us] = inputs.local_returns[:, us]
+        hedged[:, foreign] = inputs.local_returns[:, foreign]
         daily = risk.portfolio_returns(hedged, inputs.weights)
-        fx = float(risk.compound(inputs.fx_returns))
-        effect = sum(risk.currency_effect_aud(inputs.holdings[i]["value_aud"], fx) for i in us)
+        fx = {c: float(risk.compound(r)) for c, r in inputs.fx_returns.items()}
+        effect = sum(risk.currency_effect(inputs.holdings[i]["value_base"], fx[inputs.holdings[i]["currency"]]) for i in foreign)
         hedge = {"volatility": _round(risk.annual_volatility(daily)), "annual_return": _round(risk.annual_return(daily)),
-                 # What hedging would have changed in A$: the opposite of the currency's effect
-                 "result_aud": round(-effect, 2)}
-    total = sum(h["value_aud"] for h in inputs.holdings)
+                 # What hedging would have changed in base currency: the opposite of the currencies' effect
+                 "result_base": round(-effect, 2),
+                 "currencies": sorted({inputs.holdings[i]["currency"] for i in foreign})}
+    total = sum(h["value_base"] for h in inputs.holdings)
     cash = None
-    if inputs.cash_aud is not None and inputs.cash_aud + total > 0:
-        share = max(0.0, inputs.cash_aud) / (max(0.0, inputs.cash_aud) + total)
-        cash = {"cash_aud": round(inputs.cash_aud, 2), "share": _round(share),
+    if inputs.cash_base is not None and inputs.cash_base + total > 0:
+        share = max(0.0, inputs.cash_base) / (max(0.0, inputs.cash_base) + total)
+        cash = {"cash_base": round(inputs.cash_base, 2), "share": _round(share),
                 # The whole account swings less: cash doesn't move
                 "account_volatility": _round(mixes[0]["volatility"] * (1 - share))}
     return {"mixes": mixes, "cap": CAP, "currency_hedge": hedge, "cash": cash, "count": n}

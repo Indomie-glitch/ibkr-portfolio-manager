@@ -6,7 +6,7 @@ import InfoButton from './InfoButton.jsx'
 // The frame every Risk panel shares (Figma Risk / V5A): RSK tag, title, ⓘ, a label on the right,
 // then the body. Each panel loads its own section, so a failure only says "unavailable" here.
 // Body: the panel's component ({ section, meta, holdings, period }), or none yet (empty frame).
-// label(section, period): the right-hand label; the period by default.
+// label(section, period, meta): the right-hand label; the period by default.
 export default function RiskPanel({ panel, Body, label, period, version }) {
   // RSK 11 has its own endpoint; the others are sections of GET /risk
   const load = () => (panel.own ? loadBankruptcy(version) : loadSection(period, version, panel.section))
@@ -30,7 +30,7 @@ export default function RiskPanel({ panel, Body, label, period, version }) {
         </h2>
         <InfoButton text={explainerText(panel.explainer, section ? { section, meta: data.meta } : null)} />
         <span className="spacer" />
-        <span className="risk-panel-label">{section && label ? label(section, period) : period}</span>
+        <span className="risk-panel-label">{section && label ? label(section, period, data.meta) : period}</span>
       </header>
       {content}
     </section>

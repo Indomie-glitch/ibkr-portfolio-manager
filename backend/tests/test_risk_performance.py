@@ -56,7 +56,7 @@ class PerformanceSectionTests(unittest.TestCase):
         inputs = risk_data.RiskInputs(
             period="1Y", start=date(2025, 10, 19), base_date=date(2025, 10, 20), dates=list(range(days)),
             holdings=[{"symbol": "CBA"}, {"symbol": "AAPL"}], returns=returns, local_returns=returns,
-            weights=np.array([0.5, 0.5]), benchmark_returns={"ASX": asx, "US": us}, fx_returns=np.zeros(days),
+            weights=np.array([0.5, 0.5]), benchmark_returns={"ASX": asx, "US": us}, fx_returns={"USD": np.zeros(days)},
             benchmarks={},
         )
         with mock.patch.object(config, "risk_free_rate", return_value=0.046):

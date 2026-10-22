@@ -1,7 +1,8 @@
 """Risk maths (Milestone 8): pure functions on prices and returns, no network and no IB.
 
 Each metric is explained with a small worked example in docs/risk-maths.md. Conventions:
-- returns are simple daily returns (today / yesterday − 1) of each holding's value in AUD
+- returns are simple daily returns (today / yesterday − 1) of each holding's value in the account's
+  base currency (AUD for an Australian account; exchange rate series are in fx.Pair)
 - a returns matrix has one row per day and one column per holding
 - yearly figures use 252 trading days (volatility scales with √252)
 """
@@ -38,14 +39,6 @@ def covers_window(first_date, start):
     return first_date <= start + timedelta(days=START_SLACK_DAYS)
 
 
-def to_aud(closes, audusd):
-    """A US dollar price series in Australian dollars: price ÷ that day's AUDUSD rate.
-
-    closes and audusd are {date: value}; days without a rate are dropped.
-    """
-    return {day: price / audusd[day] for day, price in closes.items() if day in audusd}
-
-
 def align(series):
     """Keep only the dates on which every series has a value.
 
@@ -67,17 +60,6 @@ def simple_returns(prices):
     """Daily simple returns from a prices matrix (rows = days): one row fewer than the prices."""
     prices = np.asarray(prices, dtype=float)
     return prices[1:] / prices[:-1] - 1
-
-
-def fx_returns(audusd):
-    """Daily return of one US dollar measured in Australian dollars.
-
-    A US dollar is worth 1 / AUDUSD Australian dollars, so its return is
-    AUDUSD(yesterday) / AUDUSD(today) − 1: when the Australian dollar rises, a US dollar buys
-    fewer of them and the return is negative.
-    """
-    audusd = np.asarray(audusd, dtype=float)
-    return audusd[:-1] / audusd[1:] - 1
 
 
 def weights(values):
@@ -206,13 +188,14 @@ def compound(returns):
     return np.prod(1 + np.asarray(returns, dtype=float), axis=0) - 1
 
 
-def currency_effect_aud(value_aud, fx_return):
-    """How many A$ the exchange rate added to (or took from) a US holding worth value_aud today.
+def currency_effect(value_base, fx_return):
+    """How much the exchange rate added to (or took from) a foreign holding worth value_base today, in
+    base currency. fx_return: the foreign currency's return in base currency over the period.
 
-    Had the rate not moved, today's value would be value_aud / (1 + r_fx); the difference is the
-    currency effect: value_aud × r_fx / (1 + r_fx).
+    Had the rate not moved, today's value would be value_base / (1 + r_fx); the difference is the
+    currency effect: value_base × r_fx / (1 + r_fx).
     """
-    return value_aud * fx_return / (1 + fx_return)
+    return value_base * fx_return / (1 + fx_return)
 
 
 # ---------- Hidden factors: principal component analysis (#105) ----------
@@ -327,31 +310,33 @@ def period_return(closes, start, end, slack_days=START_SLACK_DAYS):
     return last / first - 1
 
 
-def usd_in_aud_return(audusd_return):
-    """The return of one US dollar in AUD when AUDUSD changed by audusd_return: 1 / (1 + r) − 1."""
-    return 1 / (1 + audusd_return) - 1
+# ---------- Performance attribution vs the home market index (#242, #271) ----------
 
+def attribution(segments, benchmark):
+    """Why a portfolio of shares in several markets beat or trailed the home market index (the ASX 200
+    for an Australian account) over a period.
 
-# ---------- Performance attribution vs the ASX 200 (#242) ----------
+    segments: one (weight, return, index_return, fx) per market, the weights adding up to 1: the
+    holdings' return in their own currency, that market's index return in the same currency, and the
+    return of that currency in base currency (0 for the home currency). benchmark: the home index's
+    return.
 
-def attribution(w_au, r_au, w_us, r_us, benchmark, us_index, fx):
-    """Why a portfolio of Australian and US shares beat or trailed the ASX 200 over a period.
-
-    w_au, w_us: the weights in each market (adding up to 1); r_au, r_us: those holdings' returns in
-    their own currency; benchmark: the ASX 200's return; us_index: the S&P 500's return in USD;
-    fx: the return of one US dollar in AUD.
-
-    Returns (portfolio return in AUD, allocation, selection, currency, cross) where
+    Returns (portfolio return in base currency, allocation, selection, currency, cross) where
     allocation + selection + currency + cross = portfolio return − benchmark exactly:
-    - allocation = w_us × (S&P 500 − ASX 200): being in the US market instead of Australia's
-    - selection = w_au × (r_au − ASX 200) + w_us × (r_us − S&P 500): the stocks picked within each market
-    - currency = w_us × fx, and cross = w_us × r_us × fx (the currency move on the US gains themselves)
+    - allocation = Σ w × (market index − benchmark): being in each market instead of the home one
+      (0 for the home market itself, whose index is the benchmark)
+    - selection = Σ w × (r − market index): the stocks picked within each market
+    - currency = Σ w × fx, and cross = Σ w × r × fx (the currency move on the gains themselves)
+    For an Australian account with ASX and US holdings this is w_us × (S&P 500 − ASX 200) and so on.
     """
-    portfolio = w_au * r_au + w_us * ((1 + r_us) * (1 + fx) - 1)
-    allocation = w_us * (us_index - benchmark)
-    selection = w_au * (r_au - benchmark) + w_us * (r_us - us_index)
-    currency = w_us * fx
-    cross = w_us * r_us * fx
+    portfolio = allocation = selection = currency = cross = 0.0
+    for w, r, index, fx in segments:
+        # A home market segment's return needs no currency step (and keeps its exact value)
+        portfolio += w * r if fx == 0 else w * ((1 + r) * (1 + fx) - 1)
+        allocation += w * (index - benchmark)
+        selection += w * (r - index)
+        currency += w * fx
+        cross += w * r * fx
     return portfolio, allocation, selection, currency, cross
 
 

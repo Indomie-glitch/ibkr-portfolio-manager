@@ -58,8 +58,8 @@ export const TILE_ROWS = [
     },
     {
       id: 'var_1d', label: 'Value at risk · 1 day', caption: '1 day in 20 loses more than this', explainer: 'var', section: 'var',
-      value: (s) => formatMoney(s.levels['95'].formula.day.aud, 'AUD', { decimals: 0 }),
-      tone: (s) => (s.levels['95'].formula.day.aud < 0 ? 'loss' : undefined),
+      value: (s, meta) => formatMoney(s.levels['95'].formula.day.base, meta.currency, { decimals: 0 }),
+      tone: (s) => (s.levels['95'].formula.day.base < 0 ? 'loss' : undefined),
     },
     {
       id: 'liquidity', label: 'Liquidity', caption: 'Time to sell everything', explainer: 'liquidity', section: 'liquidity',
