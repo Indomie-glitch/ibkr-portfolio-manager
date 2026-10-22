@@ -117,6 +117,7 @@ flowchart TB
         cfg["config.py<br/>.env + app settings"]
         guard["secrets_guard.py<br/>masks secrets in errors"]
         names["names.py<br/>tidy company names"]
+        fx["fx.py<br/>exchange rates: ledger,<br/>IB forex, Yahoo"]
     end
 
     subgraph data["Data and AI"]
@@ -141,7 +142,9 @@ flowchart TB
     main -->|"keep_refreshed task"| lots
     ib_core --> ib_conn
 
-    r_pos --> ib_core & yahoo & cache & names & senti
+    r_pos --> ib_core & yahoo & cache & names & senti & fx
+    r_trade -.-> fx
+    fx --> ib_core & yahoo & cache
     r_flex --> lots & ib_core
     r_trade --> trading & ib_core & web
     r_sum --> sfacts & pfacts & ai & pai & store & lots & web & usage

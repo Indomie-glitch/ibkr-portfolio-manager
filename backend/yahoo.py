@@ -362,6 +362,18 @@ RISK_BENCHMARKS = {
 AUDUSD = "AUDUSD=X"  # US dollars per Australian dollar
 
 
+def _fetch_fx_rate(symbol):
+    closes = yf.Ticker(symbol).history(period="5d", interval="1d")["Close"].dropna()
+    if closes.empty or closes.iloc[-1] <= 0:
+        raise YahooUnavailable(f"Yahoo has no rate for {symbol}")
+    return float(closes.iloc[-1])
+
+
+async def fetch_fx_rate(symbol):
+    """The latest rate of a currency pair such as USDSGD=X (SGD per US dollar)."""
+    return await _run(_fetch_fx_rate, symbol)
+
+
 SESSION_DONE = time(16, 30)  # ASX and US shares and indexes have closed by then, local time
 
 

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+import fx
 import trading
 from ib_core import build_quote, clean, fetch_tickers, get_contract_info, ib, require_ib
 from names import display_name
@@ -45,7 +46,8 @@ async def checked_order(order: OrderRequest):
         price = (await build_quote(order.con_id, tickers.get(order.con_id)))["last"]
     account_data = await account()
     base = account_data["currency"]
-    fx_rate = 1 if contract.currency == base else account_data["fx_rates"].get(contract.currency)
+    # A stock in a currency the account has no cash in has no ledger rate; fx finds one (#270)
+    fx_rate = await fx.rate_to_base(contract.currency, base, account_data["fx_rates"])
     held = next((item.position for item in ib.portfolio() if item.contract.conId == order.con_id), 0)
     status = trading.status(ib.managedAccounts())
     problems, value, value_base = trading.check_order(order.model_dump(), price, fx_rate, held, status)

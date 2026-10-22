@@ -4,6 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 
+import fx
 import news_sentiment
 import yahoo
 from cache import cached
@@ -62,6 +63,9 @@ async def account():
         elif item.tag == "$LEDGER-ExchangeRate" and item.currency != "BASE":
             # How many units of base currency one unit of this currency is worth
             result["fx_rates"][item.currency] = float(item.value)
+    # IB only has a ledger rate for currencies the account holds cash in; find the others (#270)
+    held = {item.contract.currency for item in ib.portfolio()}
+    result["fx_rates"] = await fx.fill_missing(result["fx_rates"], held, result["currency"])
     return result
 
 @router.get("/quotes", dependencies=[Depends(require_ib)])
