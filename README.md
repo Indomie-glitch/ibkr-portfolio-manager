@@ -45,6 +45,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Mac app that sets up and runs IB Gateway itself, with nothing secret stored
 * Risk page: 3M / 1Y / 3Y periods, ten headline figures (volatility, betas, effective holdings, max drawdown, Sharpe ratio, tracking error, Value at Risk, liquidity) and twelve panels (concentration, exposure, correlation heatmap, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution vs your home market's index, example mixes and hedges, bankruptcy risk, liquidity), each with an ⓘ that explains the number in plain words using your own figures; worked out from daily closes in your account's currency (Australian dollars and the ASX 200 for an AUD account, Singapore dollars and the STI for SGD), with every formula explained in [docs/risk-maths.md](docs/risk-maths.md). It describes, never advises
 * The AI portfolio summary's key risks can cite the Risk page's findings
+* Index members (backend, no UI yet): the S&P 500, Nasdaq 100, Dow, ASX 20, ASX 50 and ASX 200, with each member's weight, market cap, sector and industry, refreshed weekly from ETF holdings files (no API key), and which of them a stock belongs to
 
 ### Planned
 * Flex purchase dates in the Mac app's Settings (needs a design, #89), and entering purchase dates by hand
@@ -63,7 +64,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [ ] **Milestone 6: Trade placement:** built; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
 * [x] **Milestone 8: Risk analysis:** a Risk page with 10 headline figures and 12 panels (concentration, exposure, correlation, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution, example mixes, bankruptcy risk, liquidity), each explained in plain words with your own numbers, and the main findings in the AI portfolio summary ([the maths](docs/risk-maths.md))
-* [ ] **Milestone 9:** Company connections
+* [ ] **Milestone 9: Company connections:** index members and the indexes a stock belongs to are done (backend); competitors and the rest are next
 * [ ] **Milestone 10:** Supply chain graph foundation
 * [ ] **Milestone 11:** Extraction agents
 * [ ] **Milestone 12:** Supply chain explorer
@@ -290,6 +291,10 @@ cd frontend/src-tauri && cargo test
 | `GET /portfolio-summary/history` | Saved portfolio summaries, newest first (id, time, model, net liquidation) |
 | `GET /portfolio-summary/history/{summary_id}` | One saved portfolio summary in full |
 | `GET /portfolio-summary/compare?a=&b=` | Two saved portfolio summaries (older first) and the exact changes between their data |
+| **Index members** | |
+| `GET /indices` | Each index (S&P 500, Nasdaq 100, Dow, ASX 20 / 50 / 200): member count, the holdings file's date, when it was fetched, and whether the last download failed (an older copy is shown) |
+| `GET /indices/{con_id}` | The indexes a stock belongs to, with its weight and rank in each |
+| `GET /indices/{index}/members` | One index's members, largest weight first: name, weight, rank, sector, industry, market cap |
 | **AI usage** | |
 | `GET /usage?month=YYYY-MM` | Tokens and estimated cost (US$) of every Claude call in a month (default this month), in total and per feature (stock summaries, portfolio summaries, news sentiment) |
 | **Risk analysis** | |
