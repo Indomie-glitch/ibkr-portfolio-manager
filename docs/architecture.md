@@ -187,7 +187,7 @@ flowchart TB
     main["main.jsx"] --> App["App.jsx<br/>loads account, positions, quotes,<br/>trading status; picks the page"]
 
     Sidebar --> SidebarWatchlists["SidebarWatchlists.jsx<br/>+ button, rows with counts,<br/>naming, Rename / Delete,<br/>drop stock rows here"]
-    App --> Sidebar & Toolbar & SessionBanner & UpdatePrompt & ConnectionMessage
+    App --> Sidebar & Toolbar & SessionBanner & UpdatePrompt & ConnectionMessage & LinkNotice["LinkNotice.jsx<br/>'Couldn't open the link'"]
     App --> Setup["pages/setup/<br/>first run + sign in (Mac app):<br/>Setup.jsx flow, one file per screen"]
     App --> Overview["pages/Overview.jsx"]
     App --> Positions["pages/Positions.jsx"]
@@ -220,13 +220,13 @@ flowchart TB
     end
 
     subgraph desktop["desktop/ (Mac app only)"]
-        tauri["appSession, appGateway,<br/>appApiKey, appSettings,<br/>appUpdater, appWindow"]
+        tauri["appSession, appGateway,<br/>appApiKey, appSettings,<br/>appUpdater, appWindow,<br/>appLinks"]
     end
 
     App & Markets & Watchlist & Orders & HoldingDetail & Ticket & Confirm & Settings --> api
     RiskTile & RiskPanel & Risk --> riskhelpers --> api
     api -->|"HTTP / streams"| BE[["Python backend"]]
-    Setup & Settings & UpdatePrompt --> tauri
+    Setup & Settings & UpdatePrompt & LinkNotice --> tauri
     tauri -->|Tauri commands| RS[["Rust shell"]]
 ```
 
