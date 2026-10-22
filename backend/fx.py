@@ -8,11 +8,15 @@ with no USD balance has none for USD. This finds one anyway, in this order:
   3. Yahoo Finance (e.g. USDSGD=X)
 and keeps a looked-up rate for a few minutes. None means no source had a rate.
 
-The sources are plain functions (ib_rate, yahoo_rate), and pair_symbol() is the Yahoo naming, so a
-later daily rate series (#271) can reuse them.
+Daily rate series (#271, the Risk page) use Pair: which Yahoo symbol to store for a currency pair
+(the market's way round, e.g. AUDUSD=X but USDSGD=X) and how to turn its closes into base currency
+values and returns. The closes themselves are stored by risk_data.update.
 """
 import asyncio
 import math
+from dataclasses import dataclass
+
+import numpy as np
 
 from ib_async import Forex
 
@@ -31,6 +35,64 @@ class FxUnavailable(Exception):
 def pair_symbol(currency, base):
     """Yahoo's symbol for 'base currency per 1 currency': USDSGD=X is SGD per US dollar."""
     return f"{currency}{base}=X"
+
+
+# How the market quotes a pair: the currency earlier in this list comes first (EURUSD, AUDUSD,
+# USDSGD, USDJPY). Currencies not listed come after these, in alphabetical order.
+QUOTE_ORDER = ("EUR", "GBP", "AUD", "NZD", "USD", "CAD", "CHF", "JPY")
+
+
+def _quote_rank(currency):
+    return (QUOTE_ORDER.index(currency), "") if currency in QUOTE_ORDER else (len(QUOTE_ORDER), currency)
+
+
+@dataclass(frozen=True)
+class Pair:
+    """A foreign currency against the account's base currency, for daily rate series.
+
+    Yahoo is asked for the pair the way the market quotes it, so an AUD account's US dollars use
+    AUDUSD=X (US dollars per Australian dollar, `inverted`: the quote is the wrong way up for "AUD
+    per USD") and an SGD account's use USDSGD=X (Singapore dollars per US dollar). Inverted quotes
+    are divided by rather than turned upside down first, so the numbers are exactly those of the
+    AUD-only version this replaces.
+    """
+    currency: str  # the foreign currency, e.g. USD
+    base: str  # the account's currency, e.g. SGD
+
+    @property
+    def inverted(self):
+        return _quote_rank(self.base) < _quote_rank(self.currency)
+
+    @property
+    def symbol(self):
+        first, second = (self.base, self.currency) if self.inverted else (self.currency, self.base)
+        return pair_symbol(first, second)
+
+    @property
+    def label(self):
+        """"AUD/USD": the pair as quoted."""
+        return self.symbol[:3] + "/" + self.symbol[3:6]
+
+    def to_base(self, amount, quote):
+        """An amount in the foreign currency, in base currency at one quote of the pair."""
+        return amount / quote if self.inverted else amount * quote
+
+    def convert(self, closes, quotes):
+        """A price series in the foreign currency, in base currency: {date: value}, using that day's
+        quote; days without a quote are dropped."""
+        return {day: self.to_base(price, quotes[day]) for day, price in closes.items() if day in quotes}
+
+    def returns(self, quotes):
+        """Daily return of one unit of the foreign currency measured in base currency, from aligned
+        quotes. Inverted (AUDUSD for an AUD account): a US dollar is worth 1 / AUDUSD, so its return
+        is AUDUSD(yesterday) / AUDUSD(today) − 1; when the base currency rises it's negative."""
+        quotes = np.asarray(quotes, dtype=float)
+        return quotes[:-1] / quotes[1:] - 1 if self.inverted else quotes[1:] / quotes[:-1] - 1
+
+    def period_return(self, quote_return):
+        """The return of one unit of the foreign currency in base currency when the quote changed by
+        quote_return over a period: 1 / (1 + r) − 1 for an inverted quote."""
+        return 1 / (1 + quote_return) - 1 if self.inverted else quote_return
 
 
 def _price(ticker):
