@@ -368,14 +368,17 @@ fn is_web_link(url: &Url) -> bool {
     matches!(url.scheme(), "http" | "https")
 }
 
-/// Opens a web link in the default browser.
+/// Opens a web link in the default browser. If it can't, the page is told (link-open-failed,
+/// desktop/appLinks.js) so the user sees a message instead of nothing happening.
 fn open_in_browser(app: &AppHandle, url: &Url) {
     if !is_web_link(url) {
         log::warn!("Not opening a link with the {} scheme", url.scheme());
+        let _ = app.emit("link-open-failed", "Only web links can be opened from the app.");
         return;
     }
     if let Err(e) = app.opener().open_url(url.as_str(), None::<&str>) {
         log::warn!("Couldn't open a link in the browser: {e}");
+        let _ = app.emit("link-open-failed", "Your default browser didn't open it.");
     }
 }
 

@@ -7,6 +7,7 @@ import { sizeWindowFor } from './desktop/appWindow.js'
 import ConnectionMessage from './components/ConnectionMessage.jsx'
 import SessionBanner from './components/SessionBanner.jsx'
 import UpdatePrompt from './components/UpdatePrompt.jsx'
+import LinkNotice from './components/LinkNotice.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import Overview from './pages/Overview.jsx'
@@ -264,8 +265,14 @@ function App() {
 
   // No title bar in the app: this strip is where the window can be dragged from
   const dragStrip = <div className="drag-strip" data-tauri-drag-region />
-  // First in every screen below, so it stays mounted (and keeps a download going) when the screen changes
-  const updates = IN_APP ? <UpdatePrompt ready={appScreen !== 'startup'} /> : null
+  // First in every screen below, so it stays mounted (and keeps a download going) when the screen changes;
+  // the link notice rides along so a failed link out shows on any screen
+  const updates = (
+    <>
+      {IN_APP && <UpdatePrompt ready={appScreen !== 'startup'} />}
+      <LinkNotice />
+    </>
+  )
   if (appScreen === 'startup') {
     return (
       <>
