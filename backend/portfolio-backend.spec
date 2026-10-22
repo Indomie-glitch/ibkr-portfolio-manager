@@ -5,6 +5,8 @@ from PyInstaller.utils.hooks import collect_all, collect_submodules
 datas, binaries, hiddenimports = [], [], []
 # uvicorn imports its loops and protocols by name at runtime
 hiddenimports += collect_submodules("uvicorn")
+# pandas imports openpyxl only when reading an .xlsx (index holdings files, constituents.py)
+hiddenimports += collect_submodules("openpyxl")
 # yfinance's HTTP client ships native libraries and certificates
 for package in ("curl_cffi", "certifi"):
     package_datas, package_binaries, package_hidden = collect_all(package)
