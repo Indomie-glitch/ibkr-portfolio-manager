@@ -105,7 +105,8 @@
   color-scheme: light;
 }
 
-:root[data-theme='dark'] {
+:root[data-theme='dark'],
+:root[data-theme='terminal'] {
   --account-card: rgba(255, 255, 255, 0.08);
   --account-gear: rgba(255, 255, 255, 0.08);
   --menu-bg: rgba(44, 44, 46, 0.97);
@@ -191,6 +192,29 @@
   --track: rgba(255, 255, 255, 0.12);
   --warning-bg-strong: rgba(255, 159, 10, 0.18);
   --warning-border: rgba(255, 159, 10, 0.4);
+}
+
+/* Terminal: the dark set on near-black surfaces (Figma Overview / Terminal 117:770 and the other
+   Terminal frames). Text, accent, gain / loss, chart and allocation colours stay as in Dark;
+   only the greys that make up surfaces and lines change. */
+:root[data-theme='terminal'] {
+  --bg: #0b0b0c;
+  --sidebar: #141416;
+  --sidebar-border: #2a2a2e;
+  --surface-2: #1c1c1f;
+  --border: #2a2a2e;
+  --row-border: #2a2a2e;
+  --button-bg: #1c1c1f;
+  --settings-group: #101012;
+  --menu-bg: rgba(20, 20, 22, 0.97);
+  --sheet-dim: rgba(0, 0, 0, 0.5);
+  --sheet-glass: rgba(20, 20, 22, 0.7);
+  /* Risk page */
+  --risk-surface: #141416;
+  --risk-border: #2a2a2e;
+  --risk-key: #1c1c1f;
+  --risk-pop-bg: #1c1c1f;
+  --risk-tooltip-bg: #2a2a2e;
 }
 
 * {
