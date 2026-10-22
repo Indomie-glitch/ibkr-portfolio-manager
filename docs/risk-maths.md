@@ -7,10 +7,48 @@ why it's done that way, and a worked example with small numbers you can check by
 
 Everything here describes your holdings. None of it says what to buy or sell.
 
+**Your account's currency.** Every amount and return on the page is in the IBKR account's *base
+currency* (from `GET /account`). The examples below use an Australian account, so that's the Australian
+dollar (AUD), the ASX 200 is the home index and "foreign" means US dollars. An account in another
+currency works the same way with its own currency and home index; section 0 lists what changes.
+
+## 0. Accounts in other currencies
+
+- **Exchange rates.** Each foreign currency a holding is in (and always the US dollar, because every
+  account is compared with the S&P 500) gets a daily rate series against the base currency, from Yahoo,
+  stored like a stock's prices. Yahoo is asked for the pair the way the market quotes it (`fx.Pair`):
+  `AUDUSD=X` for an Australian account's US dollars (US dollars per Australian dollar, so the price is
+  divided by it, as in section 1), but `USDSGD=X` for a Singapore account's (Singapore dollars per US
+  dollar, so the price is multiplied by it). Either way the result is the price in the base currency:
+
+  $$P^{base}_t = P^{local}_t \times q_t \quad\text{or}\quad P^{base}_t = \frac{P^{local}_t}{q_t}\ \text{(a pair quoted the other way round)}$$
+
+  and the currency's daily return is $q_t / q_{t-1} - 1$, or $q_{t-1} / q_t - 1$ for the other way round.
+- **Home index** for attribution (section 10), one line per currency (`yahoo.HOME_MARKETS`):
+
+  | Account currency | Home index |
+  |---|---|
+  | AUD | S&P/ASX 200 (`^AXJT`, fallback `^AXJO`) |
+  | SGD | Straits Times Index (`^STI`, a price index: Yahoo has no total return series, and the page says so) |
+  | USD | S&P 500 (`^SP500TR`, fallback `^GSPC`) |
+  | anything else | S&P 500, with a note on the page |
+
+  The home index is lined up with everything else (section 1), so its market's holidays are dropped too.
+- **Left out:** a holding in a currency Yahoo has no rate series for, instead of "not AUD or USD".
+- **Cash** is `GET /account`'s cash, already in the base currency.
+- **Stress test:** "AUD rises 10% against the USD" becomes "<your currency> rises 10% against" the
+  currencies you hold, e.g. "SGD rises 10% vs USD".
+- What stays the same: betas, tracking error and the Sharpe ratio comparison still use the markets the
+  holdings are in (the ASX 200 and the S&P 500), and the risk-free rate is still the RBA cash rate.
+
+**Example.** A Singapore account holds US$650 of a share. USDSGD is 1.31, so it's worth 650 × 1.31 =
+**S$851.50**. The next day USDSGD is 1.30 and the share hasn't moved: its SGD return is 1.30 ÷ 1.31 − 1
+= **−0.76%**, the currency alone.
+
 ## 1. Daily returns in Australian dollars
 
 Every other section starts from one table: for each trading day in the period, how much each holding's
-value changed that day, measured in Australian dollars.
+value changed that day, measured in Australian dollars (the account's base currency, section 0).
 
 ### Prices
 
@@ -85,8 +123,8 @@ The period buttons choose the window: **3M** (3 months), **1Y** (1 year, the def
 
 A holding whose prices start more than a week after the window starts (it was listed or bought into a
 new company recently) is **left out** of every calculation and listed in the Data notes row, rather
-than shortening the window for everything else. Holdings in currencies other than AUD and USD are left
-out too.
+than shortening the window for everything else. Holdings in a currency with no exchange rate series
+against the account's currency are left out too (section 0).
 
 ### Which currency each figure uses
 
@@ -510,7 +548,8 @@ For each holding:
 2. Otherwise **its home index's return × its beta** (section 3), marked with * on the panel. A company
    listed in 2015 can't have fallen in 2008, but a stock like it would have moved with its market.
 3. For US holdings, the AUD return adds the exchange rate over the same dates:
-   $(1 + r^{USD})(1 + r^{FX}) - 1$, with $r^{FX} = 1 / (1 + r_{AUDUSD}) - 1$.
+   $(1 + r^{USD})(1 + r^{FX}) - 1$, with $r^{FX} = 1 / (1 + r_{AUDUSD}) - 1$. In general each foreign
+   holding adds its own currency's move against the account's (for USDSGD, $r^{FX} = r_{USDSGD}$).
 
 Then impact $= \sum_i V_i \times r_i$ with today's values $V_i$.
 
@@ -532,7 +571,8 @@ by the same factor, so a return between two past dates never changes.
   holdings in the other market don't move. The label shows the beta this works out to for the whole
   portfolio: impact ÷ (−10% × total).
 - **AUD rises 10% against the USD**: each US dollar is then worth 1 ÷ 1.1 of what it was in AUD, so US
-  holdings lose 1 − 1/1.1 = **9.09%** in AUD.
+  holdings lose 1 − 1/1.1 = **9.09%** in AUD. (In general: the account's currency rises 10% against
+  every foreign currency held, and all foreign holdings lose 9.09%.)
 
 **Example.** A$6,000 of BHP (beta 2) and A$4,000 of a US stock (beta 1). ASX 200 −10%: 6,000 × 2 ×
 −10% = **−A$1,200** (a whole-portfolio beta of 1.2). S&P 500 −10%: 4,000 × 1 × −10% = **−A$400**
@@ -545,7 +585,8 @@ from 10%, grey below.
 
 *Attribution* splits the difference between your return and the ASX 200's into the choices that
 caused it. The holdings are grouped into two *segments*, Australia and the United States; the ASX 200
-is the *benchmark*, which is 100% Australia.
+is the *benchmark*, which is 100% Australia. (The benchmark is the account's home index, section 0: the
+STI for a Singapore account. The general form is below the example.)
 
 ### The symbols
 
@@ -587,6 +628,19 @@ would have done, not your account's actual history.
 - Selection: 0.4 × (12% − 10%) + 0.6 × (30% − 20%) = 0.8 + 6.0 = **+6.8 pts**
 - Currency: 0.6 × (−5%) + 0.6 × 30% × (−5%) = −3.0 − 0.9 = **−3.9 pts**
 - Check: 6.0 + 6.8 − 3.9 = **8.9 pts** ✓
+
+### Any home index
+
+With a home index $B$ that isn't one of the markets held (the STI for a Singapore account), every
+segment $m$ is foreign, with its index return $M_m$ in its own currency and its currency's return $F_m$
+in the base currency ($F_m = 0$ for a market in the account's own currency):
+
+$$R = \sum_m w_m\,[(1 + r_m)(1 + F_m) - 1]$$
+
+$$\underbrace{\sum_m w_m (M_m - B)}_{\text{allocation}} + \underbrace{\sum_m w_m (r_m - M_m)}_{\text{selection}} + \underbrace{\sum_m w_m F_m + \sum_m w_m r_m F_m}_{\text{currency}} = R - B$$
+
+For an Australian account the ASX segment's index *is* $B$ and its $F$ is 0, so this is exactly the
+formula above (`risk.attribution` adds the terms in that order, so the numbers are identical too).
 
 ## 11. Example mixes and hedges
 
@@ -635,7 +689,8 @@ risk, the rule stops its weight at 0 instead of going negative.
 ### Hedges
 
 - **Currency hedge on US holdings**: the current mix with each US holding's US-dollar return in place
-  of its AUD return, as if the exchange rate had been fixed. The A$ figure is the opposite of section
+  of its AUD return, as if the exchange rate had been fixed (every foreign holding's own-currency
+  return, for an account holding several currencies). The A$ figure is the opposite of section
   5's currency effect: what hedging would have added (or cost) over the period. It leaves out the cost
   of hedging itself.
 - **Cash or bonds**: cash doesn't move with the share market, so with a cash share $c$ of the whole
@@ -671,7 +726,8 @@ panel goes up to 10.
 
 The market value $D$ uses the share price today but the accounts are from the latest annual report.
 When a company's shares and accounts are in different currencies (BHP is listed in AUD but reports in
-USD), the market value is converted with the latest AUD/USD rate first.
+USD), the market value is converted first, with the latest daily close of that currency pair (any pair,
+e.g. AUD/USD for BHP; the same stored series as section 0).
 
 **Example.** Total assets 100, working capital 20, retained earnings 30, EBIT 10, revenue 80, total
 liabilities 50 and a market value of 150:
