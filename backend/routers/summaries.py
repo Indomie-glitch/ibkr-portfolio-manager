@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 
 import ai_summary
 import config
+import fx
 import lots
 import portfolio_facts
 import portfolio_summary
@@ -82,7 +83,8 @@ async def summary_facts_for(con_id):
         "quote": quote,
         "bars": await get_bars(con_id, "3 M", "1 day", max_age=15 * 60),
         "base_currency": base,
-        "fx_rate": fx_rates.get(position["currency"], 1),
+        # A stock you don't own may be in a currency with no ledger rate (#270)
+        "fx_rate": await fx.rate_to_base(position["currency"], base, fx_rates) or 1,
         "total_market_value_base": sum(to_base(p) for p in all_positions),
         "is_asx": is_asx,
         "index_symbol": index_symbol,

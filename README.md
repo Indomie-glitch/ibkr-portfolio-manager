@@ -261,7 +261,7 @@ cd frontend/src-tauri && cargo test
 |---|---|
 | **Connection and account** | |
 | `GET /health` | Whether the backend is connected to IB Gateway (and if not, why) |
-| `GET /account` | Net liquidation, cash, positions value, buying power, unrealised P&L, FX rates |
+| `GET /account` | Net liquidation, cash, positions value, buying power, unrealised P&L, FX rates (IB's ledger, plus IB forex or Yahoo for currencies the account holds no cash in) |
 | `GET /positions` | Each holding with price, market value, unrealised P&L and company name |
 | `GET /quotes` | Last price and day change per holding (delayed) |
 | `GET /history/{con_id}?range=1M` | Price history for the chart (`1D`, `1W`, `1M`, `3M`, `1Y`, `All`) |
