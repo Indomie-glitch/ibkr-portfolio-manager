@@ -38,14 +38,19 @@ def yahoo_symbol(contract):
 
     Returns None for exchanges we don't map yet.
     """
-    # IB writes share classes with a space ("BRK B"); Yahoo uses a dash ("BRK-B")
-    symbol = contract.symbol.replace(" ", "-")
     exchange = contract.primaryExchange or contract.exchange
     if exchange == "ASX":
-        return f"{symbol}.AX"
+        return ticker_for(contract.symbol, "ASX")
     if exchange in US_EXCHANGES:
-        return symbol
+        return ticker_for(contract.symbol, "US")
     return None
+
+
+def ticker_for(symbol, market):
+    """IB's symbol on a market ("ASX" or "US") -> Yahoo's ticker: ("TLS", "ASX") -> "TLS.AX"."""
+    # IB writes share classes with a space ("BRK B"); Yahoo uses a dash ("BRK-B")
+    symbol = symbol.replace(" ", "-")
+    return f"{symbol}.AX" if market == "ASX" else symbol
 
 
 def benchmark_for(contract):
@@ -457,3 +462,29 @@ def _fetch_altman_inputs(symbol):
 async def fetch_altman_inputs(symbol):
     """The latest annual balance sheet and income statement lines the Altman Z score needs."""
     return await _run(_fetch_altman_inputs, symbol)
+
+
+# ---------- Market caps for index members (constituents.py) ----------
+
+def _fetch_asx_market_caps():
+    query = yf.EquityQuery("eq", ["exchange", "ASX"])
+    quotes = []
+    # Two pages of 250 (the most Yahoo sends at once): the ASX 200 ranks by free float, so some
+    # members are outside the 250 largest by full market cap
+    for offset in (0, 250):
+        quotes += yf.screen(query, offset=offset, sortField="intradaymarketcap", sortAsc=False, size=250).get("quotes") or []
+    caps = {}
+    for quote in quotes:
+        symbol = (quote.get("symbol") or "").removesuffix(".AX")
+        cap = _number(quote.get("marketCap"))
+        if symbol and cap:
+            caps[symbol] = {"market_cap": cap, "name": quote.get("longName") or quote.get("shortName")}
+    if not caps:
+        raise YahooUnavailable("Yahoo's screener returned no ASX market caps")
+    return caps
+
+
+async def fetch_asx_market_caps():
+    """The 500 largest ASX stocks' market caps (AUD) and names in two calls: {"BHP": {market_cap, name}}.
+    Enough for the whole ASX 200."""
+    return await _run(_fetch_asx_market_caps)

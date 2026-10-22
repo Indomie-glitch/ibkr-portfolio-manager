@@ -7,9 +7,10 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 import config  # first: loads .env before other modules read settings
+import constituents
 import lots
 from ib_core import NOT_CONNECTED, ib, keep_connected
-from routers import app as app_routes, flex, positions, risk, summaries, trading
+from routers import app as app_routes, flex, indices, positions, risk, summaries, trading
 from web import ALLOWED_ORIGINS, end_streams_on_stop
 
 @asynccontextmanager
@@ -19,9 +20,12 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(keep_connected())
     # Purchase dates from IBKR's Flex report, refreshed daily when Flex is set up (docs/flex-query.md)
     lots_task = asyncio.create_task(lots.keep_refreshed())
+    # Members of six stock indexes, refreshed weekly (constituents.py)
+    indices_task = asyncio.create_task(constituents.keep_refreshed())
     yield
     task.cancel()
     lots_task.cancel()
+    indices_task.cancel()
     ib.disconnect()
 
 app = FastAPI(lifespan=lifespan)
@@ -57,5 +61,5 @@ app.add_middleware(PathCORS)
 async def connection_error(request: Request, exc: ConnectionError):
     return JSONResponse(status_code=503, content={"detail": NOT_CONNECTED})
 
-for routes in (app_routes, positions, flex, summaries, trading, risk):
+for routes in (app_routes, positions, flex, summaries, trading, risk, indices):
     app.include_router(routes.router)
