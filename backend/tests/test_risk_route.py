@@ -13,9 +13,9 @@ def inputs():
     return risk_data.RiskInputs(
         period="1Y", start=date(2025, 10, 19), base_date=date(2025, 10, 17), dates=[date(2025, 10, 20), date(2026, 10, 16)],
         holdings=[{"con_id": 1, "symbol": "BHP", "name": "BHP Group", "market": "ASX", "currency": "AUD",
-                   "yahoo": "BHP.AX", "value_aud": 3000.0, "weight": 1.0}],
+                   "yahoo": "BHP.AX", "value_base": 3000.0, "weight": 1.0}],
         returns=np.zeros((2, 1)), local_returns=np.zeros((2, 1)), weights=np.array([1.0]),
-        benchmark_returns={"ASX": np.zeros(2), "US": np.zeros(2)}, fx_returns=np.zeros(2),
+        benchmark_returns={"ASX": np.zeros(2), "US": np.zeros(2)}, fx_returns={"USD": np.zeros(2)},
         benchmarks={"ASX": {"symbol": "^AXJT", "short": "ASX 200", "total_return": True},
                     "US": {"symbol": "^GSPC", "short": "S&P 500", "total_return": False}},
         left_out=[{"con_id": 2, "symbol": "SAP", "reason": "Only AUD and USD holdings are included (EUR)"}],

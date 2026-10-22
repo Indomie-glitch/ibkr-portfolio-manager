@@ -59,11 +59,11 @@ class MixesSectionTests(unittest.TestCase):
         aud[:, 0] = (1 + local[:, 0]) * (1 + fx) - 1
         self.inputs = risk_data.RiskInputs(
             period="1Y", start=date(2025, 10, 19), base_date=date(2025, 10, 20), dates=list(range(120)),
-            holdings=[{"symbol": "AAPL", "name": "Apple", "currency": "USD", "value_aud": 7000.0},
-                      {"symbol": "CBA", "name": "CBA", "currency": "AUD", "value_aud": 2000.0},
-                      {"symbol": "BHP", "name": "BHP", "currency": "AUD", "value_aud": 1000.0}],
+            holdings=[{"symbol": "AAPL", "name": "Apple", "currency": "USD", "value_base": 7000.0},
+                      {"symbol": "CBA", "name": "CBA", "currency": "AUD", "value_base": 2000.0},
+                      {"symbol": "BHP", "name": "BHP", "currency": "AUD", "value_base": 1000.0}],
             returns=aud, local_returns=local, weights=np.array([0.7, 0.2, 0.1]), benchmark_returns={},
-            fx_returns=fx, benchmarks={}, cash_aud=30000.0,
+            fx_returns={"USD": fx}, benchmarks={}, cash_base=30000.0,
         )
 
     def section(self):
@@ -84,8 +84,8 @@ class MixesSectionTests(unittest.TestCase):
         # Cash is 30,000 of a 40,000 account: 75%, and the whole account swings a quarter as much
         self.assertEqual(section["cash"]["share"], 0.75)
         self.assertAlmostEqual(section["cash"]["account_volatility"], section["mixes"][0]["volatility"] * 0.25, places=4)
-        fx = float(np.prod(1 + self.inputs.fx_returns) - 1)
-        self.assertAlmostEqual(section["currency_hedge"]["result_aud"], -7000 * fx / (1 + fx), places=1)
+        fx = float(np.prod(1 + self.inputs.fx_returns["USD"]) - 1)
+        self.assertAlmostEqual(section["currency_hedge"]["result_base"], -7000 * fx / (1 + fx), places=1)
 
     def test_no_cap_row_when_nothing_is_over_40_percent(self):
         self.inputs.weights = np.array([0.4, 0.35, 0.25])

@@ -42,7 +42,7 @@ def inputs(columns, holdings, asx, us):
     return risk_data.RiskInputs(
         period="1Y", start=date(2025, 10, 19), base_date=date(2025, 10, 20), dates=list(range(len(returns))),
         holdings=holdings, returns=returns, local_returns=returns, weights=np.full(len(holdings), 1 / len(holdings)),
-        benchmark_returns={"ASX": np.array(asx), "US": np.array(us)}, fx_returns=np.zeros(len(returns)), benchmarks={},
+        benchmark_returns={"ASX": np.array(asx), "US": np.array(us)}, fx_returns={"USD": np.zeros(len(returns))}, benchmarks={},
     )
 
 

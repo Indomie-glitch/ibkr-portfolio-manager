@@ -1,7 +1,8 @@
 """The Risk page (Milestone 8): GET /risk?period=3M|1Y|3Y.
 
 One answer holds every section of the page. Each section is calculated on its own (SECTIONS), so a
-section that fails becomes {"error": "..."} and only that panel says "unavailable".
+section that fails becomes {"error": "..."} and only that panel says "unavailable". Money is in the
+account's base currency (GET /account), with its home market index for attribution (#271).
 """
 import json
 from datetime import datetime
@@ -10,6 +11,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 
 import config
+import fx
 import risk
 import risk_data
 import risk_sections
@@ -65,21 +67,12 @@ async def risk_holdings():
     return holdings
 
 
-def cash_in_aud(summary):
-    """The account's cash in AUD from GET /account's figures, or None if it can't be converted."""
-    cash, base = summary.get("cash"), summary.get("currency")
-    if cash is None:
-        return None
-    if base == "AUD":
-        return cash
-    rate = (summary.get("fx_rates") or {}).get("AUD")  # 1 AUD in the base currency
-    return cash / rate if rate else None
-
-
 def build_response(inputs, now):
     """meta + holdings + one key per section."""
     benchmarks = inputs.benchmarks
     fallback = [b["short"] for b in benchmarks.values() if not b["total_return"]]
+    notes = ([f"No total return series for the {' and '.join(fallback)}: price index used, "
+              "so dividends are left out on that side"] if fallback else []) + inputs.notes
     response = {
         "meta": {
             "period": inputs.period,
@@ -90,16 +83,19 @@ def build_response(inputs, now):
             "days_used": inputs.days_used,
             "holdings_count": len(inputs.holdings),
             "left_out": inputs.left_out,
-            "currency": "AUD",
+            "currency": inputs.base_currency,
+            "home_market": inputs.home_market,
+            # The other currencies held (or compared with), each with its rate series
+            "fx_pairs": [{"currency": c, "pair": inputs.pair(c).label, "symbol": inputs.pair(c).symbol}
+                         for c in sorted(inputs.fx_returns)],
             "cash_excluded": True,
             "risk_free_rate": config.risk_free_rate(),
             "trading_days_per_year": 252,
             "benchmarks": benchmarks,
-            "benchmark_note": (f"No total return series for the {' and '.join(fallback)}: price index used, "
-                               "so dividends are left out on that side") if fallback else None,
+            "benchmark_note": ". ".join(notes) or None,
             "stale": inputs.stale,
         },
-        "holdings": [{k: h.get(k) for k in ("con_id", "symbol", "name", "market", "currency", "sector", "value_aud", "weight")}
+        "holdings": [{k: h.get(k) for k in ("con_id", "symbol", "name", "market", "currency", "sector", "value_base", "weight")}
                      for h in inputs.holdings],
     }
     for name, section in SECTIONS.items():
@@ -120,15 +116,15 @@ LOW_BY_DESIGN = {"Utilities", "Real Estate"}
 
 async def market_cap_in(info, currency, today):
     """The company's market value in the currency of its accounts (BHP is listed in AUD but reports in
-    USD). None if the two currencies differ and aren't AUD and USD."""
+    USD), at the latest stored daily close of that pair (fx.Pair). None if there are no rates."""
     market_cap, quoted = info.get("marketCap"), info.get("currency")
     if market_cap is None or not currency or not quoted or quoted == currency:
         return market_cap
-    if {quoted, currency} != {"AUD", "USD"}:
+    pair = fx.Pair(quoted, currency)  # accounts' currency per 1 unit of the quoted one
+    quotes = await risk_data.update(pair.symbol, today)  # stored daily closes
+    if not quotes:
         return None
-    audusd = await risk_data.update(yahoo.AUDUSD, today)  # stored daily closes
-    rate = audusd[max(audusd)]
-    return market_cap * rate if quoted == "AUD" else market_cap / rate
+    return pair.to_base(market_cap, quotes[max(quotes)])
 
 
 async def altman_row(holding):
@@ -176,15 +172,21 @@ async def risk_overview(period: Literal["3M", "1Y", "3Y"] = "1Y"):
     if not holdings:
         raise HTTPException(404, "There are no share holdings to analyse.")
     now = datetime.now().astimezone()
+    # Everything is in the account's base currency, and its cash already is
+    try:
+        summary = await account()
+    except Exception as exc:
+        print(f"Risk: no account figures: {mask_secrets(exc)}")
+        raise HTTPException(502, "Couldn't read the account's currency from IB.")
+    base = summary.get("currency")
+    if not base:
+        raise HTTPException(502, "Couldn't read the account's currency from IB.")
     # The same holdings and quantities on the same day give the same answer
     signature = tuple(sorted((h["con_id"], round(h["market_value"] or 0)) for h in holdings))
 
     async def compute():
-        inputs = await risk_data.build_inputs(holdings, period, now.date())
-        try:
-            inputs.cash_aud = cash_in_aud(await account())
-        except Exception as exc:
-            print(f"Risk: no cash figure: {mask_secrets(exc)}")
+        inputs = await risk_data.build_inputs(holdings, period, now.date(), base=base)
+        inputs.cash_base = summary.get("cash")
         # Average daily volume (IB's 3-month average, as on the stock detail) for the liquidity panel
         try:
             volume = {q["con_id"]: q.get("avg_volume") for q in await quotes()}
@@ -193,8 +195,8 @@ async def risk_overview(period: Literal["3M", "1Y", "3Y"] = "1Y"):
         except Exception as exc:
             print(f"Risk: no volumes: {mask_secrets(exc)}")
         # Past crashes for the stress tests: fetched once per symbol, then kept
-        symbols = [h["yahoo"] for h in inputs.holdings] + [yahoo.AUDUSD] + [
-            s for b in yahoo.RISK_BENCHMARKS.values() for s in (b["symbol"], b["fallback"])]
+        symbols = ([h["yahoo"] for h in inputs.holdings] + [inputs.pair(c).symbol for c in inputs.fx_returns]
+                   + risk_data.benchmark_symbols(inputs.benchmarks))
         try:
             inputs.scenarios = await risk_data.scenario_returns(symbols)
         except Exception as exc:
@@ -202,7 +204,7 @@ async def risk_overview(period: Literal["3M", "1Y", "3Y"] = "1Y"):
         return build_response(inputs, now)
 
     try:
-        return await cached(("risk", period, now.date(), signature), RESULT_TTL, compute)
+        return await cached(("risk", period, now.date(), base, signature), RESULT_TTL, compute)
     except risk_data.NotEnoughData as exc:
         raise HTTPException(422, str(exc))
     except Exception as exc:

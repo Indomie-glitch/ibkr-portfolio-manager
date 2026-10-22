@@ -219,13 +219,14 @@ def risk_block(risk):
     if not risk:
         return {"available": False}
     meta = risk["meta"]
+    currency = meta.get("currency", "AUD")
     ids = {h["symbol"]: holding_id(h["con_id"]) for h in risk.get("holdings", [])}
     block = {
         "available": True,
-        "basis": (f"Daily returns in AUD of today's holdings over the last {meta['period']} "
+        "basis": (f"Daily returns in {currency} of today's holdings over the last {meta['period']} "
                   f"({long_date(date.fromisoformat(meta['first_day']))} to {long_date(date.fromisoformat(meta['last_day']))}, "
                   f"{meta['days_used']} trading days); cash left out; worked out from past prices, not forecasts"),
-        "currency": "AUD",
+        "currency": currency,
     }
     unavailable = []
 
@@ -247,7 +248,7 @@ def risk_block(risk):
             block["max_drawdown"] = {"fall_pct": pct(dd["fall"] * 100, 1),
                                      "from": long_date(date.fromisoformat(dd["peak"])),
                                      "to": long_date(date.fromisoformat(dd["trough"])),
-                                     "same_fall_on_todays_holdings": money(dd["loss_aud"], "AUD")}
+                                     "same_fall_on_todays_holdings": money(dd["loss_base"], currency)}
     if conc := section("concentration"):
         block["effective_holdings"] = {"behaves_like": pct(conc["effective_holdings"], 1), "out_of": conc["count"]}
         top = max((h for h in conc["holdings"] if h["risk_share"] is not None), key=lambda h: h["risk_share"], default=None)
@@ -259,12 +260,12 @@ def risk_block(risk):
                              for w in conc["warnings"]]
     if var := section("var"):
         day = var["levels"]["95"]["formula"]["day"]
-        block["value_at_risk_1_day_95"] = {"loss_exceeded_on_about_1_day_in_20": money(-day["aud"], "AUD")}
+        block["value_at_risk_1_day_95"] = {"loss_exceeded_on_about_1_day_in_20": money(-day["base"], currency)}
     if stress := section("stress"):
-        worst = next((s for s in stress["scenarios"] if s["impact_aud"] is not None), None)
+        worst = next((s for s in stress["scenarios"] if s["impact_base"] is not None), None)
         if worst:
             block["worst_stress_test"] = {"scenario": worst["name"], "period_or_shock": worst["label"],
-                                          "impact": money(worst["impact_aud"], "AUD", signed=True),
+                                          "impact": money(worst["impact_base"], currency, signed=True),
                                           "impact_pct": pct(worst["impact_pct"] * 100, 1)}
     if unavailable:
         block["unavailable"] = unavailable

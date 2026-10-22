@@ -33,8 +33,10 @@ class MarketCapCurrencyTests(unittest.TestCase):
     def test_converted_to_the_accounts_currency(self):
         from datetime import date
 
+        quotes = {"AUDUSD=X": 0.65, "GBPUSD=X": 1.3}
+
         async def audusd(symbol, today):
-            return {date(2026, 10, 16): 0.65}
+            return {date(2026, 10, 16): quotes[symbol]}
 
         async def go(info, currency):
             with mock.patch.object(risk_routes.risk_data, "update", audusd):
@@ -43,7 +45,8 @@ class MarketCapCurrencyTests(unittest.TestCase):
         self.assertAlmostEqual(asyncio.run(go({"marketCap": 200.0, "currency": "AUD"}, "USD")), 130.0)
         self.assertAlmostEqual(asyncio.run(go({"marketCap": 130.0, "currency": "USD"}, "AUD")), 200.0)
         self.assertEqual(asyncio.run(go({"marketCap": 50.0, "currency": "AUD"}, "AUD")), 50.0)
-        self.assertIsNone(asyncio.run(go({"marketCap": 50.0, "currency": "GBP"}, "USD")))
+        # Any pair (#271): £50b listed, accounts in USD at 1.3 US$ per £ = US$65b
+        self.assertAlmostEqual(asyncio.run(go({"marketCap": 50.0, "currency": "GBP"}, "USD")), 65.0)
 
 
 class BankruptcyRouteTests(unittest.TestCase):

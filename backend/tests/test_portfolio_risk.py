@@ -10,15 +10,15 @@ RISK = {
     "volatility": {
         "portfolio": {"volatility": 0.198, "beta_asx": 0.47, "beta_us": 0.89},
         "benchmarks": {"ASX": {"volatility": 0.13}, "US": {"volatility": 0.16}},
-        "max_drawdown": {"fall": -0.163, "peak": "2026-04-02", "trough": "2026-04-21", "loss_aud": -11801.0},
+        "max_drawdown": {"fall": -0.163, "peak": "2026-04-02", "trough": "2026-04-21", "loss_base": -11801.0},
     },
     "concentration": {
         "holdings": [{"symbol": "AAPL", "weight": 0.682, "risk_share": 0.916}, {"symbol": "BHP", "weight": 0.318, "risk_share": 0.084}],
         "count": 2, "effective_holdings": 1.77,
         "warnings": [{"kind": "stock", "name": "AAPL", "share": 0.682, "threshold": 0.2}],
     },
-    "var": {"levels": {"95": {"formula": {"day": {"aud": -1485.0}}}}},
-    "stress": {"scenarios": [{"name": "GFC 2008 replay", "label": "Sep 2008 to Mar 2009", "impact_aud": -34030.0, "impact_pct": -0.47}]},
+    "var": {"levels": {"95": {"formula": {"day": {"base": -1485.0}}}}},
+    "stress": {"scenarios": [{"name": "GFC 2008 replay", "label": "Sep 2008 to Mar 2009", "impact_base": -34030.0, "impact_pct": -0.47}]},
 }
 
 

@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 import yahoo
 from secrets_guard import mask_secrets
 
-CURRENCY_SYMBOLS = {"AUD": "A$", "USD": "US$"}
+CURRENCY_SYMBOLS = {"AUD": "A$", "USD": "US$", "SGD": "S$"}
 MINUS = "−"
 
 

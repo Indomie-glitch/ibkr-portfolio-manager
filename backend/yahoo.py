@@ -358,8 +358,17 @@ async def fetch_index_intraday(index_symbol):
 RISK_BENCHMARKS = {
     "ASX": {"symbol": "^AXJT", "fallback": "^AXJO", "short": "ASX 200"},
     "US": {"symbol": "^SP500TR", "fallback": "^GSPC", "short": "S&P 500"},
+    # Yahoo has no total return series for the Straits Times Index: its price index is all there is
+    "SG": {"symbol": "^STI", "fallback": None, "short": "STI", "price_only": True},
 }
-AUDUSD = "AUDUSD=X"  # US dollars per Australian dollar
+# The account's home market index, by its base currency (#271): the Risk page's attribution
+# compares with it. One line per currency; any other currency uses DEFAULT_HOME, with a note.
+HOME_MARKETS = {
+    "AUD": "ASX",  # S&P/ASX 200
+    "SGD": "SG",  # Straits Times Index
+    "USD": "US",  # S&P 500
+}
+DEFAULT_HOME = "US"
 
 
 def _fetch_fx_rate(symbol):

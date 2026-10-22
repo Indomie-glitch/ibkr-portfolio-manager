@@ -58,7 +58,7 @@ def inputs(columns, symbols):
         period="1Y", start=date(2025, 10, 19), base_date=date(2026, 10, 13), dates=[date(2026, 10, 14 + i) for i in range(len(returns))],
         holdings=[{"con_id": i, "symbol": s} for i, s in enumerate(symbols)],
         returns=returns, local_returns=returns, weights=np.full(n, 1 / n),
-        benchmark_returns={}, fx_returns=np.zeros(len(returns)), benchmarks={},
+        benchmark_returns={}, fx_returns={"USD": np.zeros(len(returns))}, benchmarks={},
     )
 
 

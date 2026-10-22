@@ -9,16 +9,18 @@ from unittest import mock
 
 import numpy as np
 
+import fx
 import risk
 import risk_data
 
 D1, D2, D3 = date(2026, 10, 14), date(2026, 10, 15), date(2026, 10, 16)
+USD_IN_AUD = fx.Pair("USD", "AUD")  # quoted as AUDUSD
 
 
 class HelperTests(unittest.TestCase):
     def test_usd_prices_become_aud(self):
         # US$100 at 0.65 US$ per A$ is A$153.85; US$102 at 0.66 is A$154.55
-        aud = risk.to_aud({D1: 100.0, D2: 102.0, D3: 104.0}, {D1: 0.65, D2: 0.66})
+        aud = USD_IN_AUD.convert({D1: 100.0, D2: 102.0, D3: 104.0}, {D1: 0.65, D2: 0.66})
         self.assertEqual(set(aud), {D1, D2})  # no rate on D3
         self.assertAlmostEqual(aud[D1], 153.846, places=3)
         self.assertAlmostEqual(aud[D2], 154.545, places=3)
@@ -35,14 +37,14 @@ class HelperTests(unittest.TestCase):
 
     def test_a_stronger_aud_is_a_negative_return_on_us_dollars(self):
         # AUDUSD 0.65 -> 0.66: a US dollar was worth A$1.5385, now A$1.5152, a fall of 1.52%
-        np.testing.assert_allclose(risk.fx_returns([0.65, 0.66]), [0.65 / 0.66 - 1])
-        self.assertAlmostEqual(risk.fx_returns([0.65, 0.66])[0], -0.01515, places=5)
+        np.testing.assert_allclose(USD_IN_AUD.returns([0.65, 0.66]), [0.65 / 0.66 - 1])
+        self.assertAlmostEqual(USD_IN_AUD.returns([0.65, 0.66])[0], -0.01515, places=5)
 
     def test_aud_return_combines_price_and_currency(self):
         # (1 + 2%) × (1 − 1.515%) − 1 = 0.4545%, the same as the change in the AUD price
-        aud = risk.to_aud({D1: 100.0, D2: 102.0}, {D1: 0.65, D2: 0.66})
+        aud = USD_IN_AUD.convert({D1: 100.0, D2: 102.0}, {D1: 0.65, D2: 0.66})
         direct = aud[D2] / aud[D1] - 1
-        combined = (1 + 0.02) * (1 + risk.fx_returns([0.65, 0.66])[0]) - 1
+        combined = (1 + 0.02) * (1 + USD_IN_AUD.returns([0.65, 0.66])[0]) - 1
         self.assertAlmostEqual(direct, combined, places=12)
         self.assertAlmostEqual(direct, 0.004545, places=6)
 
@@ -187,14 +189,14 @@ class BuildInputsTests(StoreTestCase):
         np.testing.assert_allclose(inputs.returns[0, 1], 0.65 / 0.66 - 1)
         np.testing.assert_allclose(inputs.returns[1, 1], 0.66 / 0.65 - 1)
         np.testing.assert_allclose(inputs.local_returns[:, 1], 0.0)
-        np.testing.assert_allclose(inputs.fx_returns, inputs.returns[:, 1])
+        np.testing.assert_allclose(inputs.fx_returns["USD"], inputs.returns[:, 1])
         np.testing.assert_allclose(inputs.benchmark_returns["ASX"][0], 1001 / 1000 - 1)
 
     def test_weights_use_aud_values(self):
         inputs = self.build()
         aapl_aud = 650.0 / 0.66
         np.testing.assert_allclose(inputs.weights, [3000 / (3000 + aapl_aud), aapl_aud / (3000 + aapl_aud)])
-        self.assertAlmostEqual(inputs.holdings[1]["value_aud"], 984.85, places=2)
+        self.assertAlmostEqual(inputs.holdings[1]["value_base"], 984.85, places=2)
 
     def test_total_return_indexes_are_used(self):
         inputs = self.build()
@@ -221,7 +223,7 @@ class BuildInputsTests(StoreTestCase):
         self.assertEqual([h["symbol"] for h in inputs.holdings], ["BHP", "AAPL"])
         reasons = {o["symbol"]: o["reason"] for o in inputs.left_out}
         self.assertEqual(reasons["NEW"], f"Prices only from {self.days[10].strftime('%-d %b %Y')}")
-        self.assertIn("Only AUD and USD", reasons["SAP"])
+        self.assertEqual(reasons["SAP"], "No daily prices for this exchange")
         self.assertEqual(reasons["XYZ"], "Couldn't get its prices from Yahoo")
         self.assertEqual(inputs.days_used, self.n - 1)  # the short holding doesn't shrink the window
 
