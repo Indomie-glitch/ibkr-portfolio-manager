@@ -1,10 +1,14 @@
-"""Index members (Milestone 9: #109) and the indexes a stock belongs to (#110)."""
+"""Company connections (Milestone 9): index members (#109), the indexes a stock belongs to (#110)
+and its competitors (#111)."""
 
 from fastapi import APIRouter, Depends, HTTPException
 
+import competitors
 import constituents
+import fx
 import yahoo
-from ib_core import get_contract_info, require_ib
+from ib_core import get_contract_info, ib, require_ib
+from routers.positions import call_yahoo, yahoo_info
 
 router = APIRouter()
 
@@ -47,3 +51,57 @@ def index_members(index_id: str):
     if index_id not in constituents.INDEXES:
         raise HTTPException(status_code=404, detail=f"Unknown index; one of {', '.join(constituents.INDEXES)}")
     return constituents.members(index_id)
+
+
+def owned_stocks():
+    """{(market, symbol): con_id} of the stocks held now."""
+    owned = {}
+    for item in ib.portfolio():
+        market = market_of(item.contract)
+        if item.contract.secType == "STK" and market and item.position:
+            owned[(market, item.contract.symbol)] = item.contract.conId
+    return owned
+
+
+async def competitor_target(contract, market, universe):
+    """The stock as competitors.find wants it: from the index universe once its Yahoo profile is in,
+    else (not in an index, or not looked up yet) from its Yahoo profile now (cached an hour)."""
+    member = next((c for c in universe if (c["market"], c["symbol"]) == (market, contract.symbol)), None)
+    if member and member["profile_at"]:
+        return member
+    info = await call_yahoo(lambda: yahoo_info(yahoo.ticker_for(contract.symbol, market)))
+    change = yahoo._number(info.get("52WeekChange"))
+    return {
+        "market": market, "symbol": contract.symbol, "name": info.get("longName") or info.get("shortName"),
+        "sector": info.get("sector"), "industry": info.get("industry"),
+        "market_cap": yahoo._number(info.get("marketCap")), "pe": yahoo._number(info.get("trailingPE")),
+        "return_1y": change * 100 if change is not None else None,
+    }
+
+
+@router.get("/competitors/{con_id}", dependencies=[Depends(require_ib)])
+async def stock_competitors(con_id: int):
+    """Companies in the stock's Yahoo industry among the index members (both markets), largest
+    market cap first, each with market, market cap, 1-year price change, P/E and whether you own it;
+    the stock itself is marked (is_self). Fewer than 4 competitors widens to related industries,
+    then the sector (level, label). status: "ready", "loading" (sectors are still being looked up,
+    so the list may be incomplete; progress says how far), "no_industry" (Yahoo has none, e.g. an
+    ETF) or "unsupported" (a market whose indexes aren't loaded)."""
+    contract, _ = await get_contract_info(con_id)
+    if contract is None:
+        raise HTTPException(status_code=404, detail="Unknown contract")
+    market = market_of(contract)
+    answer = {"con_id": con_id, "symbol": contract.symbol, "market": market}
+    if market is None:
+        return {**answer, "status": "unsupported", "companies": []}
+    universe = constituents.universe()
+    progress = constituents.profile_progress()
+    target = await competitor_target(contract, market, universe)
+    if not target["industry"]:
+        return {**answer, "status": "no_industry", "progress": progress, "companies": []}
+    aud = await fx.rate_to_base("AUD", "USD")
+    if aud is None:
+        raise HTTPException(status_code=502, detail="No AUD to USD exchange rate to compare market caps")
+    found = competitors.find(target, universe, {"USD": 1.0, "AUD": aud}, owned_stocks())
+    return {**answer, "status": "ready" if progress["complete"] else "loading", "progress": progress,
+            "market_data": constituents.status()["market_data"], **found}
