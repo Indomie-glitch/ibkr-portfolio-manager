@@ -3,13 +3,14 @@
 Members and weights come from the daily holdings files of ETFs that hold every stock in their
 index (State Street SPDR and iShares; free, no key). Weights are the fund's, rescaled so the
 stocks add up to 100% (cash and futures left out); they track the index's own within a few
-hundredths of a percentage point. Market caps: Nasdaq's stock screener (US) and Yahoo's (ASX).
-Sector and industry: each company's Yahoo profile (the same names as the About section and the
-Risk page), looked up one at a time in the background and kept; until then the fund's GICS
-sector, where its file has one.
+hundredths of a percentage point. Market cap, trailing P/E and 1-year price change: Yahoo's
+screener, daily (#111). Sector and industry: each company's Yahoo profile (the same names as the
+About section and the Risk page), looked up one at a time in the background and kept; until then
+the fund's GICS sector, where its file has one.
 
 A download that fails, or brings too few members, keeps the last good copy: GET /indices shows
-its date and that it's stale.
+its date and that it's stale. A fresh install starts from seed/indices.json (members, sectors and
+industries filled in when the app was built), so it only tops up.
 """
 import asyncio
 import csv
@@ -17,8 +18,10 @@ import io
 import json
 import re
 import sqlite3
+import sys
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pandas as pd
 
@@ -29,6 +32,7 @@ from secrets_guard import mask_secrets
 
 DB_PATH = config.DATA_DIR / "indices.sqlite"
 REFRESH_AFTER = timedelta(days=7)
+STATS_AFTER = timedelta(days=1)  # market cap, P/E and 1-year change move every day
 RETRY_AFTER = timedelta(hours=6)
 PROFILE_MAX_AGE = timedelta(days=90)  # sector and industry rarely change
 PROFILE_PAUSE_S = 1.0  # between Yahoo profile lookups, to stay well under Yahoo's limits
@@ -53,7 +57,8 @@ INDEXES = {
     "asx200": {"name": "S&P/ASX 200", "market": "ASX", "format": "ssga", "min_count": 195, "fund": "STW",
                "url": SSGA_AU.format("stw")},
 }
-NASDAQ_SCREENER = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&download=true"
+# Built with `python constituents.py --seed` and bundled with the Mac app (portfolio-backend.spec)
+SEED_PATH = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent)) / "seed" / "indices.json"
 
 
 class SourceError(Exception):
@@ -63,7 +68,7 @@ class SourceError(Exception):
 # ---------- Reading the files ----------
 
 def clean_symbol(raw):
-    """A fund's or Nasdaq's ticker in IB's form, or None for cash and other non-stock rows:
+    """A fund's ticker in IB's form, or None for cash and other non-stock rows:
     "BRK.B" / "BRK/B" -> "BRK B", "BHP-AU" -> "BHP", "-" / "954FAV004" (a suspended stock's code) -> None."""
     symbol = str(raw or "").strip().upper().removesuffix("-AU")
     match = re.fullmatch(r"([A-Z0-9]{1,6})(?:[./ ]([A-Z]))?", symbol)  # ASX tickers can start with a digit: "360"
@@ -176,20 +181,6 @@ def fetch_index(index_id, download=_download):
     return as_of, members
 
 
-def fetch_us_market_caps(download=_download):
-    """All US-listed stocks' market caps (USD) and names from Nasdaq's screener, in one call."""
-    rows = json.loads(download(NASDAQ_SCREENER))["data"]["rows"]
-    caps = {}
-    for row in rows:
-        symbol = clean_symbol(row.get("symbol"))
-        cap = _number(row.get("marketCap"))
-        if symbol and cap:
-            caps[symbol] = {"market_cap": cap, "name": None}  # Nasdaq's names end in "Common Stock"
-    if not caps:
-        raise SourceError("Nasdaq's screener returned no market caps")
-    return caps
-
-
 # ---------- Storage ----------
 
 def _connect():
@@ -206,10 +197,15 @@ def _connect():
         );
         CREATE TABLE IF NOT EXISTS companies (
             market TEXT NOT NULL, symbol TEXT NOT NULL, name TEXT, market_cap REAL, market_cap_at TEXT,
-            sector TEXT, industry TEXT, profile_at TEXT, PRIMARY KEY (market, symbol)
+            sector TEXT, industry TEXT, profile_at TEXT, pe REAL, return_1y REAL, PRIMARY KEY (market, symbol)
         );
         CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
     """)
+    # Stores from #109 have no P/E or 1-year change yet; market_cap_at dates all three
+    have = {row["name"] for row in conn.execute("PRAGMA table_info(companies)")}
+    for column in ("pe", "return_1y"):
+        if column not in have:
+            conn.execute(f"ALTER TABLE companies ADD COLUMN {column} REAL")
     return conn
 
 
@@ -243,22 +239,23 @@ def _record_failure(index_id, message, now):
                      (now.isoformat(), mask_secrets(message), index_id))
 
 
-def store_market_caps(market, caps, now):
-    """Market caps for the companies we have; a name from the source replaces the fund's
-    shortened one ("Cmnwlth Bk Of Aust") unless Yahoo's profile has already given one."""
+def store_market_stats(market, stats, now):
+    """Market cap, P/E and 1-year change for the companies we have; a name from the source
+    replaces the fund's shortened one ("Cmnwlth Bk Of Aust") unless Yahoo's profile has given one."""
     with _connect() as conn:
-        for symbol, cap in caps.items():
-            conn.execute("""UPDATE companies SET market_cap = ?, market_cap_at = ?,
+        for symbol, item in stats.items():
+            conn.execute("""UPDATE companies SET market_cap = ?, pe = ?, return_1y = ?, market_cap_at = ?,
                             name = CASE WHEN ? IS NOT NULL AND profile_at IS NULL THEN ? ELSE name END
                             WHERE market = ? AND symbol = ?""",
-                         (cap["market_cap"], now.isoformat(), cap["name"], cap["name"], market, symbol))
-        _set_meta(conn, **{f"caps_{market}_at": now.isoformat(), f"caps_{market}_error": None})
+                         (item["market_cap"], item.get("pe"), item.get("return_1y"), now.isoformat(),
+                          item.get("name"), item.get("name"), market, symbol))
+        _set_meta(conn, **{f"stats_{market}_at": now.isoformat(), f"stats_{market}_error": None})
 
 
-def _due(last_success, last_attempt, failed, now):
+def _due(last_success, last_attempt, failed, now, every=REFRESH_AFTER):
     if failed and last_attempt and now - datetime.fromisoformat(last_attempt) < RETRY_AFTER:
         return False
-    return not last_success or now - datetime.fromisoformat(last_success) >= REFRESH_AFTER
+    return not last_success or now - datetime.fromisoformat(last_success) >= every
 
 
 def _error_text(exc, what):
@@ -287,24 +284,26 @@ async def refresh_indexes(now, download=_download):
     return updated
 
 
-async def refresh_market_caps(now, fetch_us=None, fetch_asx=None, force=False):
-    """Market caps for each market, weekly (or when members changed: force)."""
-    fetchers = {"US": fetch_us or (lambda: asyncio.to_thread(fetch_us_market_caps)),
-                "ASX": fetch_asx or yahoo.fetch_asx_market_caps}
+async def refresh_market_stats(now, fetch=None, force=False):
+    """Market cap, P/E and 1-year change for each market, daily (or when members changed: force).
+    fetch(market, wanted symbols) defaults to Yahoo's screener."""
+    fetch = fetch or yahoo.fetch_market_stats
     with _connect() as conn:
         meta = _meta(conn)
-    for market, fetch in fetchers.items():
-        at, error = meta.get(f"caps_{market}_at"), meta.get(f"caps_{market}_error")
-        attempt = meta.get(f"caps_{market}_attempt")
-        if not force and not _due(at, attempt, error, now):
+        wanted = {m: {r["symbol"] for r in conn.execute("SELECT DISTINCT symbol FROM members WHERE market = ?", (m,))}
+                  for m in ("US", "ASX")}
+    for market in ("US", "ASX"):
+        at, error = meta.get(f"stats_{market}_at"), meta.get(f"stats_{market}_error")
+        attempt = meta.get(f"stats_{market}_attempt")
+        if not wanted[market] or not (force or _due(at, attempt, error, now, every=STATS_AFTER)):
             continue
         try:
-            store_market_caps(market, await fetch(), now)
+            store_market_stats(market, await fetch(market, wanted[market]), now)
         except Exception as exc:
             with _connect() as conn:
-                _set_meta(conn, **{f"caps_{market}_error": mask_secrets(_error_text(exc, f"{market} market caps"))})
+                _set_meta(conn, **{f"stats_{market}_error": mask_secrets(_error_text(exc, f"{market} market data"))})
         with _connect() as conn:
-            _set_meta(conn, **{f"caps_{market}_attempt": now.isoformat()})
+            _set_meta(conn, **{f"stats_{market}_attempt": now.isoformat()})
 
 
 async def fill_profiles(now, fetch_info=None, pause_s=PROFILE_PAUSE_S):
@@ -332,29 +331,66 @@ async def fill_profiles(now, fetch_info=None, pause_s=PROFILE_PAUSE_S):
             continue
         failures = 0
         with _connect() as conn:
-            # The profile's market cap only fills a gap the screeners left (e.g. Brown-Forman B)
+            # The profile's market data only fills a gap the screener left (a stock outside its pages)
             cap = yahoo._number(info.get("marketCap"))
+            change = yahoo._number(info.get("52WeekChange"))
             conn.execute("""UPDATE companies SET sector = ?, industry = ?, profile_at = ?, name = COALESCE(?, name),
                             market_cap_at = CASE WHEN market_cap IS NULL AND ? IS NOT NULL THEN ? ELSE market_cap_at END,
+                            pe = CASE WHEN market_cap IS NULL THEN ? ELSE pe END,
+                            return_1y = CASE WHEN market_cap IS NULL THEN ? ELSE return_1y END,
                             market_cap = COALESCE(market_cap, ?) WHERE market = ? AND symbol = ?""",
                          (info.get("sector"), info.get("industry"), now.isoformat(), info.get("longName"),
-                          cap, now.isoformat(), cap, row["market"], row["symbol"]))
+                          cap, now.isoformat(), yahoo._number(info.get("trailingPE")),
+                          change * 100 if change is not None else None, cap, row["market"], row["symbol"]))
         filled += 1
         await asyncio.sleep(pause_s)
     return filled
 
 
-async def refresh(now=None, download=_download, fetch_us=None, fetch_asx=None, fetch_info=None):
-    """One check: members (weekly per index), then market caps, then missing sectors and
+async def refresh(now=None, download=_download, fetch_stats=None, fetch_info=None):
+    """One check: members (weekly per index), then market data (daily), then missing sectors and
     industries. Never raises: failures are recorded and shown by status()."""
     now = now or datetime.now(timezone.utc)
     updated = await refresh_indexes(now, download)
-    await refresh_market_caps(now, fetch_us, fetch_asx, force=updated > 0)
+    await refresh_market_stats(now, fetch_stats, force=updated > 0)
     await fill_profiles(now, fetch_info)
+
+
+# ---------- The bundled starting copy ----------
+
+TABLES = ("members", "indexes", "companies", "meta")
+
+
+def export_seed(path=SEED_PATH):
+    """Writes every table to JSON (sorted, so a rebuilt seed diffs line by line)."""
+    with _connect() as conn:
+        data = {t: sorted([dict(r) for r in conn.execute(f"SELECT * FROM {t}")], key=lambda r: json.dumps(r, sort_keys=True))
+                for t in TABLES}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=0, sort_keys=True) + "\n")
+
+
+def load_seed_if_missing(path=SEED_PATH):
+    """A fresh install (no indices.sqlite yet) starts from the bundled seed, so the background task
+    only tops it up instead of looking up ~700 companies first. Returns True if it was loaded."""
+    if DB_PATH.exists() or not path.exists():
+        return False
+    data = json.loads(path.read_text())
+    with _connect() as conn:
+        for table in TABLES:
+            for row in data.get(table, []):
+                columns = ", ".join(row)
+                conn.execute(f"INSERT OR REPLACE INTO {table} ({columns}) VALUES ({', '.join('?' * len(row))})",
+                             list(row.values()))
+    return True
 
 
 async def keep_refreshed(check_every=timedelta(hours=3)):
     """Background task (started with the server): refreshes what's due, checking every few hours."""
+    try:
+        load_seed_if_missing()
+    except Exception as exc:  # a damaged seed: start empty and fetch everything instead
+        print(f"Index members: couldn't load the seed: {mask_secrets(exc)}")
     while True:
         try:
             await refresh()
@@ -385,8 +421,10 @@ def status():
         meta = _meta(conn)
     return {
         "indexes": [_index_status(i, rows.get(i), counts.get(i, 0)) for i in INDEXES],
-        "market_caps": {m: {"as_of": meta.get(f"caps_{m}_at"), "last_error": meta.get(f"caps_{m}_error")}
+        # Market cap, P/E and 1-year change, per market
+        "market_data": {m: {"as_of": meta.get(f"stats_{m}_at"), "last_error": meta.get(f"stats_{m}_error")}
                         for m in ("US", "ASX")},
+        "profiles": profile_progress(),
     }
 
 
@@ -396,7 +434,7 @@ def members(index_id):
     with _connect() as conn:
         row = conn.execute("SELECT * FROM indexes WHERE index_id = ?", (index_id,)).fetchone()
         stocks = conn.execute("""SELECT m.symbol, c.name, m.weight, m.rank, c.sector, c.industry, m.fund_sector,
-                                        m.fund_industry, c.market_cap, c.market_cap_at, c.profile_at
+                                        m.fund_industry, c.market_cap, c.pe, c.return_1y, c.market_cap_at, c.profile_at
                                  FROM members m LEFT JOIN companies c ON c.market = m.market AND c.symbol = m.symbol
                                  WHERE m.index_id = ? ORDER BY m.rank""", (index_id,)).fetchall()
     result = _index_status(index_id, row, len(stocks))
@@ -407,7 +445,8 @@ def members(index_id):
         "sector": s["sector"] if s["profile_at"] else s["fund_sector"],
         "industry": s["industry"] if s["profile_at"] else s["fund_industry"],
         "classification": "yahoo" if s["profile_at"] else ("gics" if s["fund_sector"] else None),
-        "market_cap": s["market_cap"], "market_cap_at": s["market_cap_at"],
+        "market_cap": s["market_cap"], "pe": s["pe"], "return_1y": s["return_1y"],
+        "market_cap_at": s["market_cap_at"],
     } for s in stocks]
     return result
 
@@ -424,3 +463,32 @@ def indices_for(symbol, market):
         index = _index_status(row["index_id"], rows.get(row["index_id"]), row["count"])
         result.append({**index, "weight": round(row["weight"], 4), "rank": row["rank"]})
     return result
+
+
+def profile_progress():
+    """How many current members have had their Yahoo profile (sector, industry) looked up."""
+    with _connect() as conn:
+        done, total = conn.execute("""SELECT COUNT(profile_at), COUNT(*) FROM companies c WHERE EXISTS
+                                      (SELECT 1 FROM members m WHERE m.market = c.market AND m.symbol = c.symbol)""").fetchone()
+    return {"done": done, "total": total, "complete": total > 0 and done == total}
+
+
+def universe():
+    """Every current member company (both markets, once each), for finding competitors (#111)."""
+    with _connect() as conn:
+        rows = conn.execute("""SELECT c.market, c.symbol, c.name, c.sector, c.industry, c.profile_at, c.market_cap,
+                                      c.pe, c.return_1y, c.market_cap_at FROM companies c WHERE EXISTS
+                                      (SELECT 1 FROM members m WHERE m.market = c.market AND m.symbol = c.symbol)""").fetchall()
+    return [dict(row) for row in rows]
+
+
+if __name__ == "__main__":
+    # Rebuild the bundled seed: python constituents.py --seed (run from backend/, ~40 minutes the first time)
+    if sys.argv[1:] != ["--seed"]:
+        sys.exit("usage: python constituents.py --seed")
+    asyncio.run(refresh())
+    progress = profile_progress()
+    if not progress["complete"]:
+        sys.exit(f"Only {progress['done']} of {progress['total']} profiles filled (Yahoo failing?); run it again")
+    export_seed()
+    print(f"Wrote {SEED_PATH} ({progress['total']} companies)")
