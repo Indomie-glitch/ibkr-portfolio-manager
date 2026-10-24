@@ -161,6 +161,8 @@ async def history(con_id: int, range: Literal["1D", "1W", "1M", "3M", "1Y", "All
 # ---------- Yahoo Finance: company info, slow key statistics, news, performance ----------
 
 YAHOO_UNAVAILABLE = "Yahoo Finance data is unavailable right now"
+# Who runs a company changes slowly
+EXECUTIVES_TTL = 7 * 24 * 60 * 60
 
 async def yahoo_target(con_id):
     """Return (contract, yahoo symbol) for a holding, or answer 404 if we can't map it."""
@@ -199,6 +201,18 @@ async def stats(con_id: int):
     _, symbol = await yahoo_target(con_id)
     info = await call_yahoo(lambda: yahoo_info(symbol))
     return yahoo.stats_from_info(info)
+
+@router.get("/executives/{con_id}", dependencies=[Depends(require_ib)])
+async def executives(con_id: int):
+    """The company's executives from Yahoo (name, title, age, pay when listed; cached 1 week).
+    Board-only members are kept apart under "directors" for #113. 404 for unmapped exchanges; 502
+    when Yahoo fails; an empty list when Yahoo lists nobody (e.g. an ETF)."""
+    _, symbol = await yahoo_target(con_id)
+
+    async def fetch():
+        return {"yahoo_symbol": symbol, **yahoo.executives_from_info(await yahoo_info(symbol))}
+
+    return await call_yahoo(lambda: cached(("executives", symbol), EXECUTIVES_TTL, fetch))
 
 async def news_items(contract, symbol):
     """Recent headlines that name the company, newest first (cached 15 minutes)."""

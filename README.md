@@ -276,6 +276,7 @@ cd frontend/src-tauri && cargo test
 | `GET /profile/{con_id}` | Company profile from Yahoo Finance (cached 1 hour) |
 | `GET /stats/{con_id}` | Market cap, P/E, EPS, beta, dividends, 52-week range, analyst target (Yahoo, cached 1 hour) |
 | `GET /news/{con_id}` | Recent headlines that name the company (Yahoo, cached 15 minutes), each with its sentiment for the company (positive / negative / neutral, strength 1-3; Claude, judged once per article) when an API key is set |
+| `GET /executives/{con_id}` | The company's executives from Yahoo: name, title, age and pay when listed (pay in the company's reporting currency), and whether each also sits on the board; board-only members are listed apart under `directors`. Cached 1 week. No start year, Wikipedia or Wikidata link yet (Yahoo has none; those fields are empty) |
 | `GET /performance/{con_id}` | Total return YTD, 1Y, 3Y, 5Y vs a total return index (Yahoo, cached 1 day) |
 | **Purchase dates (Flex)** | |
 | `GET /lots/status` | Whether Flex purchase dates are set up, when they were last fetched, and the last error |

@@ -135,6 +135,78 @@ def stats_from_info(info):
     }
 
 
+# ---------- Executives and directors (yfinance's companyOfficers, #112) ----------
+
+TITLE_PREFIXES = re.compile(r"^(?:mr|mrs|ms|miss|mx|dr|prof|professor|sir|dame|hon|rev)\.?\s+", re.IGNORECASE)
+# Degrees and professional letters after a name: EMBA, CA, BMS, C.A., J.D., Ph.D., B.Sc., B.Com., L.L.B.
+CREDENTIAL = re.compile(r"^(?:[A-Z]{2,6}|(?:[A-Za-z]{1,4}\.){2,}|[A-Za-z]{1,3}\.[A-Za-z]{2,4}\.?)$")
+# A board seat: "Director", "Chairman", "Chair of the Board" but not "Director of Investor Relations"
+BOARD_SEAT = re.compile(r"\bdirector\b(?!\s+of\b)|\bchair(?:man|woman|person)?\b", re.IGNORECASE)
+# What makes someone part of management
+MANAGEMENT = re.compile(
+    r"\b(?:chief|ceo|cfo|coo|cto|cio|cmo|cro|president|vp|vice president|executive|officer|md|managing|"
+    r"general counsel|general manager|secretary|treasurer|controller|head of|founder|partner)\b",
+    re.IGNORECASE)
+
+
+def clean_person_name(name):
+    """"Mr. Matthew  Comyn EMBA" -> "Matthew Comyn": no honorific, no degrees, single spaces."""
+    text = TITLE_PREFIXES.sub("", " ".join(str(name or "").split()))
+    text = text.split(",")[0].strip()
+    words = text.split()
+    while len(words) > 2 and CREDENTIAL.match(words[-1]):
+        words.pop()
+    return " ".join(words)
+
+
+def classify_title(title):
+    """(is_executive, is_director) from a job title. Yahoo lists executives and board members
+    together. Someone is a director if the title has a board seat ("CEO & Director" is both);
+    an executive if it names a management role, and also when it names nothing at all (a listed
+    officer is management unless the title says they only sit on the board)."""
+    text = str(title or "")
+    is_director = bool(BOARD_SEAT.search(text))
+    # "Non-Executive Director" is a board seat only; its "executive" must not count as management
+    management_text = re.sub(r"non[-\s]?executive", "", text, flags=re.IGNORECASE)
+    is_executive = bool(MANAGEMENT.search(management_text)) or not is_director
+    return is_executive, is_director
+
+
+def person_from_officer(officer, pay_currency=None):
+    is_executive, is_director = classify_title(officer.get("title"))
+    pay = _number(officer.get("totalPay"))
+    return {
+        "name": clean_person_name(officer.get("name")),
+        "listed_as": " ".join(str(officer.get("name") or "").split()),
+        "title": officer.get("title"),
+        "is_executive": is_executive,
+        "is_director": is_director,
+        "age": int(officer["age"]) if _number(officer.get("age")) else None,
+        "year_born": int(officer["yearBorn"]) if _number(officer.get("yearBorn")) else None,
+        # Yahoo doesn't say when someone started, so this stays empty until another source fills it
+        "year_started": None,
+        "pay": pay,
+        "pay_currency": pay_currency if pay is not None else None,
+        "pay_fiscal_year": int(officer["fiscalYear"]) if pay is not None and _number(officer.get("fiscalYear")) else None,
+        # Wikipedia / Wikidata links for the Connections map (#113, #114): Yahoo has none, so these are
+        # filled by matching people later
+        "wikidata_id": None,
+        "wikipedia_url": None,
+    }
+
+
+def executives_from_info(info):
+    """{executives, directors}: management (each with is_director when they also sit on the board)
+    and board-only members, which #113 will complete from the proxy statement or annual report."""
+    currency = info.get("financialCurrency") or info.get("currency")
+    people = [person_from_officer(o, currency) for o in (info.get("companyOfficers") or []) if o.get("name")]
+    return {
+        "executives": [p for p in people if p["is_executive"]],
+        "directors": [p for p in people if not p["is_executive"]],
+        "source": "Yahoo Finance",
+    }
+
+
 # ---------- News ----------
 
 LEGAL_SUFFIXES = {"limited", "ltd", "ltd.", "inc", "inc.", "incorporated", "corporation", "corp", "corp.", "plc", "company", "co", "co."}

@@ -6,6 +6,7 @@ import main
 ENDPOINTS = [
     "GET /account",
     "GET /competitors/{con_id}",
+    "GET /executives/{con_id}",
     "GET /health",
     "GET /history/{con_id}",
     "GET /indices",
