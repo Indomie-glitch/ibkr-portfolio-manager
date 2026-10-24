@@ -85,6 +85,11 @@ describe('boards a person has left', () => {
     expect(describeNode(paul, { stock: STOCK, holdings: HOLDINGS }).text).toBe('Chair of Commonwealth Bank of Australia since 2019. Also on the boards of Orica Limited.')
   })
 
+  it('leaves them out of the map tooltip', () => {
+    const paul = map({ board }).nodes.find((n) => n.info?.director?.name === 'Paul Chair')
+    expect(paul.tooltip.body).toBe('Chair, since 2019. Also: Orica Limited (Chair)')
+  })
+
   it('shows them in the roles table as former', () => {
     const paul = map({ board }).nodes.find((n) => n.info?.director?.name === 'Paul Chair')
     const rows = describeNode(paul, { stock: STOCK, holdings: HOLDINGS }).rows
