@@ -225,6 +225,8 @@ flowchart TB
     App --> Risk["pages/Risk.jsx<br/>command bar, headline tiles,<br/>12 panels, data notes"]
     Risk --> RiskTile["risk/RiskTile.jsx"] & RiskPanel["risk/RiskPanel.jsx<br/>frame: RSK tag, title, ⓘ;<br/>loads its own section"]
     RiskTile & RiskPanel --> InfoButton["risk/InfoButton.jsx<br/>ⓘ + explainer popover"]
+    App --> ConPage["pages/ConnectionsPage.jsx<br/>full map, inspector, list<br/>(from 'Open full map')"]
+    ConPage --> detail
     App --> Settings["SettingsSheet.jsx + pages/Settings.jsx<br/>(opened from the account menu)"]
     App --> Ticket["OrderTicket.jsx<br/>buy/sell form, live preview"] --> Confirm["OrderConfirm.jsx<br/>review sheet, then 'Order filled'"]
 
@@ -244,7 +246,7 @@ flowchart TB
         api["lib/api.js<br/>every backend call"]
         helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js,<br/>lotCards.js, listPanes.js,<br/>watchlists.js (localStorage store),<br/>orderTicket.js (ticket maths)"]
         riskhelpers["lib/riskData.js (one GET /risk<br/>shared by every panel),<br/>riskLayout.js, riskFormat.js,<br/>riskExplainers.js (ⓘ copy)"]
-        conhelpers["lib/connections.js (map layout,<br/>filters, tooltips; pure),<br/>stockNav.js (open another stock)"]
+        conhelpers["lib/connections.js (map layout,<br/>filters, tooltips; pure),<br/>connectionsPage.js (inspector, list,<br/>find; pure), connectionTexts.js (ⓘ),<br/>stockNav.js (open another stock),<br/>hooks/useConnections.js (data + map)"]
         hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, useStockDrop,<br/>usePrices, useStockSearch,<br/>useMenu, appearance, textSize"]
     end
 
@@ -254,7 +256,7 @@ flowchart TB
 
     App & Markets & Watchlist & Orders & HoldingDetail & Ticket & Confirm & Settings --> api
     RiskTile & RiskPanel & Risk --> riskhelpers --> api
-    detail --> conhelpers --> api
+    detail & ConPage --> conhelpers --> api
     api -->|"HTTP / streams"| BE[["Python backend"]]
     Setup & Settings & UpdatePrompt & LinkNotice --> tauri
     tauri -->|Tauri commands| RS[["Rust shell"]]

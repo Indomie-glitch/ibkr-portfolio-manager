@@ -14,7 +14,7 @@ export const HEIGHT = 440
 const CENTER = { x: 392, y: 205 }
 const SELF_R = 34
 // The two rows of people along the bottom
-const PEOPLE_ROWS = [352, 400]
+const PEOPLE_ROWS = [338, 382]
 export const LIMITS = { holdings: 5, indices: 6, competitors: 8, executives: 5, board: 8 }
 export const FILTERS = ['all', 'indices', 'competitors', 'people']
 
@@ -62,6 +62,42 @@ export function samePerson(a, b) {
   if (la !== lb) return false
   const shorter = fa.length <= fb.length ? fa : fb
   return fa === fb || (shorter.length >= 3 && (fa.startsWith(fb) || fb.startsWith(fa)))
+}
+
+const LEGAL_WORDS = /\b(limited|ltd|inc|incorporated|corp|corporation|plc|company|co|holdings|nv|sa|ag|se|llc)\b/g
+
+// "BHP Group Limited" -> "bhp group": for matching a company named in a document to a holding's name
+export function companyKey(name) {
+  return (name ?? '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(LEGAL_WORDS, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .join(' ')
+}
+
+// "BlueScope Steel Limited (Chair)" -> { name: "BlueScope Steel Limited", role: "Chair" }
+export function parseBoardEntry(text) {
+  const match = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(text ?? '')
+  return match ? { name: match[1].trim(), role: match[2].trim() } : { name: (text ?? '').trim(), role: null }
+}
+
+// "Coles Group Limited (October 2020–October 2023)": a board they have left, not one they sit on
+export function isFormerBoard(entry) {
+  return Boolean(entry.role && /\b(19|20)\d\d\b/.test(entry.role))
+}
+
+// The holding a named company is, or null: the same name once legal words are dropped, or one
+// starting the other (IB cuts long names: "Commonwealth Bank of Austral")
+export function heldCompany(name, holdings) {
+  const key = companyKey(name)
+  if (key.length < 3) return null
+  return holdings.find((h) => {
+    const held = companyKey(h.name)
+    return held.length >= 3 && (held === key || (Math.min(held.length, key.length) >= 8 && (held.startsWith(key) || key.startsWith(held))))
+  }) ?? null
 }
 
 function ordinal(n) {
@@ -142,7 +178,7 @@ function separate(circles, left, right, top, bottom, gap = 6) {
  * executives: GET /executives/{id} or null; board: GET /directors/{id} or null
  * Returns { nodes, edges, labels }.
  */
-export function buildMap({ stock, holdings = [], indices = [], members = {}, competitors = null, executives = null, board = null }) {
+export function buildMap({ stock, holdings = [], indices = [], members = {}, competitors = null, executives = null, board = null, depth = 1 }) {
   const nodes = []
   const edges = []
   const labels = []
@@ -153,6 +189,7 @@ export function buildMap({ stock, holdings = [], indices = [], members = {}, com
   nodes.push({
     id: 'self', kind: 'self', ...CENTER, r: SELF_R, label: stock.symbol, sublabel: stock.name, group: 'self',
     tooltip: { title: `${stock.symbol} · THIS STOCK`, body: stock.name },
+    info: { stock },
   })
 
   // ---------- Indexes, and your holdings in them ----------
@@ -177,6 +214,7 @@ export function buildMap({ stock, holdings = [], indices = [], members = {}, com
     const label = indexLabel(index.name)
     nodes.push({
       id: `index:${index.id}`, kind: 'index', x: 159, y: indexYs[i], w: Math.max(64, label.length * 7 + 18), h: 24, label, group: 'indices', mine: inIt.length > 0,
+      info: { index, shared: inIt },
       tooltip: {
         title: `${label} · ${stock.symbol} #${index.rank} · ${index.weight.toFixed(1)}%`,
         body: `${stock.symbol} is the ${index.rank === 1 ? '' : `${ordinal(index.rank)} `}largest of the ${index.count} stocks in the ${index.name}.`,
@@ -199,7 +237,7 @@ export function buildMap({ stock, holdings = [], indices = [], members = {}, com
     const shared = holdingIndices.get(h.con_id).map((id) => indexLabel(shownIndices.find((x) => x.id === id).name))
     nodes.push({
       id: `holding:${h.con_id}`, kind: 'holding', x: 50, y: yoursYs[i], w: 48, h: 22, label: h.symbol, group: 'indices', mine: true,
-      open: { con_id: h.con_id },
+      open: { con_id: h.con_id }, info: { holding: h, shared },
       tooltip: { title: `${h.symbol} · YOU OWN IT`, body: `${h.name ?? h.symbol} is in the ${listWords(shared)} with ${stock.symbol}.` },
     })
     for (const id of holdingIndices.get(h.con_id)) edges.push({ from: `holding:${h.con_id}`, to: `index:${id}`, mine: true, group: 'indices' })
@@ -218,6 +256,7 @@ export function buildMap({ stock, holdings = [], indices = [], members = {}, com
       id: `peer:${c.market}:${c.symbol}`, kind: 'competitor', x: clamp(p.x, 330, WIDTH - r - 30), y: clamp(p.y, 72, 300), r,
       label: c.symbol, group: 'competitors', mine: held != null, labelOutside: r < 14,
       open: held != null ? { con_id: held } : { symbol: c.symbol, market: c.market },
+      info: { competitor: c, label: competitors.label, self: (competitors.companies ?? []).find((x) => x.is_self) ?? null, held },
       tooltip: {
         title: `${c.symbol} · #${c.rank} · ${competitors.label}`.toUpperCase(),
         body: [
@@ -247,6 +286,7 @@ export function buildMap({ stock, holdings = [], indices = [], members = {}, com
     nodes.push({
       id: `exec:${i}`, kind: 'executive', x: p.x, y: p.y, r: 16, label: initials(e.name), group: 'people',
       link: onBoard?.wikipedia_url ?? e.wikipedia_url ?? null,
+      info: { executive: e, director: onBoard ?? null },
       tooltip: {
         title: e.name.toUpperCase(),
         body: [e.title, e.age ? `Age ${e.age}` : null, e.pay ? `Pay ${formatCompactMoney(e.pay, e.pay_currency)} (${e.pay_fiscal_year})` : null]
@@ -265,6 +305,7 @@ export function buildMap({ stock, holdings = [], indices = [], members = {}, com
     const node = {
       id, kind: 'director', x: p.x, y: p.y, r: 16, label: initials(d.name), group: 'people',
       mine: heldLinks.length > 0, link: d.wikipedia_url ?? null,
+      info: { director: d, heldLinks },
       tooltip: {
         title: d.name.toUpperCase(),
         body: [
@@ -281,7 +322,7 @@ export function buildMap({ stock, holdings = [], indices = [], members = {}, com
       const linkId = `linked:${i}:${h.con_id}`
       nodes.push({
         id: linkId, kind: 'holding', x: WIDTH - 36, y: node.y + (i % 2 ? 0 : -26), w: 48, h: 22, label: h.symbol, group: 'people',
-        mine: true, open: { con_id: h.con_id },
+        mine: true, open: { con_id: h.con_id }, info: { holding: h, linkedVia: d },
         tooltip: { title: `${h.symbol} · YOU OWN IT`, body: `${d.name} is on its board and on ${stock.symbol}'s.` },
       })
       edges.push({ from: id, to: linkId, mine: true, group: 'people' })
@@ -289,7 +330,46 @@ export function buildMap({ stock, holdings = [], indices = [], members = {}, com
   })
   if (boardOnly.length) labels.push({ text: 'BOARD', x: boardXs[0] - 16, y: PEOPLE_ROWS[0] - 30, kind: 'director' })
 
+  // ---------- Depth 2: the other boards the directors sit on (from the document) ----------
+  if (depth >= 2) addOtherBoards(nodes, edges, directors, others)
+
   return { nodes, edges, labels }
+}
+
+// Small dots along the bottom edge, one per other company board of a person already on the map
+// (up to 3 each, 18 in all, boards of companies you own first). Amber and clickable when you own
+// the company; otherwise they only have a tooltip, since the document names no ticker.
+function addOtherBoards(nodes, edges, directors, others) {
+  const entries = []
+  for (const person of nodes.filter((n) => n.kind === 'director' || n.kind === 'executive')) {
+    const name = person.info.director?.name ?? person.info.executive?.name
+    const record = directors.find((d) => samePerson(d.name, name))
+    for (const raw of (record?.other_boards ?? []).slice(0, 3)) {
+      const entry = parseBoardEntry(raw)
+      if (!entry.name || isFormerBoard(entry)) continue
+      entries.push({ person, personName: record.name, ...entry, held: heldCompany(entry.name, others) })
+    }
+  }
+  const picked = [...entries.filter((e) => e.held), ...entries.filter((e) => !e.held)].slice(0, 18)
+  // Left of the middle for people on the left, right of it for the rest, in the order of their people
+  for (const [side, left, right] of [['left', 30, 350], ['right', 430, WIDTH - 70]]) {
+    const group = picked.filter((e) => (e.person.x < CENTER.x) === (side === 'left')).sort((a, b) => a.person.x - b.person.x)
+    const xs = spread(group.length, left, right)
+    group.forEach((e, i) => {
+      const id = `other:${e.person.id}:${i}:${side}`
+      nodes.push({
+        id, kind: 'company', depth: 2, x: group.length === 1 ? (left + right) / 2 : xs[i], y: 420, r: 6, label: e.name, group: 'people',
+        mine: Boolean(e.held), open: e.held ? { con_id: e.held.con_id } : null, info: { company: e, person: e.person },
+        tooltip: {
+          title: e.name.toUpperCase(),
+          body: `${e.personName}${e.role ? `: ${e.role}` : ' also sits on this board'}.`,
+          forYou: e.held ? `You own ${e.held.symbol}.` : null,
+        },
+      })
+      edges.push({ from: e.person.id, to: id, mine: Boolean(e.held), group: 'people', depth: 2 })
+      if (e.held) e.person.mine = true
+    })
+  }
 }
 
 // Which nodes, lines and group labels to draw for a filter key and "only mine"
