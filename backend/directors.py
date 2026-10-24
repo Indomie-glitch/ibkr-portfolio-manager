@@ -55,8 +55,9 @@ Rules:
 - appointed_year: the year they joined this board, if given ("Director since 2019"), else null.
 - age: only if the document gives it, else null.
 - committees: the board committees they sit on, as named in the document.
-- other_boards: their other current company boards as the document lists them, e.g.
-  "BHP Group Limited (Chair)". Empty if none are listed.
+- other_boards: their other CURRENT company boards as the document lists them, e.g.
+  "BHP Group Limited (Chair)". Leave out boards they have left, and ones that aren't companies. Empty
+  if none are listed.
 - location: the label of the page or part the details are on ("Page 87"), exactly as given.
 - quote: a short exact quote (under 20 words) from that page or part that names them as a director.
 Copy facts from the document only. Never add anything from your own knowledge."""
