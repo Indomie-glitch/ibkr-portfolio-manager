@@ -41,7 +41,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Markets: search any ASX or US stock by symbol or name, see its price, chart, statistics, news and an AI summary (without the Your position part), with recently viewed stocks
 * Watchlists: as many as you like in the sidebar, each with price and day change for any ASX or US stock; add stocks from the watchlist's search field, the Watch button on any stock, or by dragging a row onto a watchlist in the sidebar (stored on your computer only)
 * News sentiment: green or red arrows (1 to 3) on each headline, showing how good or bad it is for that company, judged by Claude once per article
-* Trading (paper or live account, in the browser and the Mac app): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders. See [Trading safety](#trading-safety)
+* Trading (paper or live account, in the browser and the Mac app): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders, and orders that would borrow from IBKR blocked by default. See [Trading safety](#trading-safety)
 * Purchase dates and 12-month CGT discount dates per lot from an IBKR Flex Query ([setup](docs/flex-query.md)), shown in Your position and used in the AI summary (browser version; the Mac app can't take a Flex token yet)
 * Mac app that sets up and runs IB Gateway itself, with your IBKR password never stored
 * Risk page: 3M / 1Y / 3Y periods, ten headline figures (volatility, betas, effective holdings, max drawdown, Sharpe ratio, tracking error, Value at Risk, liquidity) and twelve panels (concentration, exposure, correlation heatmap, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution vs your home market's index, example mixes and hedges, bankruptcy risk, liquidity), each with an ⓘ that explains the number in plain words using your own figures; worked out from daily closes in your account's currency (Australian dollars and the ASX 200 for an AUD account, Singapore dollars and the STI for SGD), with every formula explained in [docs/risk-maths.md](docs/risk-maths.md). It describes, never advises
@@ -265,7 +265,7 @@ cd frontend/src-tauri && cargo test
 |---|---|
 | **Connection and account** | |
 | `GET /health` | Whether the backend is connected to IB Gateway (and if not, why), and whether IBKR still answers while connected (it stops when the account logs in somewhere else) |
-| `GET /account` | Net liquidation, cash, positions value, buying power, unrealised P&L, FX rates (IB's ledger, plus IB forex or Yahoo for currencies the account holds no cash in) |
+| `GET /account` | Net liquidation, cash, positions value, buying power, unrealised P&L, FX rates (IB's ledger, plus IB forex or Yahoo for currencies the account holds no cash in), cash per currency and any negative balances (money owed to IBKR) |
 | `GET /positions` | Each holding with price, market value, unrealised P&L and company name |
 | `GET /quotes` | Last price and day change per holding (delayed) |
 | `GET /history/{con_id}?range=1M` | Price history for the chart (`1D`, `1W`, `1M`, `3M`, `1Y`, `All`) |
@@ -306,7 +306,9 @@ cd frontend/src-tauri && cargo test
 | `GET /risk/bankruptcy` | Each holding's Altman Z score (financial distress) from its latest annual accounts (Yahoo, cached a day); separate so a Yahoo failure only affects that panel |
 | **Trading** | |
 | `GET /trading/status` | Paper or live account, whether orders are allowed (and why not), and the order limit |
-| `POST /orders/preview` | What an order would cost (IB what-if: commission, margin change) and any guardrail problems, without sending it; returns a `confirmation_token` when it can be placed |
+| `POST /orders/preview` | What an order would cost (IB what-if: commission, margin change) and any guardrail problems, without sending it; `borrow` says how much a buy would borrow from IBKR (blocked unless Block borrowing is off); returns a `confirmation_token` when it can be placed |
+| `GET /trading/borrowing` | Whether orders that would borrow are blocked for the connected IBKR account (on by default) |
+| `POST /trading/borrowing` | Browser version only: turn blocking back on, or off with `"confirm": "BORROW"` (the Mac app uses Touch ID instead) |
 | `POST /orders` | Places a previewed order: needs the preview's single-use `confirmation_token` (2 minutes, exactly that order); every check runs again first |
 | `POST /orders/{order_id}/cancel` | Cancels an open order |
 | `POST /orders/{order_id}/modify` | Changes an open order's quantity, limit price, order type or time in force (Day / GTC); needs a `confirmation_token` from a preview of the changed order. If IBKR can't make the change in place (e.g. market to limit), the order is cancelled and placed again, and the response's `replaced` says so |
@@ -334,6 +336,17 @@ in both the browser version and the Mac app. Orders on a live account use real m
   shares only, no selling more than you hold (no short selling), and a maximum order value in your
   base currency (default 10,000; in the browser version set `MAX_ORDER_VALUE` in `.env`, while the
   Mac app always uses the default).
+* **No borrowing by default.** IBKR accounts are margin accounts, so IBKR quietly lends money
+  instead of rejecting an order that costs more than your cash. The app checks each buy against
+  your cash **in the stock's own currency** (with an allowance for fees) and blocks it if it would
+  borrow, saying how much and what to do. Buying a US stock with no US dollars counts: IBKR doesn't
+  convert your AUD or SGD, it lends you the dollars. **Block borrowing** in Settings is on by
+  default and saved per IBKR account; turning it off explains the risks first and needs Touch ID or
+  your Mac password (typing BORROW in the browser version). With it off, orders that borrow still
+  show the amount before you place them. Overview warns if any currency's cash is already below
+  zero. Sells are never blocked. Open buy orders (from this app, TWS or the phone) are counted: what they
+  will use when they fill is taken off the cash first, so two buys that each fit your cash but
+  together would borrow are blocked.
 * **Regular trading hours only.** Orders never trade before the open or after the close.
 * **You choose how long an order lasts.** **Day** orders end at today's close if they haven't
   filled. **Good till cancelled** orders stay open on later days until they fill or you cancel them,

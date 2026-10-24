@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+import borrowing
+import config
 import fx
 import trading
 from ib_core import build_quote, clean, fetch_tickers, get_contract_info, ib, require_ib
@@ -33,9 +35,44 @@ class OrderRequest(BaseModel):
     limit_price: float | None = None
     tif: Literal["DAY", "GTC"] = "DAY"
 
-async def checked_order(order: OrderRequest):
+# The last price each stock was valued at, to value open market orders (they have no limit price)
+last_prices = {}
+
+async def open_buy_commitments(exclude_order_id=None):
+    """What open buy orders (from every client: this app, TWS, mobile) will use when they fill, per
+    currency, for the borrowing check: {currency: cost with fees}. exclude_order_id: an order being
+    changed, which the new numbers replace."""
+    try:
+        await asyncio.wait_for(ib.reqAllOpenOrdersAsync(), timeout=5)
+    except Exception:  # IB slow or refused: use the orders this connection already knows
+        pass
+    pending = [t for t in ib.openTrades()
+               if t.contract.secType == "STK" and t.order.action == "BUY" and t.contract.currency
+               and t.order.orderId != exclude_order_id]
+
+    async def value_of(trade):
+        left = trade.remaining()
+        price = trade.order.lmtPrice if trade.order.orderType in ("LMT", "STP LMT") and trade.order.lmtPrice else None
+        con_id = trade.contract.conId
+        price = price or last_prices.get(con_id) or next(
+            (clean(i.marketPrice) for i in ib.portfolio() if i.contract.conId == con_id), None)
+        if not price:
+            try:
+                price = (await build_quote(con_id, None))["last"]
+            except Exception:
+                price = None
+            if price:
+                # Remembered, so the next preview doesn't ask IB for history again (it has a limit)
+                last_prices[con_id] = price
+        return trade.contract.currency, left * price if price and left > 0 else None
+
+    values = await asyncio.gather(*(value_of(t) for t in pending))
+    return borrowing.reserved_by_open_buys([(currency, value) for currency, value in values if value])
+
+async def checked_order(order: OrderRequest, replacing_order_id=None):
     """Everything an order needs before IB sees it: the contract, the price it's valued at, the
-    guardrail status and the problems that stop it (trading.check_order)."""
+    guardrail status and the problems that stop it (trading.check_order). replacing_order_id: the
+    open order this one changes, which doesn't count against the cash."""
     contract, _ = await get_contract_info(order.con_id)
     if contract is None or contract.secType != "STK":
         raise HTTPException(status_code=404, detail="Unknown stock")
@@ -44,6 +81,8 @@ async def checked_order(order: OrderRequest):
     else:
         tickers = await fetch_tickers([contract])
         price = (await build_quote(order.con_id, tickers.get(order.con_id)))["last"]
+    if price:
+        last_prices[order.con_id] = price
     account_data = await account()
     base = account_data["currency"]
     # A stock in a currency the account has no cash in has no ledger rate; fx finds one (#270)
@@ -51,10 +90,53 @@ async def checked_order(order: OrderRequest):
     held = next((item.position for item in ib.portfolio() if item.contract.conId == order.con_id), 0)
     status = trading.status(ib.managedAccounts())
     problems, value, value_base = trading.check_order(order.model_dump(), price, fx_rate, held, status)
+    # Would it borrow from IBKR? Blocked unless switched off for this account (#289)
+    # after what open buy orders will use (cash only drops when they fill)
+    reserved = await open_buy_commitments(replacing_order_id) if order.action == "BUY" else {}
+    borrow = borrowing.borrow_needed(order.action, value, contract.currency,
+                                     account_data.get("cash_by_currency", {}), base, reserved)
+    if borrow:
+        blocked = not borrowing.borrowing_allowed(account_id())
+        borrow = {**borrow, "blocked": blocked, "message": borrowing.borrow_message(borrow, base, blocked)}
+        if blocked:
+            problems.append(borrow["message"])
     return {
         "contract": contract, "price": price, "held": held, "status": status, "problems": problems,
-        "value": value, "value_base": value_base, "base_currency": base,
+        "value": value, "value_base": value_base, "base_currency": base, "borrow": borrow,
     }
+
+def account_id():
+    """The IBKR account the borrowing setting belongs to (Gateway logs in to one at a time)."""
+    accounts = ib.managedAccounts() if ib.isConnected() else []
+    return accounts[0] if accounts else None
+
+class BorrowingChange(BaseModel):
+    block: bool
+    # Development only: switching blocking off needs this typed, as BORROW
+    confirm: str | None = None
+
+@router.get("/trading/borrowing", dependencies=[Depends(require_ib)])
+def borrowing_setting():
+    """Whether orders that would borrow from IBKR are blocked for this account (on by default).
+    change_here: the browser version changes it with POST below; the Mac app through its own
+    Touch ID / Mac password prompt."""
+    account = account_id()
+    return {"account_id": account, "block": not borrowing.borrowing_allowed(account), "change_here": not config.IN_APP}
+
+@router.post("/trading/borrowing", dependencies=[Depends(require_ib)])
+def change_borrowing(change: BorrowingChange, request: Request):
+    """Development only (the Mac app changes it over stdin after Touch ID): turns blocking on, or
+    off with confirm "BORROW"."""
+    check_origin(request)
+    if config.IN_APP:
+        raise HTTPException(status_code=403, detail="In the app, change this in Settings.")
+    if not change.block and (change.confirm or "").strip() != "BORROW":
+        raise HTTPException(status_code=400, detail="Type BORROW to allow borrowing.")
+    account = account_id()
+    if not account:
+        raise HTTPException(status_code=503, detail="IB Gateway is not connected")
+    borrowing.save_allowed(account, not change.block)
+    return borrowing_setting()
 
 @router.post("/orders/preview", dependencies=[Depends(require_ib)])
 async def preview_order(order: OrderRequest, request: Request):
@@ -83,6 +165,8 @@ async def preview_order(order: OrderRequest, request: Request):
         "estimated_value_base": checked["value_base"], "base_currency": checked["base_currency"],
         "held_quantity": checked["held"], "max_order_value": checked["status"]["max_order_value"],
         "what_if": what_if, "problems": checked["problems"], "can_submit": not checked["problems"],
+        # Set when the order would borrow: {currency, amount, cost, available, reason, blocked, message}
+        "borrow": checked.get("borrow"),
         "confirmation_token": token, "confirmation_expires_in_s": trading.TOKEN_LIFETIME_S if token else None,
     }
 
@@ -235,7 +319,7 @@ async def modify_order(order_id: int, change: ModifyOrderRequest, request: Reque
         problem = confirmation_tokens.redeem(change.confirmation_token, details["con_id"], details, time.monotonic())
         if problem:
             raise HTTPException(status_code=409, detail=problem)
-        checked = await checked_order(OrderRequest(**details))
+        checked = await checked_order(OrderRequest(**details), replacing_order_id=order_id)
         if checked["problems"]:
             raise HTTPException(status_code=409, detail=" ".join(checked["problems"]))
 

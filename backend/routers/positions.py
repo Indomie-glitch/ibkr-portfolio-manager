@@ -4,6 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 
+import borrowing
 import fx
 import news_sentiment
 import yahoo
@@ -52,7 +53,7 @@ async def account():
         "BuyingPower": "buying_power",
     }
 
-    result = {"fx_rates": {}}
+    result = {"fx_rates": {}, "cash_by_currency": {}}
     for item in summary:
         if item.tag in wanted:
             result[wanted[item.tag]] = float(item.value)
@@ -63,9 +64,13 @@ async def account():
         elif item.tag == "$LEDGER-ExchangeRate" and item.currency != "BASE":
             # How many units of base currency one unit of this currency is worth
             result["fx_rates"][item.currency] = float(item.value)
+        elif item.tag == "$LEDGER-CashBalance" and item.currency != "BASE":
+            # Cash in each currency; negative = owed to IBKR (the borrowing safeguard, #289)
+            result["cash_by_currency"][item.currency] = float(item.value)
     # IB only has a ledger rate for currencies the account holds cash in; find the others (#270)
     held = {item.contract.currency for item in ib.portfolio()}
     result["fx_rates"] = await fx.fill_missing(result["fx_rates"], held, result["currency"])
+    result["negative_balances"] = borrowing.negative_balances(result["cash_by_currency"])
     return result
 
 @router.get("/quotes", dependencies=[Depends(require_ib)])

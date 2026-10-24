@@ -59,7 +59,7 @@ The separate programs running on your Mac, and how they connect. There are two w
 flowchart TB
     subgraph bundle["Portfolio Manager.app"]
         direction TB
-        shell["Tauri shell (Rust)<br/>src-tauri/src/<br/>window, menus, sign in,<br/>settings, updates,<br/>remembered API key (encrypted),<br/>links to the browser"]
+        shell["Tauri shell (Rust)<br/>src-tauri/src/<br/>window, menus, sign in,<br/>settings, updates,<br/>remembered API key (encrypted),<br/>Touch ID for borrowing,<br/>links to the browser"]
         ui["React frontend<br/>frontend/src/<br/>everything you see"]
         be["Python backend<br/>backend/ (packed by PyInstaller)<br/>FastAPI on a random free port"]
         ibc["IBC + StdinLauncher (Java)<br/>starts Gateway and types<br/>the login for you"]
@@ -107,7 +107,7 @@ flowchart TB
         r_pos["positions.py<br/>/positions /account /quotes<br/>/search /prices /history<br/>/profile /stats /news /performance"]
         r_flex["flex.py<br/>/lots/status /lots/{id}"]
         r_sum["summaries.py<br/>/summary/... /portfolio-summary/...<br/>/usage"]
-        r_trade["trading.py<br/>/trading/status /orders<br/>/orders/preview /stream<br/>cancel, modify"]
+        r_trade["trading.py<br/>/trading/status /orders<br/>/orders/preview /stream<br/>cancel, modify,<br/>/trading/borrowing"]
         r_risk["risk.py<br/>/risk /risk/bankruptcy"]
         r_idx["indices.py<br/>/indices /indices/{id}<br/>/indices/{index}/members<br/>/competitors/{id}"]
     end
@@ -126,6 +126,7 @@ flowchart TB
     subgraph data["Data and AI"]
         yahoo["yahoo.py<br/>yfinance wrapper"]
         trading["trading.py<br/>guardrails, confirmation<br/>tokens, order summaries"]
+        borrow["borrowing.py<br/>would a buy borrow?<br/>Block borrowing setting"]
         lots["lots.py<br/>purchase lots, CGT dates,<br/>daily refresh"]
         flex["flex_report.py<br/>download + parse Flex XML"]
         sfacts["summary_facts.py<br/>stock facts sheet<br/>(every number calculated here)"]
@@ -154,7 +155,7 @@ flowchart TB
     rdata -.->|rate pairs| fx
     fx --> ib_core & yahoo & cache
     r_flex --> lots & ib_core
-    r_trade --> trading & ib_core & web
+    r_trade --> trading & borrow & ib_core & web
     r_sum --> sfacts & pfacts & ai & pai & store & lots & web & usage
     r_sum -.->|reuses| r_pos
     r_risk --> rdata & rsec & cache & ib_core
@@ -356,7 +357,7 @@ sequenceDiagram
 
     You->>T: Buy, quantity, price
     T->>R: POST /orders/preview (500 ms after typing stops)
-    R->>G: check: whole shares, value ≤ MAX_ORDER_VALUE,<br/>no short selling, connected
+    R->>G: check: whole shares, value ≤ MAX_ORDER_VALUE,<br/>no short selling, connected,<br/>no borrowing (cash in the stock's currency)
     R->>IB: what-if order (nothing is sent)
     IB-->>R: cost, commission, margin
     R->>G: issue single use token<br/>(120 s, these exact numbers)

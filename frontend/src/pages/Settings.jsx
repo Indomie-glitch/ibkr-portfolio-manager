@@ -2,13 +2,15 @@
 // groups). It's shown in the Settings sheet (components/SettingsSheet.jsx), in the section order of the
 // Figma "Settings overlay": Account, AI summaries, IB Gateway, Appearance.
 import { useEffect, useState } from 'react'
-import { IN_APP } from '../lib/api.js'
+import { IN_APP, changeBorrowing, fetchBorrowing } from '../lib/api.js'
 import { apiKeyStatus, clearApiKey, rememberApiKey, setApiKey } from '../desktop/appApiKey.js'
 import { APPEARANCES } from '../hooks/appearance.js'
 import { TEXT_SIZES } from '../lib/textSize.js'
 import { gatewayStatus, installGateway } from '../desktop/appGateway.js'
 import { savedLogin, signOut } from '../desktop/appSession.js'
 import { getSettings, saveSettings } from '../desktop/appSettings.js'
+import { CAN_CONFIRM_OWNER, allowBorrowing, blockBorrowing, confirmOwner } from '../desktop/appBorrowing.js'
+import { AllowBorrowingSheet, BlockBorrowingSheet } from '../components/BorrowingSheets.jsx'
 import { CheckCircleIcon, ChevronsIcon } from '../components/icons.jsx'
 
 // Written in two parts, like backend/secrets_guard.py, so the pre-commit check for keys doesn't flag it
@@ -50,14 +52,15 @@ function Row({ label, children, note }) {
   )
 }
 
-function Toggle({ checked, onChange, label }) {
+// danger: red when off instead of grey (Block borrowing, where off is the risky choice)
+function Toggle({ checked, onChange, label, danger = false }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      className="settings-toggle"
+      className={`settings-toggle ${danger ? 'danger-off' : ''}`}
       onClick={() => onChange(!checked)}
     >
       <span className="settings-toggle-knob" />
@@ -347,6 +350,91 @@ function ModelRow({ settings, onSave }) {
   )
 }
 
+// "Block borrowing" (#289): on by default, per IBKR account. Off needs the warning sheet and then
+// Touch ID / the Mac password (app) or BORROW typed (browser); back on needs a short confirmation.
+function TradingGroup({ connected }) {
+  const [setting, setSetting] = useState(null)
+  const [sheet, setSheet] = useState(null) // null | 'allow' | 'block'
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const [note, setNote] = useState(null)
+
+  useEffect(() => {
+    if (!connected) return
+    fetchBorrowing()
+      .then(setSetting)
+      .catch((err) => setNote({ error: true, text: err.message }))
+  }, [connected])
+
+  function close() {
+    setSheet(null)
+    setError(null)
+    setBusy(false)
+  }
+
+  async function allow() {
+    setBusy(true)
+    setError(null)
+    try {
+      // The app: Rust asks macOS and tells its backend. `npm run tauri dev`: macOS is asked here, then
+      // the development backend is told the same way as in the browser
+      const confirmed = IN_APP
+        ? await allowBorrowing(setting.account_id)
+        : !CAN_CONFIRM_OWNER || (await confirmOwner())
+      if (!confirmed) {
+        // Cancelled or failed: the switch stays on
+        close()
+        setNote({ text: 'Not changed: macOS didn’t confirm it was you. Borrowing is still blocked.' })
+        return
+      }
+      if (!IN_APP) await changeBorrowing({ block: false, confirm: 'BORROW' })
+      setSetting({ ...setting, block: false })
+      setNote(null)
+      close()
+    } catch (err) {
+      setBusy(false)
+      setError(String(err.message ?? err))
+    }
+  }
+
+  async function block() {
+    setBusy(true)
+    setError(null)
+    try {
+      if (IN_APP) await blockBorrowing(setting.account_id)
+      else await changeBorrowing({ block: true })
+      setSetting({ ...setting, block: true })
+      setNote(null)
+      close()
+    } catch (err) {
+      setBusy(false)
+      setError(String(err.message ?? err))
+    }
+  }
+
+  const on = setting?.block ?? true
+  const status = on
+    ? 'On: orders that would borrow are blocked.'
+    : 'Off: orders can borrow from IBKR and you pay interest.'
+  return (
+    <Group
+      title="Trading"
+      footnote={setting?.account_id ? `Saved for IBKR account ${setting.account_id}.` : 'Connect to IBKR to change this.'}
+    >
+      <Row label="Block borrowing" note={note ?? { text: status }}>
+        <Toggle
+          label="Block borrowing"
+          danger
+          checked={on}
+          onChange={(next) => setting && setSheet(next ? 'block' : 'allow')}
+        />
+      </Row>
+      {sheet === 'allow' && <AllowBorrowingSheet onCancel={close} onConfirm={allow} busy={busy} error={error} />}
+      {sheet === 'block' && <BlockBorrowingSheet onCancel={close} onConfirm={block} busy={busy} error={error} />}
+    </Group>
+  )
+}
+
 function AppearanceGroup({ appearance, onAppearanceChange, textSize, onTextSizeChange }) {
   return (
     <Group title="Appearance">
@@ -422,6 +510,7 @@ function Settings({ appearance, onAppearanceChange, textSize, onTextSizeChange, 
         <p className="settings-footnote">
           In development, the API key, Gateway port and model come from .env (ANTHROPIC_API_KEY, IB_PORT, AI_MODEL).
         </p>
+        <TradingGroup connected={connected} />
         <AppearanceGroup
           appearance={appearance}
           onAppearanceChange={onAppearanceChange}
@@ -450,6 +539,7 @@ function Settings({ appearance, onAppearanceChange, textSize, onTextSizeChange, 
         <ModelRow settings={settings} onSave={save} />
       </Group>
       {settings && <GatewayGroup settings={settings} onSave={save} />}
+      <TradingGroup connected={connected} />
       <AppearanceGroup
           appearance={appearance}
           onAppearanceChange={onAppearanceChange}

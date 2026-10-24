@@ -257,6 +257,13 @@ function OrderTicket({ stock, side, existing = null, trading, account, onClose, 
           </ul>
         )}
 
+        {/* Block borrowing is off: the order can go ahead, but says how much it borrows (#289) */}
+        {data?.borrow && !data.borrow.blocked && (
+          <p className="borrow-warning" role="alert">
+            {data.borrow.message}
+          </p>
+        )}
+
         <p className="sheet-note">
           Estimates come from IBKR’s order preview. Nothing is sent until you review and confirm.
         </p>

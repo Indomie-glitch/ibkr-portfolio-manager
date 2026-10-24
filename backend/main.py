@@ -41,7 +41,7 @@ class PathCORS:
 
     async def __call__(self, scope, receive, send):
         summary_path = scope["type"] == "http" and (scope["path"].startswith(("/summary/", "/orders/"))
-                                                    or scope["path"] in ("/portfolio-summary", "/orders"))
+                                                    or scope["path"] in ("/portfolio-summary", "/orders", "/trading/borrowing"))
         await (self.get_post if summary_path else self.get_only)(scope, receive, send)
 
 # In the Mac app, every request must carry the token the app created at launch, so other programs

@@ -28,6 +28,9 @@ only thing that keeps this test on paper money is logging in to the paper accoun
 | 6 | Positions → that holding → **Sell** 1 share (market) | Fills; holding disappears or drops by 1 |
 | 7 | Sell more shares than you hold | Ticket lists "You can sell at most …"; Review Order disabled |
 | 8 | Buy an order worth more than `MAX_ORDER_VALUE` | Ticket lists the limit problem; Review Order disabled |
+| 8b | With no USD cash (e.g. an AUD or SGD paper account), **Buy** a US stock | Ticket says how many USD the order would borrow and to convert first; Review Order disabled |
+| 8c | Settings → Trading → turn **Block borrowing** off → **Cancel**, then again → **Allow borrowing** → cancel Touch ID | Switch stays on (green) both times |
+| 8d | Turn it off and confirm with Touch ID or your Mac password (browser: type BORROW) → repeat 8b | Switch is red; the ticket and review sheet show the borrow warning but the order can be placed. Turn it back on afterwards |
 | 9 | Open the ticket, wait over 2 minutes on the review sheet, then Place | Error: the confirmation expired; Edit → Review again works |
 | 10 | Double-click **Place Buy Order** | Only one order is placed |
 | 11 | Repeat 1–2 in the **Mac app** | Same results (its Gateway now allows API orders) |

@@ -1,3 +1,4 @@
+mod borrowing;
 mod gateway;
 mod keystore;
 mod session;
@@ -92,6 +93,7 @@ fn start_backend(app: &AppHandle) -> Result<Option<(Backend, Connection)>, Box<d
 fn send_settings_to_backend(backend: &Backend, settings: &settings::Settings) -> Result<(), String> {
     backend.send(json!({ "set_setting": "ib_port", "value": settings.gateway_port }))?;
     backend.send(json!({ "set_setting": "index_loader", "value": settings.load_index_members }))?;
+    backend.send(json!({ "set_setting": "allow_borrowing", "value": settings.allow_borrowing }))?;
     backend.send(json!({ "set_setting": "ai_model", "value": settings.ai_model }))
 }
 
@@ -234,9 +236,54 @@ fn get_settings(app: AppHandle) -> settings::Settings {
 
 /// Saves the settings and applies them to the running backend right away.
 #[tauri::command]
-fn save_settings(app: AppHandle, backend: State<Backend>, settings: settings::Settings) -> Result<(), String> {
+fn save_settings(app: AppHandle, backend: State<Backend>, mut settings: settings::Settings) -> Result<(), String> {
+    // Borrowing is only switched off through allow_borrowing below (Touch ID or the Mac password)
+    settings.allow_borrowing = settings::load(&app).allow_borrowing;
     settings::save(&app, &settings)?;
     send_settings_to_backend(&backend, &settings)
+}
+
+/// "Block borrowing" off for this IBKR account, once macOS confirms it's the Mac's owner (Touch ID
+/// or the Mac password). Ok(false) when the user cancels or it fails: nothing changes.
+#[tauri::command]
+async fn allow_borrowing(app: AppHandle, account_id: String) -> Result<bool, String> {
+    if account_id.trim().is_empty() {
+        return Err("Not connected to an IBKR account.".into());
+    }
+    let confirmed = tauri::async_runtime::spawn_blocking(|| borrowing::confirm_owner(borrowing::REASON))
+        .await
+        .map_err(|e| e.to_string())??;
+    if !confirmed {
+        return Ok(false);
+    }
+    set_borrowing(&app, account_id, true)?;
+    Ok(true)
+}
+
+/// Only the Touch ID / Mac password prompt, for `npm run tauri dev`: there the backend is your own
+/// development one (no stdin to it), so the page sends the change itself after this says yes.
+#[tauri::command]
+async fn confirm_borrowing() -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(|| borrowing::confirm_owner(borrowing::REASON))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// "Block borrowing" back on for this IBKR account (no password needed to make things safer).
+#[tauri::command]
+fn block_borrowing(app: AppHandle, account_id: String) -> Result<(), String> {
+    set_borrowing(&app, account_id, false)
+}
+
+fn set_borrowing(app: &AppHandle, account_id: String, allowed: bool) -> Result<(), String> {
+    let mut saved = settings::load(app);
+    if allowed {
+        saved.allow_borrowing.insert(account_id, true);
+    } else {
+        saved.allow_borrowing.remove(&account_id);
+    }
+    settings::save(app, &saved)?;
+    app.state::<Backend>().send(json!({ "set_setting": "allow_borrowing", "value": saved.allow_borrowing }))
 }
 
 /// Gateway setup in progress (download, checking, installer open).
@@ -559,6 +606,9 @@ pub fn run() {
             updater::open_release_page,
             get_settings,
             save_settings,
+            allow_borrowing,
+            confirm_borrowing,
+            block_borrowing,
             gateway_status,
             install_gateway,
             login_state,

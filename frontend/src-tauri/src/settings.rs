@@ -2,6 +2,7 @@
 //! The IBKR password is never stored. The Anthropic key is only stored if the user asks, encrypted,
 //! by keystore.rs (not in this file).
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -31,6 +32,10 @@ pub struct Settings {
     /// of Yahoo calls). Off until a screen uses them (#114); no Settings row yet, so it is changed
     /// by editing settings.json.
     pub load_index_members: bool,
+    /// IBKR accounts for which "Block borrowing" was switched off (after Touch ID or the Mac
+    /// password, borrowing.rs). Missing = blocked. Only changed by the borrowing commands: save_settings
+    /// keeps what's saved here, so the page can't switch it off by itself.
+    pub allow_borrowing: BTreeMap<String, bool>,
     /// The Keychain items of earlier builds have been deleted (once, without reading them). The
     /// app no longer stores anything secret.
     pub keychain_removed: bool,
@@ -46,6 +51,7 @@ impl Default for Settings {
             auto_reconnect: true,
             ai_model: "claude-haiku-4-5".into(),
             load_index_members: false,
+            allow_borrowing: BTreeMap::new(),
             keychain_removed: false,
         }
     }

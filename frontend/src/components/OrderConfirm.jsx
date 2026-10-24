@@ -291,6 +291,12 @@ function OrderConfirm({ preview, trading, onEdit, onDone, onViewOrders }) {
           <p className="review-words">{orderWords(preview, c)}</p>
         </div>
 
+        {preview.borrow && !preview.borrow.blocked && (
+          <p className="borrow-warning" role="alert">
+            <strong>This order borrows from IBKR.</strong> {preview.borrow.message}
+          </p>
+        )}
+
         <div className="estimates">
           <Line label={buying ? 'Estimated cost' : 'Estimated proceeds'} value={formatMoney(preview.estimated_value, c)} />
           <Line

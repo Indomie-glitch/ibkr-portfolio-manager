@@ -25,11 +25,13 @@ def fake(value):
     return mock.AsyncMock(side_effect=source)
 
 
-def ledger(base, rates):
-    """accountSummary rows: the account's totals plus an exchange rate row per currency in `rates`."""
+def ledger(base, rates, cash=None):
+    """accountSummary rows: the account's totals plus an exchange rate row per currency in `rates`
+    and a cash balance row per currency in `cash`."""
     rows = [AccountValue("DU1", tag, str(value), base, "") for tag, value in
             (("NetLiquidation", 100000), ("TotalCashValue", 90000), ("GrossPositionValue", 10000), ("BuyingPower", 400000))]
     rows += [AccountValue("DU1", "$LEDGER-ExchangeRate", str(rate), cur, "") for cur, rate in rates.items()]
+    rows += [AccountValue("DU1", "$LEDGER-CashBalance", str(value), cur, "") for cur, value in (cash or {}).items()]
     return rows
 
 
@@ -120,9 +122,9 @@ class IbQuoteTest(FxTestCase):
 class SgdAccountTest(FxTestCase):
     """An SGD paper account with no USD cash, holding or buying a US stock."""
 
-    def account(self, rates, held=("USD",)):
+    def account(self, rates, held=("USD",), cash=None):
         portfolio = [SimpleNamespace(contract=Contract(conId=i, currency=cur), position=10) for i, cur in enumerate(held)]
-        return (mock.patch.object(positions_api.ib, "accountSummaryAsync", mock.AsyncMock(return_value=ledger("SGD", rates))),
+        return (mock.patch.object(positions_api.ib, "accountSummaryAsync", mock.AsyncMock(return_value=ledger("SGD", rates, cash))),
                 mock.patch.object(positions_api.ib, "portfolio", return_value=portfolio))
 
     def test_account_fills_the_rate_for_a_held_currency(self):
@@ -138,12 +140,13 @@ class SgdAccountTest(FxTestCase):
             result = run(positions_api.account())
         self.assertNotIn("USD", result["fx_rates"])
 
-    def checked(self):
-        """checked_order for buying 10 AAPL (USD) at a limit of 200 on an SGD account that holds nothing."""
+    def checked(self, allow_borrowing=True, cash=None):
+        """checked_order for buying 10 AAPL (USD) at a limit of 200 on an SGD account that holds nothing.
+        With no USD cash this borrows (#289); these exchange rate tests allow it unless told not to."""
         contract = Contract(conId=265598, symbol="AAPL", secType="STK", currency="USD")
         order = orders_api.OrderRequest(con_id=265598, action="BUY", quantity=10, order_type="LMT", limit_price=200)
-        summary, portfolio = self.account({"SGD": 1}, held=())
-        with summary, portfolio, \
+        summary, portfolio = self.account({"SGD": 1}, held=(), cash=cash)
+        with summary, portfolio, mock.patch.object(orders_api.borrowing, "borrowing_allowed", return_value=allow_borrowing), \
                 mock.patch.object(orders_api, "get_contract_info", mock.AsyncMock(return_value=(contract, "APPLE INC"))), \
                 mock.patch.object(orders_api.ib, "portfolio", return_value=[]), \
                 mock.patch.object(orders_api.ib, "managedAccounts", return_value=["DU123"]):
@@ -156,6 +159,28 @@ class SgdAccountTest(FxTestCase):
         self.assertEqual(checked["value"], 2000)
         self.assertAlmostEqual(checked["value_base"], 2700)
         self.assertEqual(checked["base_currency"], "SGD")
+
+    def test_no_usd_cash_is_blocked_by_default(self):
+        # #289: 50,000 SGD and no USD; IBKR would leave a negative USD balance (a USD loan)
+        with mock.patch.object(fx, "ib_rate", fake(1.35)):
+            checked = self.checked(allow_borrowing=False, cash={"SGD": 50000})
+        [problem] = checked["problems"]
+        self.assertIn("borrow about 2,006.00 USD", problem)
+        self.assertIn("convert SGD to USD in IBKR first", problem)
+        self.assertEqual((checked["borrow"]["reason"], checked["borrow"]["blocked"]), ("currency", True))
+
+    def test_with_borrowing_allowed_it_warns_but_goes_ahead(self):
+        with mock.patch.object(fx, "ib_rate", fake(1.35)):
+            checked = self.checked(allow_borrowing=True, cash={"SGD": 50000})
+        self.assertEqual(checked["problems"], [])
+        self.assertFalse(checked["borrow"]["blocked"])
+        self.assertIn("interest", checked["borrow"]["message"])
+
+    def test_enough_usd_cash_needs_no_borrowing(self):
+        with mock.patch.object(fx, "ib_rate", fake(1.35)):
+            checked = self.checked(allow_borrowing=False, cash={"SGD": 50000, "USD": 5000})
+        self.assertEqual(checked["problems"], [])
+        self.assertIsNone(checked["borrow"])
 
     def test_the_order_limit_still_applies_in_the_base_currency(self):
         # 10,000 is the default MAX_ORDER_VALUE; 2000 USD x 8 = 16,000 SGD

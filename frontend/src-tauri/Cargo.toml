@@ -32,6 +32,10 @@ tauri-plugin-opener = "2"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["std", "objc2-core-foundation", "NSButton", "NSControl", "NSResponder", "NSView", "NSWindow"] }
 objc2-core-foundation = { version = "0.3", features = ["CFCGTypes"] }
+# Touch ID or the Mac password before allowing borrowing (borrowing.rs)
+objc2-local-authentication = { version = "0.3", features = ["std", "block2", "LAContext", "LAError"] }
+objc2-foundation = { version = "0.3", features = ["std", "NSString", "NSError"] }
+block2 = "0.6"
 
 [target.'cfg(unix)'.dependencies]
 # Encrypting the remembered Anthropic key (keystore.rs)
