@@ -1,6 +1,8 @@
 """Company connections (Milestone 9): index members (#109), the indexes a stock belongs to (#110)
 and its competitors (#111)."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 
 import competitors
@@ -80,13 +82,15 @@ async def competitor_target(contract, market, universe):
 
 
 @router.get("/competitors/{con_id}", dependencies=[Depends(require_ib)])
-async def stock_competitors(con_id: int):
+async def stock_competitors(con_id: int, scope: Literal["all", "same_market"] = "all"):
     """Companies in the stock's Yahoo industry among the index members (both markets), largest
     market cap first, each with market, market cap, 1-year price change, P/E and whether you own it;
     the stock itself is marked (is_self). Fewer than 4 competitors widens to related industries,
     then the sector (level, label). status: "ready", "loading" (sectors are still being looked up,
     so the list may be incomplete; progress says how far), "no_industry" (Yahoo has none, e.g. an
-    ETF) or "unsupported" (a market whose indexes aren't loaded)."""
+    ETF) or "unsupported" (a market whose indexes aren't loaded). scope "same_market" compares only
+    with companies on the stock's own market (ranked among them, so ASX peers aren't crowded out by
+    larger US ones); "all" (the default) uses both markets."""
     contract, _ = await get_contract_info(con_id)
     if contract is None:
         raise HTTPException(status_code=404, detail="Unknown contract")
@@ -102,6 +106,7 @@ async def stock_competitors(con_id: int):
     aud = await fx.rate_to_base("AUD", "USD")
     if aud is None:
         raise HTTPException(status_code=502, detail="No AUD to USD exchange rate to compare market caps")
-    found = competitors.find(target, universe, {"USD": 1.0, "AUD": aud}, owned_stocks())
-    return {**answer, "status": "ready" if progress["complete"] else "loading", "progress": progress,
+    pool = [c for c in universe if c["market"] == market] if scope == "same_market" else universe
+    found = competitors.find(target, pool, {"USD": 1.0, "AUD": aud}, owned_stocks())
+    return {**answer, "scope": scope, "status": "ready" if progress["complete"] else "loading", "progress": progress,
             "market_data": constituents.status()["market_data"], **found}

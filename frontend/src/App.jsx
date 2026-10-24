@@ -3,6 +3,7 @@ import { IN_APP, fetchAccount, fetchHealth, fetchPositions, fetchQuotes, fetchTr
 import { formatTime } from './lib/format.js'
 import { buildHoldings } from './lib/holdings.js'
 import { useAppearance } from './hooks/appearance.js'
+import { StockNavContext } from './lib/stockNav.js'
 import { useTextSize } from './hooks/textSize.js'
 import { sizeWindowFor } from './desktop/appWindow.js'
 import ConnectionMessage from './components/ConnectionMessage.jsx'
@@ -191,6 +192,18 @@ function App() {
     setPage('positions')
   }
 
+  // Another stock from a detail panel (Connections, #114): a holding opens on Positions, anything
+  // else on Markets (nonce: opening the same stock twice still counts)
+  const [marketsOpen, setMarketsOpen] = useState(null)
+  function openStock(stock) {
+    if (positions.some((p) => p.con_id === stock.con_id)) {
+      openHolding(stock.con_id)
+      return
+    }
+    setMarketsOpen({ stock, nonce: Date.now() })
+    setPage('markets')
+  }
+
   // In the Mac app: the startup screen while the backend starts, the setup flow until signed in to
   // IBKR, then the dashboard (with a banner and the last figures if the session ends)
   const signedIn = login?.state === 'signed_in'
@@ -323,6 +336,7 @@ function App() {
         <main className="content">
           {/* Sections that failed to load try again whenever the data is reloaded (#203) */}
           <RefreshContext.Provider value={dataVersion}>
+          <StockNavContext.Provider value={{ holdings, openStock }}>
             <Toolbar
               title={page === 'watchlist' ? watchlist?.name : PAGE_TITLES[page]}
               subtitle={subtitle}
@@ -413,6 +427,7 @@ function App() {
             {/* Searching needs IB, so no stale view here */}
             {showData && connected && page === 'markets' && (
               <Markets
+                openRequest={marketsOpen}
                 holdings={holdings}
                 refreshKey={dataVersion}
                 trading={trading}
@@ -482,6 +497,7 @@ function App() {
                 )}
               </>
             )}
+          </StockNavContext.Provider>
           </RefreshContext.Provider>
         </main>
       </div>

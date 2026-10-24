@@ -6,6 +6,7 @@ import { benchmarkName } from '../lib/holdings.js'
 import { useFetch } from '../hooks/useFetch.js'
 import AboutSection from './detail/AboutSection.jsx'
 import AiSummarySection from './detail/AiSummarySection.jsx'
+import ConnectionsSection from './detail/ConnectionsSection.jsx'
 import DisclosureSection from './detail/DisclosureSection.jsx'
 import KeyStats from './detail/KeyStats.jsx'
 import NewsSection from './detail/NewsSection.jsx'
@@ -213,6 +214,11 @@ function HoldingDetail({ holding, refreshKey, trading, onTrade }) {
 
       <DisclosureSection id="performance" title="Performance" note={`Total return vs ${benchmarkName(holding)}`}>
         <PerformanceSection holding={holding} />
+      </DisclosureSection>
+
+      {/* Indexes, competitors, executives and board (#114, Figma Connections V1C 138:1359) */}
+      <DisclosureSection id="connections" title="Connections" note="Updated weekly">
+        <ConnectionsSection holding={holding} name={shortName} />
       </DisclosureSection>
     </div>
   )

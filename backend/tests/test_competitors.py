@@ -114,7 +114,7 @@ class ListTests(unittest.TestCase):
 
 
 class RouteTests(unittest.TestCase):
-    def call(self, contract, universe=BANKS, complete=True, info=None, owned=()):
+    def call(self, contract, universe=BANKS, complete=True, info=None, owned=(), scope="all"):
         async def contract_info(con_id):
             return contract, None
 
@@ -136,7 +136,7 @@ class RouteTests(unittest.TestCase):
                 mock.patch.object(routes.constituents, "profile_progress", lambda: progress), \
                 mock.patch.object(routes.constituents, "status", lambda: {"market_data": {}}), \
                 mock.patch.object(routes.ib, "portfolio", lambda: portfolio):
-            return asyncio.run(routes.stock_competitors(5))
+            return asyncio.run(routes.stock_competitors(5, scope))
 
     def asx(self, symbol):
         return SimpleNamespace(symbol=symbol, primaryExchange="ASX", exchange="SMART")
@@ -145,6 +145,14 @@ class RouteTests(unittest.TestCase):
         answer = self.call(self.asx("CBA"), owned=["WBC", "BEN"])
         self.assertEqual((answer["status"], answer["level"]), ("ready", "industry"))
         self.assertEqual([c["symbol"] for c in answer["companies"]], ["JPM", "BAC", "WFC", "CBA", "ANZ"])
+
+    def test_same_market_only(self):
+        # The Connections toggle (#114): CBA's ASX peers, ranked among themselves
+        answer = self.call(self.asx("CBA"), scope="same_market")
+        self.assertEqual(answer["scope"], "same_market")
+        self.assertTrue(all(c["market"] == "ASX" for c in answer["companies"]))
+        self.assertEqual(answer["companies"][0]["symbol"], "CBA")
+        self.assertEqual(answer["companies"][0]["rank"], 1)
 
     def test_owned_peer(self):
         answer = self.call(self.asx("BOQ"), owned=["BEN"])
