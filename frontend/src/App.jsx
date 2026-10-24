@@ -53,6 +53,9 @@ async function readHealth() {
 // 'checking' before the first answer; 'starting' while the app's backend starts; 'offline' if the
 // backend is unreachable ('stopped' in the app, where it should always be running); 'disconnected'
 // if the backend is up but IB Gateway isn't; otherwise 'connected'
+// What the pages that need IB are called in the "session ended" note
+const PAGE_NAMES = { markets: 'Markets', watchlist: 'This watchlist', orders: 'Orders', risk: 'Risk' }
+
 function connectionState(health) {
   if (health === null) return IN_APP ? 'starting' : 'checking'
   if (health === 'starting') return 'starting'
@@ -382,6 +385,21 @@ function App() {
                 trading={connected ? trading : null}
                 onTrade={(stock, side) => setTicket({ stock, side })}
               />
+            )}
+
+            {/* These pages need live data from IB, so there is no dimmed view: say why instead */}
+            {sessionEnded && ['markets', 'watchlist', 'orders', 'risk'].includes(page) && (
+              <div className="page-message">
+                <div className="session-page-note" role="status">
+                  <span>
+                    {PAGE_NAMES[page]} needs a live IBKR connection, so it is unavailable while your session is ended.
+                    Overview and Positions still show your last figures.
+                  </span>
+                  <button type="button" className="settings-button primary" onClick={reconnectSession}>
+                    Sign in
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* Searching needs IB, so no stale view here */}
