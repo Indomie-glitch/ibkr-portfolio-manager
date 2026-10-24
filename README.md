@@ -46,7 +46,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Mac app that sets up and runs IB Gateway itself, with your IBKR password never stored
 * Risk page: 3M / 1Y / 3Y periods, ten headline figures (volatility, betas, effective holdings, max drawdown, Sharpe ratio, tracking error, Value at Risk, liquidity) and twelve panels (concentration, exposure, correlation heatmap, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution vs your home market's index, example mixes and hedges, bankruptcy risk, liquidity), each with an ⓘ that explains the number in plain words using your own figures; worked out from daily closes in your account's currency (Australian dollars and the ASX 200 for an AUD account, Singapore dollars and the STI for SGD), with every formula explained in [docs/risk-maths.md](docs/risk-maths.md). It describes, never advises
 * The AI portfolio summary's key risks can cite the Risk page's findings
-* Index members (backend, no UI yet): the S&P 500, Nasdaq 100, Dow, ASX 20, ASX 50 and ASX 200, with each member's weight, market cap, P/E, 1-year change, sector and industry, refreshed from ETF holdings files and Yahoo (no API key), and which of them a stock belongs to
+* Index members (backend, no UI yet): the S&P 500, Nasdaq 100, Dow, ASX 20, ASX 50 and ASX 200, with each member's weight, market cap, P/E, 1-year change, sector and industry, refreshed from ETF holdings files and Yahoo (no API key), and which of them a stock belongs to. The background loader is off by default (it makes about 20 minutes of Yahoo calls): set `INDEX_LOADER=1` in `.env`, or `load_index_members` in the app's `settings.json`
 * Competitors (backend, no UI yet): for any ASX or US stock, the index companies in the same industry from both markets, largest first, with market cap, 1-year change, P/E and whether you own them; widens to related industries or the sector when there are fewer than 4
 
 ### Planned
@@ -196,6 +196,7 @@ cp .env.example .env
 
 | Variable | Description |
 |---|---|
+| `INDEX_LOADER` | Optional: `1` turns on the background loading of index members (off by default; the endpoints still answer from whatever is stored) |
 | `ANTHROPIC_API_KEY` | Your Claude API key (needed for AI summaries; only used by the backend) |
 | `AI_MODEL` | Claude model for summaries, `claude-haiku-4-5` by default |
 | `IB_HOST` | IB Gateway host, usually `127.0.0.1` |

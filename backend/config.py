@@ -32,6 +32,15 @@ def ib_client_id():
     return 17 if IN_APP else int(os.getenv("IB_CLIENT_ID", "1"))
 
 
+def index_loader_enabled():
+    """Whether the background task loads index members and their Yahoo data (about 20 minutes of
+    Yahoo calls). Off by default until there is a UI that uses them (#114): INDEX_LOADER=1 in .env
+    in development, "load_index_members" in the app's settings.json."""
+    if IN_APP:
+        return bool(SETTINGS.get("index_loader"))
+    return os.getenv("INDEX_LOADER", "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def ib_port():
     """IB Gateway's API port: the Settings screen in the Mac app, IB_PORT in .env in development."""
     return int(SETTINGS.get("ib_port") or os.getenv("IB_PORT", "4002"))
