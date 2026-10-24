@@ -35,12 +35,13 @@ def ib_client_id():
 
 
 def index_loader_enabled():
-    """Whether the background task loads index members and their Yahoo data (about 20 minutes of
-    Yahoo calls). Off by default until there is a UI that uses them (#114): INDEX_LOADER=1 in .env
-    in development, "load_index_members" in the app's settings.json."""
+    """Whether the background task keeps index members and their Yahoo data up to date. On by
+    default since the Connections section uses them (#114); the bundled seed means it only tops up.
+    Off with INDEX_LOADER=0 in .env in development, or "load_index_members": false in the app's
+    settings.json."""
     if IN_APP:
-        return bool(SETTINGS.get("index_loader"))
-    return os.getenv("INDEX_LOADER", "").strip().lower() in ("1", "true", "yes", "on")
+        return SETTINGS.get("index_loader") is not False
+    return os.getenv("INDEX_LOADER", "").strip().lower() not in ("0", "false", "no", "off")
 
 
 def ib_port():

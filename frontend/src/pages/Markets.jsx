@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { stockDetail } from '../lib/holdings.js'
 import { usePrices } from '../hooks/usePrices.js'
 import { useResizableWidth } from '../hooks/useResizableWidth.js'
@@ -29,7 +29,7 @@ function saveRecent(items) {
   }
 }
 
-function Markets({ holdings, refreshKey, trading, onTrade }) {
+function Markets({ holdings, refreshKey, trading, onTrade, openRequest }) {
   const [query, setQuery] = useState('')
   const [market, setMarket] = useState('All')
   const [recent, setRecent] = useState(loadRecent)
@@ -52,6 +52,15 @@ function Markets({ holdings, refreshKey, trading, onTrade }) {
     setRecent(next)
     saveRecent(next)
   }
+
+  // A stock opened from another page (Connections, #114) becomes the selection and joins Recent
+  const handled = useRef(null)
+  useEffect(() => {
+    if (!openRequest || handled.current === openRequest.nonce) return
+    handled.current = openRequest.nonce
+    // oxlint-disable-next-line react/set-state-in-effect
+    select(openRequest.stock)
+  })
 
   function clearRecent() {
     setRecent([])
