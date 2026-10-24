@@ -47,7 +47,10 @@ def name_parts(name):
     text = re.sub(r"['‘’`´]", "", text)
     words = [w for w in re.split(r"[\s]+", _ascii(text).lower().replace(".", " ")) if w]
     words = [re.sub(r"[^a-z-]", "", w) for w in words]
-    words = [w for w in words if w and w not in SUFFIXES]
+    words = [w for w in words if w]
+    # Honours and suffixes come after the name: "Rob Whitfield AM" loses AM, but "KC McClure" keeps KC
+    while len(words) > 2 and words[-1] in SUFFIXES:
+        words.pop()
     if len(words) < 2:
         return None
     return words[0], words[-1]

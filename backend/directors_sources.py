@@ -35,7 +35,7 @@ SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SEC_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
 SEC_ARCHIVE_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{document}"
 SEC_MIN_INTERVAL_S = 0.2  # 5 requests a second at most (EDGAR allows 10)
-SEC_FORMS = ("DEF 14A", "20-F")  # in order of preference
+SEC_FORMS = ("DEF 14A", "DEF 14C", "20-F")  # in order of preference (14C: an information statement)
 
 ASX_LIST_URL = ("https://www.asx.com.au/asx/v2/statistics/announcements.do"
                 "?by=asxCode&asxCode={code}&timeframe=Y&year={year}")
@@ -127,35 +127,50 @@ async def sec_cik(ib_symbol):
     return _sec_tickers["map"].get(sec_ticker(ib_symbol))
 
 
-def choose_filing(submissions, cik, now):
-    """The newest DEF 14A from the last 18 months (else a 20-F) in EDGAR's submissions JSON, or None."""
+def choose_filings(submissions, cik, now):
+    """The proxy statements (DEF 14A, else DEF 14C, else a 20-F) from the last 18 months in EDGAR's
+    submissions JSON, newest first. A company's newest proxy can be for a special meeting with no
+    director election, so reading falls back to the next one."""
     recent = submissions.get("filings", {}).get("recent", {})
     rows = [dict(zip(recent, values)) for values in zip(*recent.values())] if recent else []
     for form in SEC_FORMS:
+        found = []
         for row in rows:  # EDGAR lists the newest first
             if row.get("form") != form:
                 continue
             filed = datetime.strptime(row["filingDate"], "%Y-%m-%d")
             if now - filed > FILING_MAX_AGE:
                 break
-            return {
+            found.append({
                 "source": "sec", "kind": form, "filed": row["filingDate"],
                 "title": f"{submissions.get('name') or 'Company'} {form} ({row['filingDate']})",
                 "url": SEC_ARCHIVE_URL.format(cik=cik, accession=row["accessionNumber"].replace("-", ""),
                                               document=row["primaryDocument"]),
-            }
-    return None
+            })
+        if found:
+            return found
+    return []
 
 
-async def latest_sec_document(ib_symbol, now=None):
+def choose_filing(submissions, cik, now):
+    """The newest of choose_filings, or None."""
+    return next(iter(choose_filings(submissions, cik, now)), None)
+
+
+async def sec_documents(ib_symbol, now=None):
+    """The company's recent proxy statements, newest first (NoDocument when there are none)."""
     cik = await sec_cik(ib_symbol)
     if cik is None:
         raise NoDocument(f"SEC has no company with the ticker {sec_ticker(ib_symbol)}.")
     submissions = json.loads(await sec_get(SEC_SUBMISSIONS_URL.format(cik=cik)))
-    document = choose_filing(submissions, cik, now or datetime.now())
-    if document is None:
+    found = choose_filings(submissions, cik, now or datetime.now())
+    if not found:
         raise NoDocument("No proxy statement (DEF 14A) or 20-F on EDGAR in the last 18 months.")
-    return {**document, "cik": cik, "company_name": submissions.get("name")}
+    return [{**d, "cik": cik, "company_name": submissions.get("name")} for d in found]
+
+
+async def latest_sec_document(ib_symbol, now=None):
+    return (await sec_documents(ib_symbol, now))[0]
 
 
 # ---------- ASX ----------
@@ -336,37 +351,82 @@ def pdf_sections(data):
 
 # What the board pages talk about, with weights
 BOARD_WORDS = [
-    (re.compile(r"\bdirectors?\b", re.I), 1.0),
-    (re.compile(r"non[-\s]?executive|independent director|lead independent", re.I), 3.0),
-    (re.compile(r"director since|appointed (?:as )?(?:a )?director|appointed to the board|elected", re.I), 4.0),
-    (re.compile(r"\bchair(?:man|woman|person)?\b", re.I), 1.5),
-    (re.compile(r"\bage[ds]?\b\s*:?\s*\d{2}\b", re.I), 3.0),
-    (re.compile(r"other (?:current |public company |listed company )?directorships?|other boards?", re.I), 5.0),
+    (re.compile(r"\bdirectors?\b", re.I), 0.3),
+    (re.compile(r"non[-\s]?executive|independent director|lead independent", re.I), 1.5),
+    (re.compile(r"director since|since 20\d\d|since 19\d\d|appointed (?:as )?(?:a )?director|appointed to the board", re.I), 8.0),
+    (re.compile(r"\belected\b", re.I), 0.3),
+    (re.compile(r"\bchair(?:man|woman|person)?\b", re.I), 1.0),
+    (re.compile(r"\bage\b[ds]?\s*:?\s*\d{2}\b|\b\d{2} years old", re.I), 6.0),
+    (re.compile(r"other (?:current |public company |listed company )?directorships?|other boards?|public company boards?", re.I), 8.0),
     (re.compile(r"\bcommittee\b", re.I), 0.5),
-    (re.compile(r"\bnominees?\b", re.I), 2.0),
-    (re.compile(r"\bboard of directors\b|directors'? report", re.I), 3.0),
+    (re.compile(r"\bnominees?\b", re.I), 1.5),
+    (re.compile(r"\bboard of directors\b|directors'? report", re.I), 1.0),
     (re.compile(r"\bexperience\b|\bqualifications\b|\bskills\b", re.I), 1.0),
 ]
 
 
 def section_score(text):
-    return sum(weight * len(pattern.findall(text)) for pattern, weight in BOARD_WORDS)
+    """How much a section is about the board. Pages of numbers (compensation tables, ownership tables)
+    repeat "director" without describing anyone, so the score falls as the share of digits rises; a
+    biography page has few digits (a few years and an age)."""
+    score = sum(weight * len(pattern.findall(text)) for pattern, weight in BOARD_WORDS)
+    digits = sum(ch.isdigit() for ch in text) / max(len(text), 1)
+    return score / (1 + 25 * digits)
+
+
+def split_large(sections, limit=12_000):
+    """Sections longer than limit (a filing with no page breaks, or one giant "page") cut into parts
+    at line breaks, so the board part of it can be chosen on its own: "Page 4" -> "Page 4, part 2"."""
+    result = []
+    for label, text in sections:
+        if len(text) <= limit:
+            result.append((label, text))
+            continue
+        parts, current, size = [], [], 0
+        for line in text.split("\n"):
+            current.append(line)
+            size += len(line) + 1
+            if size >= limit * 0.6:
+                parts.append("\n".join(current))
+                current, size = [], 0
+        if current:
+            parts.append("\n".join(current))
+        result += [(f"{label}, part {i}", part) for i, part in enumerate(parts, start=1)]
+    return result
+
+
+# A director's biography: how long they've served, their age, their other boards
+BIO_SIGNALS = re.compile(
+    r"director since|\bage\b[ds]?\s*:?\s*\d{2}\b|\b\d{2} years old|other (?:current |public company |listed company )?directorships?|"
+    r"public company boards?|appointed (?:as )?(?:a )?director|appointed to the board", re.I)
 
 
 def select_passages(sections, budget_chars=110_000):
-    """The sections most about the board, up to budget_chars (~28K tokens), in document order. Each
-    chosen page brings its next page when there's room, since a director's profile often runs over."""
+    """The sections most about the board, up to budget_chars (~28K tokens), in document order. Pages
+    that look like biographies (two or more signals: "Director since", an age, other boards) come
+    first, up to 70% of the budget, so a long run of nominee pages isn't cut short by other pages that
+    only mention directors; the rest is filled by score. Each chosen page brings its next page when
+    there's room, since a director's profile often runs over."""
+    sections = split_large(sections)
     scored = sorted(((section_score(text), i) for i, (_, text) in enumerate(sections)), reverse=True)
     if not scored or scored[0][0] == 0:
         return []
     keep, used = set(), 0
+
+    def add(i, limit):
+        nonlocal used
+        if i < len(sections) and i not in keep and used + len(sections[i][1]) <= limit:
+            keep.add(i)
+            used += len(sections[i][1])
+
+    bios = [i for i, (_, text) in enumerate(sections) if len(BIO_SIGNALS.findall(text)) >= 2]
+    for i in sorted(bios, key=lambda i: -section_score(sections[i][1])):
+        add(i, budget_chars * 0.7)
     for score, i in scored:
         if score < scored[0][0] * 0.25:
             break
         for j in (i, i + 1):
-            if j < len(sections) and j not in keep and used + len(sections[j][1]) <= budget_chars:
-                keep.add(j)
-                used += len(sections[j][1])
+            add(j, budget_chars)
     return [sections[i] for i in sorted(keep)]
 
 
