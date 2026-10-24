@@ -5688,3 +5688,460 @@ button.ai-source:hover {
 .con-data-notes a {
   color: inherit;
 }
+
+/* ---------- Connections full page (#279, Figma Connections / V2 142:1157) ---------- */
+.toolbar-back {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--risk-key);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.toolbar-back:hover {
+  color: var(--text);
+}
+
+.toolbar-back span {
+  font-size: 14px;
+}
+
+.con-open-full {
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.con-open-full:hover {
+  text-decoration: underline;
+}
+
+.con-find {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: var(--risk-key);
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.con-find input {
+  width: 130px;
+  padding: 2px 0;
+  border: none;
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+}
+
+.con-find input::placeholder {
+  color: var(--risk-faint);
+}
+
+.con-find.none {
+  box-shadow: inset 0 0 0 1px var(--loss);
+}
+
+.connections-page {
+  gap: 12px;
+}
+
+.con-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 386px;
+  gap: 12px;
+  align-items: start;
+}
+
+.con-map-panel {
+  gap: 10px;
+  padding: 15px 17px;
+}
+
+.con-inspector {
+  gap: 6px;
+  padding: 15px 17px;
+}
+
+@container (max-width: 980px) {
+  .con-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.con-type {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.72px;
+}
+
+.con-count {
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.con-identity {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.con-photo {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border: 2px solid var(--con-node-border);
+  border-radius: 50%;
+  background: var(--con-node);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.con-photo.square {
+  border-radius: 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.con-photo.mine {
+  border-color: var(--risk-key-on);
+  color: var(--risk-amber);
+}
+
+.con-identity-text {
+  min-width: 0;
+}
+
+.con-identity-text p {
+  margin: 0;
+}
+
+.con-name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.con-role {
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.con-badge {
+  color: var(--risk-amber);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.57px;
+}
+
+.con-text {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.con-facts {
+  display: flex;
+  gap: 18px;
+  margin: 4px 0;
+}
+
+.con-facts div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.con-facts dt {
+  color: var(--risk-faint);
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.con-facts dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.con-roles {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.con-role-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.con-role-row.head {
+  min-height: 16px;
+  color: var(--risk-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+.con-role-row.head span:first-child {
+  width: 90px;
+}
+
+.con-role-row.mine {
+  background: var(--risk-highlight);
+}
+
+.con-role-row .role {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.con-role-row .since {
+  color: var(--risk-faint);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.grow {
+  flex: 1;
+}
+
+.con-chip {
+  flex-shrink: 0;
+  max-width: 82px;
+  overflow: hidden;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--risk-key);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.con-chip.mine {
+  background: var(--risk-key-on);
+  color: var(--risk-key-on-text);
+  font-weight: 700;
+}
+
+.con-role-row .company {
+  flex-shrink: 0;
+  width: 90px;
+}
+
+.con-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.con-primary {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.con-inspector .con-hint {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.con-list {
+  gap: 6px;
+  padding: 15px 17px;
+}
+
+.con-list-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.con-list-row:not(.head):hover {
+  background: var(--risk-highlight);
+}
+
+.con-list-row.mine {
+  background: var(--risk-highlight);
+}
+
+.con-list-row.selected {
+  box-shadow: inset 0 0 0 1px var(--risk-key-on);
+}
+
+.con-list-row.head {
+  min-height: 16px;
+  color: var(--risk-faint);
+  cursor: default;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+.con-list-row .c-type {
+  flex-shrink: 0;
+  width: 90px;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.con-list-row.head .c-type {
+  font-family: inherit;
+  font-size: 10px;
+}
+
+.con-list-row .c-name {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+  align-items: baseline;
+  width: 250px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.con-list-row .c-name b {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.con-list-row .c-name i {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 10.5px;
+  font-style: normal;
+  text-overflow: ellipsis;
+}
+
+.con-list-row .c-how {
+  flex-shrink: 1;
+  width: 420px;
+  min-width: 0;
+}
+
+.con-list-row:not(.head) .c-how {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.con-list-row .c-yours {
+  flex-shrink: 0;
+  min-width: 60px;
+  text-align: right;
+}
+
+.con-list-row .c-yours em {
+  color: var(--risk-faint);
+  font-style: normal;
+}
+
+.con-show-all {
+  align-self: flex-start;
+  padding: 5px 6px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.con-ring {
+  fill: none;
+  stroke: var(--text);
+  stroke-dasharray: 3 3;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.con-company circle {
+  fill: var(--con-node);
+  stroke: var(--con-node-border);
+}
+
+.con-company.mine circle {
+  fill: var(--risk-key-on);
+  stroke: none;
+}
+
+.con-company text {
+  display: none;
+}
+
+.con-zoom {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--risk-surface);
+  border: 1px solid var(--risk-border);
+  border-radius: 6px;
+}
+
+.con-zoom button {
+  padding: 4px 9px;
+  border: none;
+  background: none;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.con-zoom button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.con-zoom button:not(:disabled):hover {
+  color: var(--text);
+}

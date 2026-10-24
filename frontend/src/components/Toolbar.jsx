@@ -28,10 +28,15 @@ function ListToggle({ listKey }) {
 }
 
 // The theme is set in Settings → Appearance only (as in Figma, the toolbar has no theme control)
-function Toolbar({ title, subtitle, loading, onRefresh, trading, listKey }) {
+function Toolbar({ title, subtitle, loading, onRefresh, trading, listKey, back }) {
   return (
     <header className="toolbar" data-tauri-drag-region>
       {listKey && <ListToggle listKey={listKey} />}
+      {back && (
+        <button type="button" className="toolbar-back" onClick={back.onClick} aria-label={`Back to ${back.label}`}>
+          <span aria-hidden="true">‹</span> {back.label}
+        </button>
+      )}
       <div>
         <h1 className="toolbar-title">{title}</h1>
         <p className="toolbar-subtitle">{subtitle}</p>
