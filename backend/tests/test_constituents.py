@@ -217,6 +217,42 @@ STATS = {
 }
 
 
+class LoaderSettingTests(StoreTestCase):
+    """The background loader does nothing unless it is switched on (#286: no UI uses it yet)."""
+
+    def run_loader(self, enabled):
+        refresh = mock.AsyncMock()
+
+        async def go():
+            task = asyncio.create_task(c.keep_refreshed(idle_check=timedelta(seconds=0.01)))
+            await asyncio.sleep(0.1)
+            task.cancel()
+        with mock.patch.object(c, "refresh", refresh), mock.patch.object(c, "load_seed_if_missing") as seed, \
+                mock.patch.object(c.config, "index_loader_enabled", return_value=enabled):
+            asyncio.run(go())
+        return refresh, seed
+
+    def test_off_by_default_so_nothing_is_fetched(self):
+        refresh, seed = self.run_loader(False)
+        refresh.assert_not_called()
+        seed.assert_not_called()
+
+    def test_runs_when_switched_on(self):
+        refresh, seed = self.run_loader(True)
+        refresh.assert_called()
+        seed.assert_called_once()
+
+    def test_setting_sources(self):
+        with mock.patch.object(c.config, "IN_APP", False):
+            for value, want in [("1", True), ("true", True), ("", False), ("0", False)]:
+                with mock.patch.dict(os.environ, {"INDEX_LOADER": value}):
+                    self.assertEqual(c.config.index_loader_enabled(), want, value)
+        with mock.patch.object(c.config, "IN_APP", True), mock.patch.dict(c.config.SETTINGS, {}, clear=True):
+            self.assertFalse(c.config.index_loader_enabled())
+            c.config.SETTINGS["index_loader"] = True
+            self.assertTrue(c.config.index_loader_enabled())
+
+
 class MarketDataTests(StoreTestCase):
     def test_caps_pe_return_and_better_names(self):
         self.refresh_indexes({"sp500": SP500, "asx20": ASX20})

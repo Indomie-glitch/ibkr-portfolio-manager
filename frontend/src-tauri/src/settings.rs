@@ -27,6 +27,10 @@ pub struct Settings {
     pub auto_reconnect: bool,
     /// The Claude model for AI summaries (the backend only accepts the ones it knows)
     pub ai_model: String,
+    /// Let the backend load index members and their Yahoo data in the background (about 20 minutes
+    /// of Yahoo calls). Off until a screen uses them (#114); no Settings row yet, so it is changed
+    /// by editing settings.json.
+    pub load_index_members: bool,
     /// The Keychain items of earlier builds have been deleted (once, without reading them). The
     /// app no longer stores anything secret.
     pub keychain_removed: bool,
@@ -41,6 +45,7 @@ impl Default for Settings {
             trading_mode: "paper".into(),
             auto_reconnect: true,
             ai_model: "claude-haiku-4-5".into(),
+            load_index_members: false,
             keychain_removed: false,
         }
     }

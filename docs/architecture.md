@@ -40,7 +40,7 @@ flowchart LR
     gw <-->|"encrypted session<br/>(username + password once)"| ibkr
     app -->|"daily report<br/>(Flex token)"| flex
     app -->|"public data<br/>(yfinance)"| yahoo
-    app -->|"index members,<br/>weekly (no key)"| funds
+    app -->|"index members, weekly<br/>(no key; off by default)"| funds
     app -->|"facts sheet or headlines in,<br/>summary or sentiment out (API key)"| claude
     app -->|"check for update,<br/>download signed update"| gh
 ```

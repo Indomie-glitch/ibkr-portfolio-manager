@@ -91,6 +91,7 @@ fn start_backend(app: &AppHandle) -> Result<Option<(Backend, Connection)>, Box<d
 
 fn send_settings_to_backend(backend: &Backend, settings: &settings::Settings) -> Result<(), String> {
     backend.send(json!({ "set_setting": "ib_port", "value": settings.gateway_port }))?;
+    backend.send(json!({ "set_setting": "index_loader", "value": settings.load_index_members }))?;
     backend.send(json!({ "set_setting": "ai_model", "value": settings.ai_model }))
 }
 

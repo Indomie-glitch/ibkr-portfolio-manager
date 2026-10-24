@@ -385,13 +385,21 @@ def load_seed_if_missing(path=SEED_PATH):
     return True
 
 
-async def keep_refreshed(check_every=timedelta(hours=3)):
-    """Background task (started with the server): refreshes what's due, checking every few hours."""
-    try:
-        load_seed_if_missing()
-    except Exception as exc:  # a damaged seed: start empty and fetch everything instead
-        print(f"Index members: couldn't load the seed: {mask_secrets(exc)}")
+async def keep_refreshed(check_every=timedelta(hours=3), idle_check=timedelta(minutes=1)):
+    """Background task (started with the server): refreshes what's due, checking every few hours.
+    Does nothing while config.index_loader_enabled() is off (the default), and notices when it is
+    switched on."""
+    seeded = False
     while True:
+        if not config.index_loader_enabled():
+            await asyncio.sleep(idle_check.total_seconds())
+            continue
+        if not seeded:
+            seeded = True
+            try:
+                load_seed_if_missing()
+            except Exception as exc:  # a damaged seed: start empty and fetch everything instead
+                print(f"Index members: couldn't load the seed: {mask_secrets(exc)}")
         try:
             await refresh()
         except Exception as exc:  # e.g. a full disk; try again next time
