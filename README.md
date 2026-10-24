@@ -264,7 +264,7 @@ cd frontend/src-tauri && cargo test
 | Endpoint | Returns |
 |---|---|
 | **Connection and account** | |
-| `GET /health` | Whether the backend is connected to IB Gateway (and if not, why) |
+| `GET /health` | Whether the backend is connected to IB Gateway (and if not, why), and whether IBKR still answers while connected (it stops when the account logs in somewhere else) |
 | `GET /account` | Net liquidation, cash, positions value, buying power, unrealised P&L, FX rates (IB's ledger, plus IB forex or Yahoo for currencies the account holds no cash in) |
 | `GET /positions` | Each holding with price, market value, unrealised P&L and company name |
 | `GET /quotes` | Last price and day change per holding (delayed) |

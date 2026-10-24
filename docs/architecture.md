@@ -103,7 +103,7 @@ flowchart TB
     main["main.py<br/>creates the app, starts<br/>background tasks"]
 
     subgraph routers["routers/ (the API)"]
-        r_app["app.py<br/>/health"]
+        r_app["app.py<br/>/health (connected,<br/>answering)"]
         r_pos["positions.py<br/>/positions /account /quotes<br/>/search /prices /history<br/>/profile /stats /news /performance"]
         r_flex["flex.py<br/>/lots/status /lots/{id}"]
         r_sum["summaries.py<br/>/summary/... /portfolio-summary/...<br/>/usage"]

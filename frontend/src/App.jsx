@@ -52,7 +52,8 @@ async function readHealth() {
 
 // 'checking' before the first answer; 'starting' while the app's backend starts; 'offline' if the
 // backend is unreachable ('stopped' in the app, where it should always be running); 'disconnected'
-// if the backend is up but IB Gateway isn't; otherwise 'connected'
+// if the backend is up but IB Gateway isn't; 'not_answering' if Gateway is connected but IBKR stopped
+// answering (usually the account logged in somewhere else, #285); otherwise 'connected'
 // What the pages that need IB are called in the "session ended" note
 const PAGE_NAMES = { markets: 'Markets', watchlist: 'This watchlist', orders: 'Orders', risk: 'Risk' }
 
@@ -60,7 +61,8 @@ function connectionState(health) {
   if (health === null) return IN_APP ? 'starting' : 'checking'
   if (health === 'starting') return 'starting'
   if (health === 'offline') return IN_APP ? 'stopped' : 'offline'
-  return health.connected ? 'connected' : 'disconnected'
+  if (!health.connected) return 'disconnected'
+  return health.problem === 'not_answering' ? 'not_answering' : 'connected'
 }
 
 function App() {
@@ -251,6 +253,7 @@ function App() {
   let subtitle =
     page === 'overview' ? `${updated} · Prices delayed 15 min` : `${holdings.length} holdings · ${updated}`
   if (connection === 'disconnected') subtitle = 'Waiting for IB Gateway…'
+  if (connection === 'not_answering') subtitle = 'IBKR isn’t answering'
   if (connection === 'offline') subtitle = 'Waiting for the backend…'
   if (connection === 'starting') subtitle = 'Starting…'
   if (connection === 'stopped') subtitle = 'Not running'
@@ -353,8 +356,13 @@ function App() {
               <SessionBanner reason={login.reason} lastUpdated={updatedAt} onReconnect={reconnectSession} />
             )}
 
-            {!sessionEnded && ['starting', 'offline', 'stopped', 'disconnected'].includes(connection) && (
-              <ConnectionMessage state={connection} health={health} lastUpdated={updatedAt} />
+            {!sessionEnded && ['starting', 'offline', 'stopped', 'disconnected', 'not_answering'].includes(connection) && (
+              <ConnectionMessage
+                state={connection}
+                health={health}
+                lastUpdated={updatedAt}
+                onSignInAgain={IN_APP ? signOutFromMenu : undefined}
+              />
             )}
 
             {connected && error && (
