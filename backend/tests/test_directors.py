@@ -521,6 +521,28 @@ class SeedTests(StoreTestCase):
         self.assertEqual(directors.board("US", "AAPL")["directors"][0]["name"], "Peter Harmer")
 
 
+class BundledSeedTests(StoreTestCase):
+    """The seed that ships with the app (seed/directors.json)."""
+
+    def test_us_only_complete_and_loadable(self):
+        data = json.loads(directors.SEED_PATH.read_text())
+        companies = data["companies"]
+        self.assertGreater(len(companies), 500)
+        self.assertEqual({c["market"] for c in companies}, {"US"})  # never ASX documents (ASX's terms)
+        for c in companies:
+            self.assertIn(c["status"], ("ready", "no_document", "unreadable"))
+            if c["status"] == "ready":
+                self.assertTrue(c["document"]["url"].startswith("https://www.sec.gov/"), c["symbol"])
+                self.assertTrue(c["seats"], c["symbol"])
+                for seat in c["seats"]:
+                    self.assertTrue(seat["match_key"], (c["symbol"], seat["name"]))
+        self.assertEqual(directors.merge_seed(directors.SEED_PATH), sum(1 for c in companies))
+        self.assertEqual(len(directors.board("US", "AAPL")["directors"]) > 5, True)
+
+    def test_no_contact_email_in_it(self):
+        self.assertNotIn("@", "".join(c["document"].get("url") or "" for c in json.loads(directors.SEED_PATH.read_text())["companies"]))
+
+
 class NewerDocumentTests(StoreTestCase):
     def test_a_newer_proxy_is_marked_without_calling_claude(self):
         directors.save("US", "AAPL", {**DOC, "company_name": "Apple Inc."}, [])
