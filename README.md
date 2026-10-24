@@ -43,7 +43,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * News sentiment: green or red arrows (1 to 3) on each headline, showing how good or bad it is for that company, judged by Claude once per article
 * Trading (paper or live account, in the browser and the Mac app): an order ticket with IBKR's own cost and commission estimates, a review step, live order status, and an Orders page to change or cancel open orders. See [Trading safety](#trading-safety)
 * Purchase dates and 12-month CGT discount dates per lot from an IBKR Flex Query ([setup](docs/flex-query.md)), shown in Your position and used in the AI summary (browser version; the Mac app can't take a Flex token yet)
-* Mac app that sets up and runs IB Gateway itself, with nothing secret stored
+* Mac app that sets up and runs IB Gateway itself, with your IBKR password never stored
 * Risk page: 3M / 1Y / 3Y periods, ten headline figures (volatility, betas, effective holdings, max drawdown, Sharpe ratio, tracking error, Value at Risk, liquidity) and twelve panels (concentration, exposure, correlation heatmap, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution vs your home market's index, example mixes and hedges, bankruptcy risk, liquidity), each with an ⓘ that explains the number in plain words using your own figures; worked out from daily closes in your account's currency (Australian dollars and the ASX 200 for an AUD account, Singapore dollars and the STI for SGD), with every formula explained in [docs/risk-maths.md](docs/risk-maths.md). It describes, never advises
 * The AI portfolio summary's key risks can cite the Risk page's findings
 * Index members (backend, no UI yet): the S&P 500, Nasdaq 100, Dow, ASX 20, ASX 50 and ASX 200, with each member's weight, market cap, P/E, 1-year change, sector and industry, refreshed from ETF holdings files and Yahoo (no API key), and which of them a stock belongs to
@@ -64,7 +64,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [ ] **Milestone 5.1:** Purchase dates per lot from an IBKR Flex Query, each with its 12-month CGT date: done in Your position and the AI summary; the Mac app's Settings rows and manual entry are still to do
 * [x] **Milestone 5.2: AI portfolio summary** on the Overview page: 8 sections, citations to the facts and holdings, history and compare
 * [ ] **Milestone 6: Trade placement:** built; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
-* [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, nothing secret stored, DMG
+* [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, IBKR password never stored, optional encrypted API key, DMG
 * [x] **Milestone 8: Risk analysis:** a Risk page with 10 headline figures and 12 panels (concentration, exposure, correlation, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution, example mixes, bankruptcy risk, liquidity), each explained in plain words with your own numbers, and the main findings in the AI portfolio summary ([the maths](docs/risk-maths.md))
 * [ ] **Milestone 9: Company connections:** index members, the indexes a stock belongs to and competitors are done (backend); the Connections section and full map are next
 * [ ] **Milestone 10:** Supply chain graph foundation
@@ -108,7 +108,7 @@ For a Mac with Apple Silicon (M1 or later) and macOS 13 or later. You won't need
 5. Sign in with your IBKR username and password and choose **Live** or **Paper**. With a live account, approve the login in IBKR Mobile on your phone.
 6. Optional: to turn on AI summaries, open Settings (click your account at the bottom of the sidebar, then **Settings…**, or press **⌘,**) and paste an Anthropic API key under **AI summaries**.
 
-The app never saves your IBKR password or your API key. You type the password each time you open the app, and the API key once per session.
+The app never saves your IBKR password: you type it each time you open the app. The API key is kept in memory only, unless you switch on **Remember key on this Mac** in Settings. Then it is saved encrypted (ChaCha20-Poly1305) in the app's data folder, with the encryption key in a separate file; both are readable only by you, and macOS never asks for a password. Because the encryption key is on the same Mac, malware running as you could still recover the API key, so set a monthly spend limit on the key in the Anthropic console. The key can only spend Anthropic credit; it has no access to your broker account. **Remove** or turning the switch off deletes both files.
 
 ### Using a second IBKR username
 

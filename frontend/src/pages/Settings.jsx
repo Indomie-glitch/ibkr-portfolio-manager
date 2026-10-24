@@ -3,7 +3,7 @@
 // Figma "Settings overlay": Account, AI summaries, IB Gateway, Appearance.
 import { useEffect, useState } from 'react'
 import { IN_APP } from '../lib/api.js'
-import { apiKeyStatus, clearApiKey, setApiKey } from '../desktop/appApiKey.js'
+import { apiKeyStatus, clearApiKey, rememberApiKey, setApiKey } from '../desktop/appApiKey.js'
 import { APPEARANCES } from '../hooks/appearance.js'
 import { TEXT_SIZES } from '../lib/textSize.js'
 import { gatewayStatus, installGateway } from '../desktop/appGateway.js'
@@ -208,15 +208,22 @@ function GatewayGroup({ settings, onSave }) {
 }
 
 function ApiKeyRow() {
-  // Whether a key was entered this session (null while checking); it's only ever kept in memory
+  // Whether a key is in use (null while checking) and whether an encrypted copy is saved
   const [saved, setSaved] = useState(null)
+  const [remembered, setRemembered] = useState(false)
+  // The switch next to the key field, for a key not yet entered
+  const [remember, setRemember] = useState(false)
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
   const [note, setNote] = useState(null)
 
   useEffect(() => {
     apiKeyStatus()
-      .then(setSaved)
+      .then((status) => {
+        setSaved(status.in_use)
+        setRemembered(status.remembered)
+        setRemember(status.remembered)
+      })
       .catch((err) => setNote({ error: true, text: String(err) }))
   }, [])
 
@@ -228,11 +235,12 @@ function ApiKeyRow() {
       return
     }
     try {
-      await setApiKey(key)
+      await setApiKey(key, remember)
       setSaved(true)
+      setRemembered(remember)
       setEditing(false)
       setValue('')
-      setNote({ text: 'AI summaries are on until you quit the app.' })
+      setNote({ text: remember ? 'AI summaries are on. The key is remembered on this Mac.' : 'AI summaries are on until you quit the app.' })
     } catch (err) {
       setNote({ error: true, text: String(err) })
     }
@@ -242,13 +250,26 @@ function ApiKeyRow() {
     try {
       await clearApiKey()
       setSaved(false)
+      setRemembered(false)
+      setRemember(false)
       setNote({ text: 'Removed. AI summaries are off until you add a key.' })
     } catch (err) {
       setNote({ error: true, text: String(err) })
     }
   }
 
+  async function changeRemembered(value) {
+    try {
+      await rememberApiKey(value)
+      setRemembered(value)
+      setNote({ text: value ? 'The key is remembered on this Mac.' : 'The saved copy was deleted. The key stays in use until you quit the app.' })
+    } catch (err) {
+      setNote({ error: true, text: String(err) })
+    }
+  }
+
   return (
+    <>
     <Row label="Anthropic API key" note={note}>
       {saved === null && <span className="settings-value">Checking…</span>}
       {saved && !editing && (
@@ -279,6 +300,8 @@ function ApiKeyRow() {
             onChange={(e) => setValue(e.target.value)}
             aria-label="Anthropic API key"
           />
+          <span className="settings-value">Remember</span>
+          <Toggle label="Remember key on this Mac" checked={remember} onChange={setRemember} />
           <button type="submit" className="settings-button primary" disabled={!value.trim()}>
             Use
           </button>
@@ -290,6 +313,15 @@ function ApiKeyRow() {
         </form>
       )}
     </Row>
+    {saved && !editing && (
+      <Row
+        label="Remember key on this Mac"
+        note={{ text: 'Saved encrypted in the app\'s data folder, so you don\'t have to enter it after every launch or update. The decryption key is on this Mac too, so set a monthly spend limit on the key in the Anthropic console.' }}
+      >
+        <Toggle label="Remember key on this Mac" checked={remembered} onChange={changeRemembered} />
+      </Row>
+    )}
+    </>
   )
 }
 
