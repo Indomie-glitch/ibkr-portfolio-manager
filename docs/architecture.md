@@ -238,12 +238,13 @@ flowchart TB
     HoldingDetail --> WatchButton["WatchButton.jsx<br/>Watch menu (PopupMenu)"]
 
     HoldingDetail["HoldingDetail.jsx<br/>price, chart, your position<br/>(incl. purchase and CGT dates)"] --> PriceChart
-    HoldingDetail --> detail["components/detail/<br/>KeyStats, About, News<br/>(with sentiment arrows),<br/>Performance, AI summary<br/>(collapsible sections)"]
+    HoldingDetail --> detail["components/detail/<br/>KeyStats, About, News<br/>(with sentiment arrows),<br/>Performance, AI summary,<br/>Connections map<br/>(collapsible sections)"]
 
     subgraph lib["lib/ + hooks/"]
         api["lib/api.js<br/>every backend call"]
         helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js,<br/>lotCards.js, listPanes.js,<br/>watchlists.js (localStorage store),<br/>orderTicket.js (ticket maths)"]
         riskhelpers["lib/riskData.js (one GET /risk<br/>shared by every panel),<br/>riskLayout.js, riskFormat.js,<br/>riskExplainers.js (ⓘ copy)"]
+        conhelpers["lib/connections.js (map layout,<br/>filters, tooltips; pure),<br/>stockNav.js (open another stock)"]
         hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, useStockDrop,<br/>usePrices, useStockSearch,<br/>useMenu, appearance, textSize"]
     end
 
@@ -253,6 +254,7 @@ flowchart TB
 
     App & Markets & Watchlist & Orders & HoldingDetail & Ticket & Confirm & Settings --> api
     RiskTile & RiskPanel & Risk --> riskhelpers --> api
+    detail --> conhelpers --> api
     api -->|"HTTP / streams"| BE[["Python backend"]]
     Setup & Settings & UpdatePrompt & LinkNotice --> tauri
     tauri -->|Tauri commands| RS[["Rust shell"]]

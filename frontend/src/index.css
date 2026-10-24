@@ -86,6 +86,12 @@
   --risk-highlight: rgba(255, 149, 0, 0.08);
   --risk-warning-bg: rgba(255, 149, 0, 0.1);
   --risk-tooltip-bg: #ffffff;
+  --con-map-bg: #ffffff;
+  --con-map-border: rgba(0, 0, 0, 0.08);
+  --con-node: #e5e5ea;
+  --con-node-border: rgba(0, 0, 0, 0.12);
+  --con-node-text: #6e6e73;
+  --con-line: rgba(0, 0, 0, 0.16);
   --risk-muted-bar: #c7c7cc;
   --risk-tooltip-shadow: rgba(0, 0, 0, 0.16);
 
@@ -135,6 +141,12 @@
   --risk-highlight: rgba(255, 159, 10, 0.08);
   --risk-warning-bg: rgba(255, 159, 10, 0.1);
   --risk-tooltip-bg: #3a3a3c;
+  --con-map-bg: #1e1e1e;
+  --con-map-border: rgba(255, 255, 255, 0.06);
+  --con-node: #3a3a3c;
+  --con-node-border: rgba(255, 255, 255, 0.15);
+  --con-node-text: #98989d;
+  --con-line: rgba(255, 255, 255, 0.18);
   --risk-muted-bar: #48484a;
   --risk-tooltip-shadow: rgba(0, 0, 0, 0.5);
   --bg: #1e1e1e;
@@ -215,6 +227,12 @@
   --risk-key: #1c1c1f;
   --risk-pop-bg: #1c1c1f;
   --risk-tooltip-bg: #2a2a2e;
+  --con-map-bg: #0b0b0c;
+  --con-map-border: #2a2a2e;
+  --con-node: #232326;
+  --con-node-border: #3a3a3e;
+  --con-node-text: #98989d;
+  --con-line: rgba(255, 255, 255, 0.16);
 }
 
 * {
@@ -5339,4 +5357,334 @@ button.ai-source:hover {
 
 .pill-button.danger-text {
   color: var(--loss);
+}
+
+/* ---------- Connections (#114, Figma Connections / V1C 138:1359) ---------- */
+.connections {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.con-panel {
+  gap: 10px;
+  padding: 15px 17px;
+}
+
+.con-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.con-mine-key {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 5px;
+  background: var(--risk-key);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.con-mine-key.active {
+  background: var(--risk-tag-bg);
+  color: var(--risk-amber);
+}
+
+.con-map {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 786 / 440;
+  background: var(--con-map-bg);
+  border: 1px solid var(--con-map-border);
+  border-radius: 8px;
+  touch-action: none;
+}
+
+.con-map.zoomed {
+  cursor: grab;
+}
+
+.con-map svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+.con-map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.con-map-loading .skeleton-line {
+  width: 40%;
+}
+
+.con-edge {
+  stroke: var(--con-line);
+  stroke-width: 1;
+}
+
+.con-edge.mine {
+  stroke: var(--risk-key-on);
+  stroke-width: 1.2;
+}
+
+.con-edge.lit {
+  stroke-width: 2;
+}
+
+.con-group-label {
+  fill: var(--risk-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+.con-group-label.mine {
+  fill: var(--risk-amber);
+}
+
+.con-group-label.note {
+  font-family: var(--mono);
+  font-weight: 400;
+}
+
+.con-node {
+  outline: none;
+}
+
+.con-node.clickable {
+  cursor: pointer;
+}
+
+.con-node text {
+  pointer-events: none;
+}
+
+.con-node.con-self circle {
+  fill: color-mix(in srgb, var(--accent) 16%, var(--con-map-bg));
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.con-self-symbol {
+  fill: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.con-self-name {
+  fill: var(--text-2);
+  font-size: 10px;
+}
+
+.con-index rect {
+  fill: var(--risk-surface);
+  stroke: var(--con-node-border);
+}
+
+.con-index text,
+.con-competitor text {
+  font-family: var(--mono);
+  font-weight: 500;
+}
+
+.con-index text {
+  fill: var(--text);
+  font-size: 11px;
+}
+
+.con-index.hovered rect {
+  stroke: var(--risk-key-on);
+}
+
+.con-index.hovered text {
+  fill: var(--risk-amber);
+}
+
+.con-holding rect {
+  fill: var(--risk-key-on);
+}
+
+.con-holding text {
+  fill: var(--risk-key-on-text);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.con-competitor circle,
+.con-executive circle,
+.con-director circle {
+  fill: var(--con-node);
+  stroke: var(--con-node-border);
+}
+
+.con-competitor text {
+  fill: var(--con-node-text);
+  font-size: 10.5px;
+}
+
+.con-competitor text.outside {
+  fill: var(--risk-faint);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.con-competitor.mine circle {
+  fill: var(--risk-key-on);
+  stroke: none;
+}
+
+.con-competitor.mine text:not(.outside) {
+  fill: var(--risk-key-on-text);
+  font-weight: 700;
+}
+
+.con-executive text,
+.con-director text {
+  fill: var(--text);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.con-director.mine circle {
+  stroke: var(--risk-key-on);
+  stroke-width: 1.5;
+}
+
+.con-director.mine text {
+  fill: var(--risk-amber);
+}
+
+.con-node.hovered circle,
+.con-node:focus-visible circle,
+.con-node:focus-visible rect {
+  stroke: var(--risk-key-on);
+  stroke-width: 2;
+}
+
+.con-scope {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+}
+
+.con-scope .risk-period-key {
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
+.con-tooltip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 13px;
+  background: var(--risk-tooltip-bg);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--risk-tooltip-shadow);
+  pointer-events: none;
+}
+
+.con-tooltip p {
+  margin: 0;
+}
+
+.con-tooltip-title {
+  color: var(--risk-amber);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.con-tooltip-body {
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.con-tooltip-label {
+  color: var(--text-2);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.57px;
+  text-transform: uppercase;
+}
+
+.con-note {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.con-board-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.con-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: center;
+  color: var(--text-2);
+  font-size: 10.5px;
+}
+
+.con-legend span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.con-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+}
+
+.con-swatch.mine {
+  border-radius: 3px;
+  background: var(--risk-key-on);
+}
+
+.con-swatch.self {
+  border: 1.5px solid var(--accent);
+  border-radius: 5px;
+}
+
+.con-swatch.line {
+  width: 14px;
+  height: 2px;
+  background: var(--risk-key-on);
+}
+
+.con-hint {
+  color: var(--risk-faint);
+}
+
+.con-data-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--risk-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.con-data-notes a {
+  color: inherit;
 }

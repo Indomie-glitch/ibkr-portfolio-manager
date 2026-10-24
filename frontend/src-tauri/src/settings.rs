@@ -28,9 +28,9 @@ pub struct Settings {
     pub auto_reconnect: bool,
     /// The Claude model for AI summaries (the backend only accepts the ones it knows)
     pub ai_model: String,
-    /// Let the backend load index members and their Yahoo data in the background (about 20 minutes
-    /// of Yahoo calls). Off until a screen uses them (#114); no Settings row yet, so it is changed
-    /// by editing settings.json.
+    /// Let the backend keep index members and their Yahoo data up to date in the background. On by
+    /// default since the Connections section uses them (#114); the bundled seed means it only tops
+    /// up. No Settings row: turned off by editing settings.json.
     pub load_index_members: bool,
     /// IBKR accounts for which "Block borrowing" was switched off (after Touch ID or the Mac
     /// password, borrowing.rs). Missing = blocked. Only changed by the borrowing commands: save_settings
@@ -50,14 +50,14 @@ impl Default for Settings {
             trading_mode: "paper".into(),
             auto_reconnect: true,
             ai_model: "claude-haiku-4-5".into(),
-            load_index_members: false,
+            load_index_members: true,
             allow_borrowing: BTreeMap::new(),
             keychain_removed: false,
         }
     }
 }
 
-const CURRENT_VERSION: u32 = 2;
+const CURRENT_VERSION: u32 = 3;
 
 fn path(app: &AppHandle) -> tauri::Result<PathBuf> {
     Ok(app.path().app_data_dir()?.join("settings.json"))
@@ -77,12 +77,18 @@ pub fn load(app: &AppHandle) -> Settings {
 }
 
 /// Brings older settings up to date; true if anything changed. Version 2: the port that version 1
-/// saved by default (4002) becomes the new default, 4012. A port the user chose stays.
+/// saved by default (4002) becomes the new default, 4012. A port the user chose stays. Version 3:
+/// the index loader is switched on once.
 fn upgrade(settings: &mut Settings) -> bool {
     if settings.version >= CURRENT_VERSION {
         return false;
     }
-    if settings.gateway_port == 4002 {
+    // Version 3: the index loader is on by default now that the Connections section uses it (#114).
+    // Earlier versions saved it as off without anyone choosing that, so turn it on once.
+    if settings.version < 3 {
+        settings.load_index_members = true;
+    }
+    if settings.version < 2 && settings.gateway_port == 4002 {
         settings.gateway_port = 4012;
     }
     settings.version = CURRENT_VERSION;
@@ -98,7 +104,7 @@ mod tests {
         let mut old: Settings = serde_json::from_str(r#"{"gateway_port": 4002, "ibkr_username": "me"}"#).unwrap();
         assert_eq!(old.version, 0);
         assert!(upgrade(&mut old));
-        assert_eq!((old.gateway_port, old.version), (4012, 2));
+        assert_eq!((old.gateway_port, old.version), (4012, CURRENT_VERSION));
         assert_eq!(old.ibkr_username.as_deref(), Some("me"));
         // Later, choosing 4002 on purpose sticks
         old.gateway_port = 4002;
@@ -109,6 +115,20 @@ mod tests {
         upgrade(&mut custom);
         assert_eq!(custom.gateway_port, 4100);
         assert_eq!(Settings::default().gateway_port, 4012);
+    }
+
+    #[test]
+    fn turns_the_index_loader_on_once() {
+        // Saved by a version 2 app, which wrote "off" without the user choosing it
+        let mut old: Settings = serde_json::from_str(r#"{"version": 2, "gateway_port": 4002, "load_index_members": false}"#).unwrap();
+        assert!(upgrade(&mut old));
+        assert!(old.load_index_members);
+        assert_eq!(old.gateway_port, 4002); // version 2 already handled the port: a chosen 4002 stays
+        // Turning it off afterwards sticks
+        old.load_index_members = false;
+        assert!(!upgrade(&mut old));
+        assert!(!old.load_index_members);
+        assert!(Settings::default().load_index_members);
     }
 }
 
