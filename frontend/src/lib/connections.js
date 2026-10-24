@@ -84,6 +84,11 @@ export function parseBoardEntry(text) {
   return match ? { name: match[1].trim(), role: match[2].trim() } : { name: (text ?? '').trim(), role: null }
 }
 
+// "Coles Group Limited (October 2020–October 2023)": a board they have left, not one they sit on
+export function isFormerBoard(entry) {
+  return Boolean(entry.role && /\b(19|20)\d\d\b/.test(entry.role))
+}
+
 // The holding a named company is, or null: the same name once legal words are dropped, or one
 // starting the other (IB cuts long names: "Commonwealth Bank of Austral")
 export function heldCompany(name, holdings) {
@@ -341,7 +346,7 @@ function addOtherBoards(nodes, edges, directors, others) {
     const record = directors.find((d) => samePerson(d.name, name))
     for (const raw of (record?.other_boards ?? []).slice(0, 3)) {
       const entry = parseBoardEntry(raw)
-      if (!entry.name) continue
+      if (!entry.name || isFormerBoard(entry)) continue
       entries.push({ person, personName: record.name, ...entry, held: heldCompany(entry.name, others) })
     }
   }

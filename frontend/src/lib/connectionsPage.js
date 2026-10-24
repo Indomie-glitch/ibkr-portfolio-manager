@@ -4,7 +4,7 @@
 // itself is lib/connections.js; every fact here comes from the same data (indexes, competitors,
 // executives, board), never from guesses.
 import { formatCompactMoney, formatPercent } from './format.js'
-import { initials, parseBoardEntry, heldCompany } from './connections.js'
+import { initials, parseBoardEntry, heldCompany, isFormerBoard } from './connections.js'
 
 const ROLE_WORDS = {
   chair: 'Chair',
@@ -123,8 +123,9 @@ function personRows(node, stock, holdings) {
   for (const raw of director?.other_boards ?? []) {
     const entry = parseBoardEntry(raw)
     const held = heldCompany(entry.name, holdings)
-    rows.push({ chip: held?.symbol ?? entry.name.replace(/\b(limited|ltd|inc|corporation|corp|plc)\b\.?/gi, '').trim(), mine: Boolean(held),
-      role: entry.role ?? 'Director', since: null, name: entry.name, held: held?.con_id ?? null })
+    const former = isFormerBoard(entry)
+    rows.push({ chip: held?.symbol ?? entry.name.replace(/\b(limited|ltd|inc|corporation|corp|plc)\b\.?/gi, '').trim(), mine: Boolean(held) && !former,
+      role: former ? `Formerly, ${entry.role}` : (entry.role ?? 'Director'), since: null, name: entry.name, held: held?.con_id ?? null, former })
   }
   return rows
 }
@@ -138,7 +139,7 @@ function personText(node, stock) {
   }
   if (executive) parts.push(`${executive.title}${executive.age ? `, aged ${executive.age}` : ''}.`)
   if (director?.age && !executive?.age) parts.push(`Aged ${director.age}.`)
-  const others = (director?.other_boards ?? []).map((b) => parseBoardEntry(b).name)
+  const others = (director?.other_boards ?? []).map(parseBoardEntry).filter((e) => !isFormerBoard(e)).map((e) => e.name)
   if (others.length) parts.push(`Also on the boards of ${listWords(others.slice(0, 4))}${others.length > 4 ? ` and ${others.length - 4} more` : ''}.`)
   if (heldLinks.length) parts.push(`Sits on the board of ${listWords(heldLinks.map((h) => h.symbol))}, which you own.`)
   if (director?.leaving) parts.push('The document says they are retiring.')

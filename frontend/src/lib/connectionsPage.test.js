@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildMap, companyKey, heldCompany, parseBoardEntry, visible } from './connections.js'
+import { buildMap, companyKey, heldCompany, isFormerBoard, parseBoardEntry, visible } from './connections.js'
 import { countsText, describeNode, findNode, linkCounts, linkRows, ownedBy, pageSubtitle } from './connectionsPage.js'
 
 const STOCK = { con_id: 1, symbol: 'CBA', name: 'Commonwealth Bank of Australia', market: 'ASX' }
@@ -64,6 +64,32 @@ describe('matching other boards to your holdings', () => {
     expect(heldCompany('BlueScope Steel Limited', HOLDINGS)).toBeNull()
     expect(heldCompany('BH', HOLDINGS)).toBeNull() // too short to be sure
     expect(heldCompany('APA Corporation', HOLDINGS)).toBeNull() // not APA Group
+  })
+})
+
+describe('boards a person has left', () => {
+  const former = 'Coles Group Limited (October 2020–October 2023)'
+  const board = { status: 'ready', directors: [{ name: 'Paul Chair', role: 'chair', appointed_year: 2019,
+    other_boards: [former, 'Orica Limited (Chair)'], also_on: [] }] }
+
+  it('tells a dated range from a role', () => {
+    expect(isFormerBoard(parseBoardEntry(former))).toBe(true)
+    expect(isFormerBoard(parseBoardEntry('BlueScope Steel Limited (Chair)'))).toBe(false)
+    expect(isFormerBoard(parseBoardEntry('nib holdings limited'))).toBe(false)
+  })
+
+  it('leaves them off the map at depth 2, and out of "also on the boards of"', () => {
+    const m = map({ depth: 2, board })
+    expect(m.nodes.filter((n) => n.kind === 'company').map((n) => n.label)).toEqual(['Orica Limited'])
+    const paul = m.nodes.find((n) => n.info?.director?.name === 'Paul Chair')
+    expect(describeNode(paul, { stock: STOCK, holdings: HOLDINGS }).text).toBe('Chair of Commonwealth Bank of Australia since 2019. Also on the boards of Orica Limited.')
+  })
+
+  it('shows them in the roles table as former', () => {
+    const paul = map({ board }).nodes.find((n) => n.info?.director?.name === 'Paul Chair')
+    const rows = describeNode(paul, { stock: STOCK, holdings: HOLDINGS }).rows
+    expect(rows.find((r) => r.name === 'Coles Group Limited')).toMatchObject({ role: 'Formerly, October 2020–October 2023', former: true, mine: false })
+    expect(rows.find((r) => r.name === 'Orica Limited')).toMatchObject({ role: 'Chair', former: false })
   })
 })
 
