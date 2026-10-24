@@ -23,3 +23,5 @@ data/
 
 # Browser profiles from screenshot runs (scripts/screenshots.mjs keeps its own in the system temp folder)
 docs/screenshots/prof-*/
+# Build-time settings for the Mac app's backend (backend/write_app_config.py)
+backend/app_config.json

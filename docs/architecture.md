@@ -32,7 +32,10 @@ flowchart LR
     flex[("IBKR Flex Web Service<br/>purchase history report")]
     yahoo[("Yahoo Finance<br/>key stats, news,<br/>company info")]
     funds[("ETF holdings files<br/>State Street, iShares")]
-    claude[("Anthropic API<br/>Claude writes the<br/>AI summaries and<br/>judges news sentiment")]
+    sec[("SEC EDGAR<br/>US proxy statements")]
+    asx[("ASX announcements<br/>annual reports<br/>(personal use)")]
+    wikidata[("Wikidata<br/>people's IDs and<br/>Wikipedia links")]
+    claude[("Anthropic API<br/>Claude writes the<br/>AI summaries, judges news<br/>sentiment, reads boards")]
     gh[("GitHub Releases<br/>new app versions")]
 
     user -->|clicks, types| app
@@ -41,7 +44,10 @@ flowchart LR
     app -->|"daily report<br/>(Flex token)"| flex
     app -->|"public data<br/>(yfinance)"| yahoo
     app -->|"index members, weekly<br/>(no key; off by default)"| funds
-    app -->|"facts sheet or headlines in,<br/>summary or sentiment out (API key)"| claude
+    app -->|"proxy statements<br/>(contact email)"| sec
+    app -->|"annual reports, on request<br/>(after you accept ASX's terms)"| asx
+    app -->|"who is who<br/>(no key)"| wikidata
+    app -->|"facts sheet, headlines or board pages in,<br/>summary, sentiment or directors out (API key)"| claude
     app -->|"check for update,<br/>download signed update"| gh
 ```
 
@@ -66,7 +72,7 @@ flowchart TB
     end
 
     gw["IB Gateway<br/>(installed separately,<br/>port 4012)"]
-    disk[("Application Support/<br/>settings.json, lots.sqlite,<br/>summaries.sqlite, news_sentiment.sqlite,<br/>usage.sqlite, risk_prices.sqlite,<br/>indices.sqlite, gateway/")]
+    disk[("Application Support/<br/>settings.json, lots.sqlite,<br/>summaries.sqlite, news_sentiment.sqlite,<br/>usage.sqlite, risk_prices.sqlite,<br/>indices.sqlite, directors.sqlite, gateway/")]
 
     shell -->|"opens window, injects<br/>backend URL + token"| ui
     ui -->|"Tauri commands<br/>(sign_in, set_api_key, ...)"| shell
@@ -110,6 +116,7 @@ flowchart TB
         r_trade["trading.py<br/>/trading/status /orders<br/>/orders/preview /stream<br/>cancel, modify,<br/>/trading/borrowing"]
         r_risk["risk.py<br/>/risk /risk/bankruptcy"]
         r_idx["indices.py<br/>/indices /indices/{id}<br/>/indices/{index}/members<br/>/competitors/{id}"]
+        r_dir["directors.py<br/>/directors/{id} (GET, POST)<br/>/directors/asx-terms<br/>/people/{id}"]
     end
 
     subgraph core["Shared"]
@@ -141,12 +148,16 @@ flowchart TB
         rsec["risk_sections.py<br/>one function per<br/>Risk page section"]
         cons["constituents.py<br/>members of 6 indexes,<br/>weights, market data,<br/>sectors (SQLite), weekly;<br/>seed/indices.json"]
         comp["competitors.py<br/>same industry, widen,<br/>rank in US dollars (pure)"]
+        dirs["directors.py<br/>boards read by Claude,<br/>checked against the document<br/>(SQLite); seed/directors.json (US)"]
+        dsrc["directors_sources.py<br/>EDGAR proxy, ASX annual report,<br/>board pages only, Wikidata"]
+        ppl["people.py<br/>same person across companies<br/>(Wikidata ID, or name + the<br/>document naming the company)"]
     end
 
     main --> routers
     main -->|"keep_connected task"| ib_core
     main -->|"keep_refreshed task"| lots
     main -->|"keep_refreshed task"| cons
+    main -->|"keep_checked task"| dirs
     ib_core --> ib_conn
 
     r_pos --> ib_core & yahoo & cache & names & senti & fx
@@ -164,6 +175,9 @@ flowchart TB
     r_sum -.->|D:risk| r_risk
     rdata --> yahoo & rmath
     r_idx --> cons & comp & ib_core & fx
+    r_dir --> dirs & ib_core & web
+    r_dir -.->|reuses Yahoo info| r_pos
+    dirs --> dsrc & ppl & usage & cons
     r_idx -.->|reuses Yahoo info| r_pos
     cons --> yahoo & names
 
@@ -177,6 +191,7 @@ flowchart TB
     flex -->|HTTPS| FX[["Flex Web Service"]]
     cons -->|HTTPS| FUNDS[["ETF holdings files"]]
     ai -->|anthropic SDK| AN[["Anthropic API"]]
+    dirs -->|anthropic SDK| AN
     senti -->|anthropic SDK| AN
     senti --> usage
 ```
@@ -186,6 +201,7 @@ flowchart TB
 **Background tasks** (started by `main.py` when the server starts):
 * `keep_connected`: keeps trying to connect to IB Gateway every 5 seconds, so the backend starts fine even when Gateway isn't running and reconnects after drops.
 * `keep_refreshed` (lots.py): downloads the Flex purchase report once a day.
+* `keep_checked` (directors.py): every 6 hours, looks for a newer proxy statement or annual report for each board already read (each company at most weekly; no AI) and marks it "newer document available". The bundled `seed/directors.json` (US index members) is merged in at startup.
 * `keep_refreshed` (constituents.py): on a fresh install first loads the bundled `seed/indices.json`; then checks every 3 hours: reloads each index's members when its copy is a week old (a failed download keeps the last copy), market cap, P/E and 1-year change daily (Yahoo's screener), then looks up missing sectors and industries on Yahoo one company at a time.
 
 ---
@@ -435,6 +451,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | Saved AI summaries | `summaries.sqlite` | last 20 per stock, last 20 portfolio |
 | News sentiment per article | `news_sentiment.sqlite` | 90 days |
 | Claude API usage: tokens and estimated cost per call | `usage.sqlite` | kept (`GET /usage` totals a month) |
+| Boards of directors (each seat with its document, page and quote; Wikidata IDs) and whether you accepted ASX's terms | `directors.sqlite` (US index members from the bundled `seed/directors.json`; ASX boards only when you ask) | until a newer document is read |
 | Index members (S&P 500, Nasdaq 100, Dow, ASX 20 / 50 / 200) with weights, market cap, P/E, 1-year change, sectors and industries | `indices.sqlite` (a fresh install starts from the bundled `seed/indices.json`) | members weekly per index, market data daily; the last good copy stays if a download fails |
 | Daily closes for the risk analysis (holdings, indexes, exchange rate pairs against the account's currency) | `risk_prices.sqlite` | about 3 years, updated once a day per symbol |
 | Returns over past crashes (2008, 2020, 2022) for the stress tests | `risk_prices.sqlite` (table `risk_scenarios`) | kept (fetched once per symbol) |

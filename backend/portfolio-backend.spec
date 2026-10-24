@@ -15,6 +15,10 @@ for package in ("curl_cffi", "certifi"):
     hiddenimports += package_hidden
 # Index members with sectors already looked up, so a fresh install only tops them up (constituents.py)
 datas += [("seed/indices.json", "seed")]
+# Boards of the US index members, read from their proxy statements (directors.py, #113)
+datas += [("seed/directors.json", "seed")]
+# Build-time settings such as the SEC contact email (write_app_config.py; gitignored)
+datas += [("app_config.json", ".")]
 
 a = Analysis(
     ["app_main.py"],

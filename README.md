@@ -47,6 +47,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Risk page: 3M / 1Y / 3Y periods, ten headline figures (volatility, betas, effective holdings, max drawdown, Sharpe ratio, tracking error, Value at Risk, liquidity) and twelve panels (concentration, exposure, correlation heatmap, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution vs your home market's index, example mixes and hedges, bankruptcy risk, liquidity), each with an ⓘ that explains the number in plain words using your own figures; worked out from daily closes in your account's currency (Australian dollars and the ASX 200 for an AUD account, Singapore dollars and the STI for SGD), with every formula explained in [docs/risk-maths.md](docs/risk-maths.md). It describes, never advises
 * The AI portfolio summary's key risks can cite the Risk page's findings
 * Index members (backend, no UI yet): the S&P 500, Nasdaq 100, Dow, ASX 20, ASX 50 and ASX 200, with each member's weight, market cap, P/E, 1-year change, sector and industry, refreshed from ETF holdings files and Yahoo (no API key), and which of them a stock belongs to. The background loader is off by default (it makes about 20 minutes of Yahoo calls): set `INDEX_LOADER=1` in `.env`, or `load_index_members` in the app's `settings.json`
+* Boards of directors (backend, no UI yet): each director's role, independence, year joined, age, committees and other company boards, read by Claude (Haiku 5.5) from the company's own document and linked to the page it came from. US boards come from SEC proxy statements; the S&P 500's ship with the app. ASX boards come from the company's annual report on the ASX, which ASX allows for personal use only, so they are read in your own app when you ask (a few US cents on your API key) after you accept ASX's terms. Each name and quote is checked against the document. People are linked across companies ("also on BHP's board") only by Wikidata ID or when one document names the other company; a shared name alone is shown as a possible match. A newer proxy or annual report is spotted weekly
 * Competitors (backend, no UI yet): for any ASX or US stock, the index companies in the same industry from both markets, largest first, with market cap, 1-year change, P/E and whether you own them; widens to related industries or the sector when there are fewer than 4
 
 ### Planned
@@ -66,7 +67,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [ ] **Milestone 6: Trade placement:** built; the end-to-end paper test run ([checklist](docs/paper-trading-test.md)) is still to do
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, IBKR password never stored, optional encrypted API key, DMG
 * [x] **Milestone 8: Risk analysis:** a Risk page with 10 headline figures and 12 panels (concentration, exposure, correlation, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution, example mixes, bankruptcy risk, liquidity), each explained in plain words with your own numbers, and the main findings in the AI portfolio summary ([the maths](docs/risk-maths.md))
-* [ ] **Milestone 9: Company connections:** index members, the indexes a stock belongs to and competitors are done (backend); the Connections section and full map are next
+* [ ] **Milestone 9: Company connections:** index members, the indexes a stock belongs to, competitors, executives and boards of directors are done (backend); the Connections section and full map are next
 * [ ] **Milestone 10:** Supply chain graph foundation
 * [ ] **Milestone 11:** Extraction agents
 * [ ] **Milestone 12:** Supply chain explorer
@@ -196,6 +197,7 @@ cp .env.example .env
 
 | Variable | Description |
 |---|---|
+| `SEC_CONTACT_EMAIL` | Needed for US boards of directors: SEC requires a contact email in every EDGAR request. The Mac app's build bundles it (`backend/write_app_config.py`; CI reads the `SEC_CONTACT_EMAIL` repository secret), so anyone with the app can read it |
 | `INDEX_LOADER` | Optional: `1` turns on the background loading of index members (off by default; the endpoints still answer from whatever is stored) |
 | `ANTHROPIC_API_KEY` | Your Claude API key (needed for AI summaries; only used by the backend) |
 | `AI_MODEL` | Claude model for summaries, `claude-haiku-4-5` by default |
@@ -299,6 +301,10 @@ cd frontend/src-tauri && cargo test
 | `GET /indices` | Each index (S&P 500, Nasdaq 100, Dow, ASX 20 / 50 / 200): member count, the holdings file's date, when it was fetched, and whether the last download failed (an older copy is shown) |
 | `GET /indices/{con_id}` | The indexes a stock belongs to, with its weight and rank in each |
 | `GET /indices/{index}/members` | One index's members, largest weight first: name, weight, rank, sector, industry, market cap, P/E, 1-year change |
+| `GET /directors/{con_id}` | The company's board as read from its latest proxy statement (US) or annual report (ASX): each director's role, independence, year joined, age, committees, other boards, the page and a quote, a link to that page, Wikidata / Wikipedia when known, other boards they sit on among the companies read (`also_on`) and same-name `possible_matches`. `status` `not_read` with `needs` (API key, SEC contact email, ASX terms) when it hasn't been read; `newer_document` when a newer one has been filed |
+| `POST /directors/{con_id}` | Reads (or re-reads) the board now with Claude Haiku 5.5 on your API key (about US$0.005; 10 to 60 seconds) |
+| `GET /directors/asx-terms`, `POST /directors/asx-terms` | Whether you've accepted ASX's terms (company announcements for private and personal use), and accepting or withdrawing that; ASX boards can't be read without it |
+| `GET /people/{person_id}` | Every board seat one person holds among the boards read so far |
 | `GET /competitors/{con_id}` | Companies in the stock's industry among the index members (ASX and US), largest market cap first, with market, market cap, 1-year change, P/E and whether you own each; the stock itself is marked. Says which level was used (industry, related industries or sector) and whether sectors are still loading |
 | **AI usage** | |
 | `GET /usage?month=YYYY-MM` | Tokens and estimated cost (US$) of every Claude call in a month (default this month), in total and per feature (stock summaries, portfolio summaries, news sentiment) |

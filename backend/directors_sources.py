@@ -1,0 +1,421 @@
+"""Where a company's board comes from (#113): finding and reading the document.
+
+- US stocks: the newest proxy statement (DEF 14A) on SEC EDGAR from the last 18 months, else a 20-F
+  (foreign companies list their directors there). EDGAR needs a contact email in every request
+  (config.sec_contact_email) and allows 10 requests a second; we stay well under that.
+- ASX stocks: the newest "Annual Report" announcement on asx.com.au from this year or last. ASX
+  allows this for private and personal use only, so it is fetched on demand in each user's app,
+  after that user has accepted ASX's terms (directors.asx_terms_accepted), and never put in the
+  shared seed.
+
+The documents are long (CBA's 2025 annual report is 456 pages), so only the passages about the
+board go to Claude: select_passages keeps the pages or parts that mention directors most.
+
+Wikidata (no key) gives the people it links to a company, for Wikipedia links (people.py).
+"""
+import asyncio
+import html as html_lib
+import io
+import json
+import re
+import time
+import urllib.parse
+import urllib.request
+from datetime import datetime, timedelta
+from html.parser import HTMLParser
+
+import config
+
+REPO = "https://github.com/Indomie-glitch/ibkr-portfolio-manager"
+TIMEOUT_S = 60
+MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024  # the largest ASX annual reports are ~40 MB
+FILING_MAX_AGE = timedelta(days=548)  # 18 months: a proxy older than that is out of date
+
+SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+SEC_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
+SEC_ARCHIVE_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{document}"
+SEC_MIN_INTERVAL_S = 0.2  # 5 requests a second at most (EDGAR allows 10)
+SEC_FORMS = ("DEF 14A", "20-F")  # in order of preference
+
+ASX_LIST_URL = ("https://www.asx.com.au/asx/v2/statistics/announcements.do"
+                "?by=asxCode&asxCode={code}&timeframe=Y&year={year}")
+ASX_DISPLAY_URL = "https://www.asx.com.au/asx/v2/statistics/displayAnnouncement.do?display=pdf&idsId={ids_id}"
+ASX_PDF_HOST = "announcements.asx.com.au"
+# Announcements called "annual report" that aren't the annual report. ("Appendix 4E and 2026 Annual
+# Report" is the report itself: BHP announces them together.)
+ASX_NOT_THE_REPORT = re.compile(
+    r"notice|letter|sustainab|modern slavery|tax|climate|remuneration|governance|results|"
+    r"presentation|summary|review|proxy|half|webcast|briefing|errat|correction|supplement|fund|trust\b",
+    re.IGNORECASE)
+
+US_FILING = re.compile(r"20-F|\bform\b|\bUS annual report\b|\bSEC\b", re.IGNORECASE)
+
+WIKIDATA_URL = "https://query.wikidata.org/sparql"
+ASX_WIKIDATA_ID = "Q732670"
+
+
+class SourceUnavailable(Exception):
+    """The document can't be fetched (no contact email, a download failed, …): a plain message."""
+
+
+class NoDocument(Exception):
+    """The company has no suitable document (no proxy or annual report in the last 18 months)."""
+
+
+class Unreadable(Exception):
+    """The document has no usable text (e.g. a scanned PDF)."""
+
+
+# ---------- HTTP ----------
+
+def _get(url, headers=None, max_bytes=MAX_DOWNLOAD_BYTES):
+    request = urllib.request.Request(url, headers={"User-Agent": f"PortfolioManager ({REPO})", **(headers or {})})
+    with urllib.request.urlopen(request, timeout=TIMEOUT_S) as response:
+        data = response.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise SourceUnavailable("The document is too large to download.")
+    return data
+
+
+async def get(url, headers=None):
+    try:
+        return await asyncio.to_thread(_get, url, headers)
+    except (SourceUnavailable, NoDocument):
+        raise
+    except Exception as exc:
+        host = urllib.parse.urlparse(url).netloc
+        raise SourceUnavailable(f"Couldn't download from {host} ({exc.__class__.__name__}).") from exc
+
+
+# ---------- SEC EDGAR ----------
+
+_sec_lock = asyncio.Lock()
+_sec_last = 0.0
+_sec_tickers = {"at": 0.0, "map": None}
+
+
+def sec_headers():
+    email = config.sec_contact_email()
+    if not email:
+        raise SourceUnavailable("US boards need a contact email for SEC (SEC_CONTACT_EMAIL).")
+    return {"User-Agent": f"PortfolioManager {email}", "Accept-Encoding": "identity"}
+
+
+async def sec_get(url):
+    """One EDGAR request, spaced out to stay under SEC's rate limit."""
+    global _sec_last
+    headers = sec_headers()
+    async with _sec_lock:
+        wait = SEC_MIN_INTERVAL_S - (time.monotonic() - _sec_last)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _sec_last = time.monotonic()
+    return await get(url, headers)
+
+
+def sec_ticker(ib_symbol):
+    """IB's "BRK B" is SEC's "BRK-B"."""
+    return ib_symbol.strip().upper().replace(" ", "-").replace(".", "-")
+
+
+async def sec_cik(ib_symbol):
+    """The company's SEC number (CIK) from SEC's ticker list (fetched once a day), or None."""
+    if _sec_tickers["map"] is None or time.monotonic() - _sec_tickers["at"] > 24 * 3600:
+        data = json.loads(await sec_get(SEC_TICKERS_URL))
+        _sec_tickers["map"] = {row["ticker"].upper(): int(row["cik_str"]) for row in data.values()}
+        _sec_tickers["at"] = time.monotonic()
+    return _sec_tickers["map"].get(sec_ticker(ib_symbol))
+
+
+def choose_filing(submissions, cik, now):
+    """The newest DEF 14A from the last 18 months (else a 20-F) in EDGAR's submissions JSON, or None."""
+    recent = submissions.get("filings", {}).get("recent", {})
+    rows = [dict(zip(recent, values)) for values in zip(*recent.values())] if recent else []
+    for form in SEC_FORMS:
+        for row in rows:  # EDGAR lists the newest first
+            if row.get("form") != form:
+                continue
+            filed = datetime.strptime(row["filingDate"], "%Y-%m-%d")
+            if now - filed > FILING_MAX_AGE:
+                break
+            return {
+                "source": "sec", "kind": form, "filed": row["filingDate"],
+                "title": f"{submissions.get('name') or 'Company'} {form} ({row['filingDate']})",
+                "url": SEC_ARCHIVE_URL.format(cik=cik, accession=row["accessionNumber"].replace("-", ""),
+                                              document=row["primaryDocument"]),
+            }
+    return None
+
+
+async def latest_sec_document(ib_symbol, now=None):
+    cik = await sec_cik(ib_symbol)
+    if cik is None:
+        raise NoDocument(f"SEC has no company with the ticker {sec_ticker(ib_symbol)}.")
+    submissions = json.loads(await sec_get(SEC_SUBMISSIONS_URL.format(cik=cik)))
+    document = choose_filing(submissions, cik, now or datetime.now())
+    if document is None:
+        raise NoDocument("No proxy statement (DEF 14A) or 20-F on EDGAR in the last 18 months.")
+    return {**document, "cik": cik, "company_name": submissions.get("name")}
+
+
+# ---------- ASX ----------
+
+class _Rows(HTMLParser):
+    """The rows of asx.com.au's announcements table: their text and first link."""
+
+    def __init__(self):
+        super().__init__()
+        self.rows, self._row, self._in_row = [], None, False
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "tr":
+            self._row = {"text": [], "href": None}
+        elif tag == "a" and self._row is not None and self._row["href"] is None:
+            self._row["href"] = dict(attrs).get("href")
+
+    def handle_data(self, data):
+        if self._row is not None:
+            self._row["text"].append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "tr" and self._row is not None:
+            self.rows.append({"text": " ".join(" ".join(self._row["text"]).split()), "href": self._row["href"]})
+            self._row = None
+
+
+def parse_announcements(page):
+    """[{date, headline, ids_id, pages}] from an asx.com.au yearly announcements page."""
+    parser = _Rows()
+    parser.feed(page)
+    found = []
+    for row in parser.rows:
+        ids = re.search(r"idsId=(\d+)", html_lib.unescape(row["href"] or ""))
+        when = re.match(r"(\d{2}/\d{2}/\d{4})\s+\d{1,2}:\d{2}\s*[ap]m\s+(.*)", row["text"], re.IGNORECASE)
+        if not ids or not when:
+            continue
+        rest = when.group(2)
+        pages = re.search(r"(\d+)\s+pages?\b", rest)
+        headline = re.sub(r"\s+\d+\s+pages?\b.*$", "", rest).strip()
+        found.append({"date": datetime.strptime(when.group(1), "%d/%m/%Y").strftime("%Y-%m-%d"),
+                      "headline": headline, "ids_id": ids.group(1),
+                      "pages": int(pages.group(1)) if pages else None})
+    return found
+
+
+def choose_annual_report(rows, now):
+    """The newest announcement that is the annual report itself, from the last 18 months, or None."""
+    reports = [r for r in rows if re.search(r"\bannual report\b", r["headline"], re.IGNORECASE)
+               and not ASX_NOT_THE_REPORT.search(r["headline"])
+               and now - datetime.strptime(r["date"], "%Y-%m-%d") <= FILING_MAX_AGE]
+    if not reports:
+        return None
+    # Dual-listed companies also announce their US filing ("US Annual Report (Form 20-F)"): prefer the
+    # Australian annual report from the newest reporting season, the US one only when it's all there is
+    newest = max(r["date"] for r in reports)
+    season = [r for r in reports if datetime.strptime(newest, "%Y-%m-%d") - datetime.strptime(r["date"], "%Y-%m-%d") <= timedelta(days=60)]
+    local = [r for r in season if not US_FILING.search(r["headline"])]
+    return max(local or season, key=lambda r: r["date"])
+
+
+async def latest_asx_report(code, now=None):
+    """The newest annual report announcement (not downloaded yet)."""
+    now = now or datetime.now()
+    rows = []
+    for year in (now.year, now.year - 1):
+        page = await get(ASX_LIST_URL.format(code=code.upper(), year=year), {"User-Agent": "Mozilla/5.0"})
+        rows += parse_announcements(page.decode("utf-8", "ignore"))
+    report = choose_annual_report(rows, now)
+    if report is None:
+        raise NoDocument("No annual report announced on the ASX in the last 18 months.")
+    return {"source": "asx", "kind": "Annual Report", "filed": report["date"], "ids_id": report["ids_id"],
+            "title": (report["headline"] if report["headline"].upper().startswith(code.upper() + " ")
+                      else f"{code.upper()} {report['headline']}") + f" ({report['date']})", "pages": report["pages"],
+            "url": ASX_DISPLAY_URL.format(ids_id=report["ids_id"])}
+
+
+def asx_pdf_url(terms_page):
+    """The PDF's address from ASX's terms page (the form's hidden pdfURL), checked to be ASX's own."""
+    found = re.search(r'name="pdfURL"\s+value="([^"]+)"|value="([^"]+)"\s+[^>]*name="pdfURL"', terms_page)
+    url = html_lib.unescape(next((g for g in (found.groups() if found else ()) if g), ""))
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https" or parsed.netloc != ASX_PDF_HOST or not parsed.path.endswith(".pdf"):
+        raise SourceUnavailable("ASX didn't give a link to the annual report.")
+    return url
+
+
+async def asx_pdf(document):
+    """Downloads the annual report PDF. Only called once the user has accepted ASX's terms."""
+    terms_page = (await get(document["url"], {"User-Agent": "Mozilla/5.0"})).decode("utf-8", "ignore")
+    pdf_url = asx_pdf_url(terms_page)
+    return pdf_url, await get(pdf_url, {"User-Agent": "Mozilla/5.0"})
+
+
+# ---------- Text and the passages about the board ----------
+
+class _Text(HTMLParser):
+    """Visible text of an HTML filing, split at page breaks (EDGAR filings mark them in CSS)."""
+
+    BLOCK = {"p", "div", "br", "tr", "li", "h1", "h2", "h3", "h4", "h5", "h6", "table"}
+
+    def __init__(self):
+        super().__init__()
+        self.pages, self._parts, self._skip = [], [], 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("script", "style"):
+            self._skip += 1
+        style = (dict(attrs).get("style") or "").replace(" ", "").lower()
+        if "page-break-before:always" in style or "break-before:page" in style:
+            self._new_page()
+        if tag in self.BLOCK:
+            self._parts.append("\n")
+        if tag == "hr" and ("page-break-after:always" in style or "break-after:page" in style):
+            self._new_page()
+
+    def handle_endtag(self, tag):
+        if tag in ("script", "style") and self._skip:
+            self._skip -= 1
+        if tag in ("td", "th"):
+            self._parts.append(" | ")
+        if tag in self.BLOCK:
+            self._parts.append("\n")
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)  # <hr style="page-break-after: always"/>
+
+    def handle_data(self, data):
+        if not self._skip:
+            self._parts.append(data)
+
+    def _new_page(self):
+        self.pages.append("".join(self._parts))
+        self._parts = []
+
+    def close(self):
+        super().close()
+        self._new_page()
+
+
+def _tidy(text):
+    lines = [" ".join(line.split()) for line in text.replace("\xa0", " ").split("\n")]
+    return "\n".join(line for line in lines if line)
+
+
+def html_sections(page_html, chunk_chars=6000):
+    """[(label, text)]: "Page N" when the filing marks page breaks, else "Part N" chunks."""
+    parser = _Text()
+    parser.feed(page_html)
+    parser.close()
+    pages = [_tidy(p) for p in parser.pages]
+    if sum(1 for p in pages if p) >= 5:
+        return [(f"Page {i}", p) for i, p in enumerate(pages, start=1) if p]
+    text = _tidy("\n".join(pages))
+    chunks, current = [], []
+    for line in text.split("\n"):
+        current.append(line)
+        if sum(len(c) for c in current) >= chunk_chars:
+            chunks.append("\n".join(current))
+            current = []
+    if current:
+        chunks.append("\n".join(current))
+    return [(f"Part {i}", c) for i, c in enumerate(chunks, start=1)]
+
+
+def pdf_sections(data):
+    """[(\"Page N\", text)] from a PDF; Unreadable when it has (almost) no text, e.g. a scan."""
+    from pypdf import PdfReader
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        pages = [(f"Page {i}", _tidy(page.extract_text() or "")) for i, page in enumerate(reader.pages, start=1)]
+    except Exception as exc:
+        raise Unreadable(f"The PDF couldn't be read ({exc.__class__.__name__}).") from exc
+    if sum(len(text) for _, text in pages) < 2000:
+        raise Unreadable("The PDF has no readable text (it may be scanned images).")
+    return [(label, text) for label, text in pages if text]
+
+
+# What the board pages talk about, with weights
+BOARD_WORDS = [
+    (re.compile(r"\bdirectors?\b", re.I), 1.0),
+    (re.compile(r"non[-\s]?executive|independent director|lead independent", re.I), 3.0),
+    (re.compile(r"director since|appointed (?:as )?(?:a )?director|appointed to the board|elected", re.I), 4.0),
+    (re.compile(r"\bchair(?:man|woman|person)?\b", re.I), 1.5),
+    (re.compile(r"\bage[ds]?\b\s*:?\s*\d{2}\b", re.I), 3.0),
+    (re.compile(r"other (?:current |public company |listed company )?directorships?|other boards?", re.I), 5.0),
+    (re.compile(r"\bcommittee\b", re.I), 0.5),
+    (re.compile(r"\bnominees?\b", re.I), 2.0),
+    (re.compile(r"\bboard of directors\b|directors'? report", re.I), 3.0),
+    (re.compile(r"\bexperience\b|\bqualifications\b|\bskills\b", re.I), 1.0),
+]
+
+
+def section_score(text):
+    return sum(weight * len(pattern.findall(text)) for pattern, weight in BOARD_WORDS)
+
+
+def select_passages(sections, budget_chars=110_000):
+    """The sections most about the board, up to budget_chars (~28K tokens), in document order. Each
+    chosen page brings its next page when there's room, since a director's profile often runs over."""
+    scored = sorted(((section_score(text), i) for i, (_, text) in enumerate(sections)), reverse=True)
+    if not scored or scored[0][0] == 0:
+        return []
+    keep, used = set(), 0
+    for score, i in scored:
+        if score < scored[0][0] * 0.25:
+            break
+        for j in (i, i + 1):
+            if j < len(sections) and j not in keep and used + len(sections[j][1]) <= budget_chars:
+                keep.add(j)
+                used += len(sections[j][1])
+    return [sections[i] for i in sorted(keep)]
+
+
+# ---------- Wikidata ----------
+
+WIKIDATA_QUERY = """SELECT ?company ?person ?personLabel ?alias ?article WHERE {
+  %s
+  { ?company wdt:P3320 ?person } UNION { ?company wdt:P169 ?person } UNION { ?company wdt:P488 ?person }
+  OPTIONAL { ?person skos:altLabel ?alias . FILTER(LANG(?alias) = "en") }
+  OPTIONAL { ?article schema:about ?person ; schema:isPartOf <https://en.wikipedia.org/> }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}"""
+
+
+def wikidata_company_clause(market, symbol, cik=None):
+    if market == "US" and cik:
+        return f'?company wdt:P5531 "{int(cik):010d}" .'
+    if market == "ASX" and re.fullmatch(r"[A-Z0-9]{1,6}", symbol.upper()):
+        return f'?company p:P414 ?st . ?st ps:P414 wd:{ASX_WIKIDATA_ID} ; pq:P249 "{symbol.upper()}" .'
+    return None
+
+
+def parse_wikidata(answer):
+    """[{id, label, aliases, article}] per person from a SPARQL JSON answer."""
+    people = {}
+    for row in answer.get("results", {}).get("bindings", []):
+        person_id = row["person"]["value"].rsplit("/", 1)[-1]
+        person = people.setdefault(person_id, {"id": person_id, "label": None, "aliases": [], "article": None})
+        label = row.get("personLabel", {}).get("value")
+        if label and label != person_id:
+            person["label"] = label
+        alias = row.get("alias", {}).get("value")
+        if alias and alias not in person["aliases"]:
+            person["aliases"].append(alias)
+        article = row.get("article", {}).get("value")
+        if article and article.startswith("https://en.wikipedia.org/"):
+            person["article"] = article
+    return list(people.values())
+
+
+async def wikidata_people(market, symbol, cik=None):
+    """The people Wikidata links to the company (board, CEO, chair); [] when it knows none or fails
+    (the links are optional)."""
+    clause = wikidata_company_clause(market, symbol, cik)
+    if clause is None:
+        return []
+    url = WIKIDATA_URL + "?" + urllib.parse.urlencode({"query": WIKIDATA_QUERY % clause, "format": "json"})
+    try:
+        return parse_wikidata(json.loads(await get(url, {"Accept": "application/sparql-results+json"})))
+    except Exception as exc:
+        print(f"Wikidata lookup failed for {market}:{symbol}: {exc.__class__.__name__}")
+        return []
