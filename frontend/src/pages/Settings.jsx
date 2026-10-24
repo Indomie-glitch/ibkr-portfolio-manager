@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { IN_APP } from '../lib/api.js'
 import { apiKeyStatus, clearApiKey, setApiKey } from '../desktop/appApiKey.js'
 import { APPEARANCES } from '../hooks/appearance.js'
+import { TEXT_SIZES } from '../lib/textSize.js'
 import { gatewayStatus, installGateway } from '../desktop/appGateway.js'
 import { savedLogin, signOut } from '../desktop/appSession.js'
 import { getSettings, saveSettings } from '../desktop/appSettings.js'
@@ -314,7 +315,7 @@ function ModelRow({ settings, onSave }) {
   )
 }
 
-function AppearanceGroup({ appearance, onAppearanceChange }) {
+function AppearanceGroup({ appearance, onAppearanceChange, textSize, onTextSizeChange }) {
   return (
     <Group title="Appearance">
       <Row
@@ -334,11 +335,28 @@ function AppearanceGroup({ appearance, onAppearanceChange }) {
           ))}
         </div>
       </Row>
+      <Row
+        label="Text size"
+        note={{ text: IN_APP ? 'Scales the whole window. ⌘+, ⌘− and ⌘0 in the View menu also change it; pinch the trackpad to zoom in briefly.' : 'Scales the whole page.' }}
+      >
+        <div className="segmented settings-segmented" role="group" aria-label="Text size">
+          {TEXT_SIZES.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              aria-pressed={textSize === t.value}
+              onClick={() => onTextSizeChange(t.value)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </Row>
     </Group>
   )
 }
 
-function Settings({ appearance, onAppearanceChange, login, connected, onSignedOut }) {
+function Settings({ appearance, onAppearanceChange, textSize, onTextSizeChange, login, connected, onSignedOut }) {
   const [settings, setSettings] = useState(null)
   // The IBKR username last signed in with (settings.json; the password is never stored)
   const [username, setUsername] = useState(null)
@@ -372,7 +390,12 @@ function Settings({ appearance, onAppearanceChange, login, connected, onSignedOu
         <p className="settings-footnote">
           In development, the API key, Gateway port and model come from .env (ANTHROPIC_API_KEY, IB_PORT, AI_MODEL).
         </p>
-        <AppearanceGroup appearance={appearance} onAppearanceChange={onAppearanceChange} />
+        <AppearanceGroup
+          appearance={appearance}
+          onAppearanceChange={onAppearanceChange}
+          textSize={textSize}
+          onTextSizeChange={onTextSizeChange}
+        />
       </div>
     )
   }
@@ -395,7 +418,12 @@ function Settings({ appearance, onAppearanceChange, login, connected, onSignedOu
         <ModelRow settings={settings} onSave={save} />
       </Group>
       {settings && <GatewayGroup settings={settings} onSave={save} />}
-      <AppearanceGroup appearance={appearance} onAppearanceChange={onAppearanceChange} />
+      <AppearanceGroup
+          appearance={appearance}
+          onAppearanceChange={onAppearanceChange}
+          textSize={textSize}
+          onTextSizeChange={onTextSizeChange}
+        />
     </div>
   )
 }

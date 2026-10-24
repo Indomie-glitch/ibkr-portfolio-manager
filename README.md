@@ -31,6 +31,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Price chart per holding (1D to All) with your average cost marked and the return for the selected range
 * Stock detail sections you can expand or collapse (remembered): key statistics, company profile, news, and total return vs the ASX 200 or S&P 500 over YTD, 1, 3 and 5 years
 * System, light, dark or Terminal (near-black) appearance
+* Adjustable text size (Small to Larger, also ⌘+ / ⌘− / ⌘0 in the Mac app) and trackpad pinch to zoom
 * Refreshes every 60 seconds, and recovers on its own if IB Gateway disconnects and comes back
 
 * AI stock summary (Claude): a 10-part briefing on any holding, covering the business, financial health, valuation, a news digest, why the price moved, upcoming events, bull and bear case, key risks, what it means for your position, and why the price moved since your last summary (in line with the market given the stock's beta, or company specific, with any news from that window). It only uses data the app fetched, cites a source for every point, and never gives buy/sell advice

@@ -392,8 +392,8 @@ pub(crate) fn shutdown_for_update(app: &AppHandle) {
 }
 
 /// The macOS menu: the default one plus, under the app name after About, "Check for Updates…" and
-/// "Settings…" (⌘,). Choosing one tells the page: to check for an update (and to say so if there's
-/// none), or to open the Settings sheet.
+/// "Settings…" (⌘,), and under View the text size items (⌘+ ⌘− ⌘0). Choosing one tells the page: to
+/// check for an update (and to say so if there's none), to open the Settings sheet, or to change size.
 fn add_app_menu_items(app: &AppHandle) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
     let menu = Menu::default(app)?;
@@ -405,9 +405,23 @@ fn add_app_menu_items(app: &AppHandle) -> tauri::Result<()> {
         let settings = MenuItem::with_id(app, "open_settings", "Settings…", true, Some("CmdOrCtrl+,"))?;
         app_menu.insert(&settings, 3)?;
     }
+    // View: text size (the page zooms; ⌘= is ⌘+ without Shift)
+    let view = menu
+        .items()?
+        .iter()
+        .filter_map(|item| item.as_submenu().cloned())
+        .find(|submenu| submenu.text().is_ok_and(|text| text == "View"));
+    if let Some(view) = view {
+        view.insert(&PredefinedMenuItem::separator(app)?, 0)?;
+        view.insert(&MenuItem::with_id(app, "text_bigger", "Bigger Text", true, Some("CmdOrCtrl+="))?, 0)?;
+        view.insert(&MenuItem::with_id(app, "text_smaller", "Smaller Text", true, Some("CmdOrCtrl+-"))?, 1)?;
+        view.insert(&MenuItem::with_id(app, "text_reset", "Default Text Size", true, Some("CmdOrCtrl+0"))?, 2)?;
+    }
     app.set_menu(menu)?;
     app.on_menu_event(|app, event| {
-        if event.id() == "check_for_updates" {
+        if let Some(action) = event.id().as_ref().strip_prefix("text_") {
+            let _ = app.emit("text-size", action);
+        } else if event.id() == "check_for_updates" {
             let _ = app.emit("check-for-updates", ());
         } else if event.id() == "open_settings" {
             let _ = app.emit("open-settings", ());
@@ -415,6 +429,19 @@ fn add_app_menu_items(app: &AppHandle) -> tauri::Result<()> {
     });
     Ok(())
 }
+
+/// Turns on trackpad pinch to zoom (like Safari). Tauri has no option for it, so it is set on the
+/// native WKWebView (`allowsMagnification`).
+#[cfg(target_os = "macos")]
+fn enable_pinch_zoom(window: &tauri::WebviewWindow) {
+    let _ = window.with_webview(|webview| unsafe {
+        let wk_webview: &objc2::runtime::AnyObject = &*(webview.inner() as *const objc2::runtime::AnyObject);
+        let _: () = objc2::msg_send![wk_webview, setAllowsMagnification: true];
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn enable_pinch_zoom(_window: &tauri::WebviewWindow) {}
 
 /// Asks the backend to shut down cleanly (uvicorn closes the IB connection on SIGTERM), and
 /// forces it after 3 seconds.
@@ -458,6 +485,9 @@ pub fn run() {
             updater::manage(app.handle());
             add_app_menu_items(app.handle())?;
             open_main_window(app.handle(), connection.as_ref())?;
+            if let Some(window) = app.get_webview_window("main") {
+                enable_pinch_zoom(&window);
+            }
             remove_old_keychain_items(app.handle().clone());
             Ok(())
         })
