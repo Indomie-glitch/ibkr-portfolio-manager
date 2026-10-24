@@ -16,7 +16,9 @@ function flexHint(inApp) {
     : { note: 'Set up an IBKR Flex Query', noteTone: 'muted', noteHref: FLEX_GUIDE_URL }
 }
 
-export function lotCards(lots, flexConfigured, { inApp = false } = {}) {
+// flexError: GET /lots/status last_error (already masked), shown under "Unknown" when Flex is set up
+// but the last download failed (#231).
+export function lotCards(lots, flexConfigured, { inApp = false, flexError = null } = {}) {
   // Lots bought on the same day share a purchase date and so a CGT date: the dates and CGT
   // countdown are per day, while the purchase count is IBKR's lots (#192)
   const purchases = lots?.lots?.length ?? 0
@@ -28,8 +30,14 @@ export function lotCards(lots, flexConfigured, { inApp = false } = {}) {
   }
   const known = [...byDay.values()]
   if (!known.length) {
+    const failed = flexConfigured !== false && flexError
     return {
-      purchase: { value: 'Unknown', ...(flexConfigured === false ? flexHint(inApp) : { note: null, noteTone: 'muted' }) },
+      purchase: {
+        value: 'Unknown',
+        ...(flexConfigured === false
+          ? flexHint(inApp)
+          : { note: failed ? `Flex download failed: ${flexError}` : null, noteTone: failed ? 'warning' : 'muted' }),
+      },
       cgt: { value: 'Unknown', note: null },
     }
   }

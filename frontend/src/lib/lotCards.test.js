@@ -29,6 +29,8 @@ const cases = [
   ['Flex set up, shares not covered', lotCards({ lots: [], unknown_quantity: 100 }, true),
     { purchase: ['Unknown', null], cgt: ['Unknown', null] }],
   ['request failed', lotCards(null, undefined), { purchase: ['Unknown', null], cgt: ['Unknown', null] }],
+  ['Flex download failed', lotCards({ lots: [], unknown_quantity: 100 }, true, { flexError: 'Token expired' }),
+    { purchase: ['Unknown', 'Flex download failed: Token expired'], cgt: ['Unknown', null] }],
   ['1 day left', lotCards({ lots: [lot('2025-10-17', '2026-10-18', 1)], unknown_quantity: 0 }, true),
     { purchase: ['17 Oct 2025', null], cgt: ['18 Oct 2026', '1 day left', 'warning'] }],
 ]
