@@ -1,5 +1,6 @@
 //! Non-secret settings from the Settings screen, in settings.json in Application Support.
-//! The app stores nothing secret: the IBKR password and the Anthropic key live only in memory.
+//! The IBKR password is never stored. The Anthropic key is only stored if the user asks, encrypted,
+//! by keystore.rs (not in this file).
 
 use std::path::PathBuf;
 

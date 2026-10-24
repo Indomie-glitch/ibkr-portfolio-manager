@@ -1,4 +1,5 @@
 mod gateway;
+mod keystore;
 mod session;
 mod settings;
 mod traffic_lights;
@@ -23,6 +24,8 @@ struct Backend {
     /// Whether the user has given an Anthropic key this session (it lives only in the backend's
     /// memory and is gone when the app quits)
     api_key_set: std::sync::atomic::AtomicBool,
+    /// The key itself, in memory only, so "Remember key on this Mac" can be switched on later
+    api_key: Mutex<Option<String>>,
 }
 
 impl Backend {
@@ -81,7 +84,7 @@ fn start_backend(app: &AppHandle) -> Result<Option<(Backend, Connection)>, Box<d
     let mut stdin = child.stdin.take().ok_or("backend stdin unavailable")?;
     writeln!(stdin, "{}", connection.token)?;
     stdin.flush()?;
-    let backend = Backend { child: Mutex::new(Some(child)), stdin: Mutex::new(Some(stdin)), api_key_set: Default::default() };
+    let backend = Backend { child: Mutex::new(Some(child)), stdin: Mutex::new(Some(stdin)), api_key_set: Default::default(), api_key: Default::default() };
     send_settings_to_backend(&backend, &settings::load(app))?;
     Ok(Some((backend, connection)))
 }
@@ -278,30 +281,81 @@ fn install_gateway(app: AppHandle, setup: State<GatewaySetup>) -> Result<(), Str
     Ok(())
 }
 
-/// Whether an Anthropic key has been given this session.
-#[tauri::command]
-fn api_key_status(backend: State<Backend>) -> bool {
-    backend.api_key_set.load(std::sync::atomic::Ordering::SeqCst)
+/// Whether an Anthropic key is in use this session, and whether a copy is remembered on this Mac.
+#[derive(serde::Serialize)]
+struct ApiKeyStatus {
+    in_use: bool,
+    remembered: bool,
 }
 
-/// Hands the Anthropic key to the backend, which keeps it in memory only. Nothing is stored: it's
-/// gone when the app quits.
+fn data_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path().app_data_dir().map_err(|e| e.to_string())
+}
+
 #[tauri::command]
-fn set_api_key(backend: State<Backend>, key: String) -> Result<(), String> {
+fn api_key_status(app: AppHandle, backend: State<Backend>) -> ApiKeyStatus {
+    ApiKeyStatus {
+        in_use: backend.api_key_set.load(std::sync::atomic::Ordering::SeqCst),
+        remembered: data_dir(&app).is_ok_and(|dir| keystore::exists(&dir)),
+    }
+}
+
+/// Hands the Anthropic key to the backend, which keeps it in memory. With `remember`, an encrypted
+/// copy is also saved (keystore.rs); without it, any older saved copy is deleted.
+#[tauri::command]
+fn set_api_key(app: AppHandle, backend: State<Backend>, key: String, remember: bool) -> Result<(), String> {
     let key = key.trim();
     if key.is_empty() || key.len() > 1000 {
         return Err("That doesn't look right: it's empty or too long.".into());
     }
     backend.send(json!({ "set_secret": "anthropic_api_key", "value": key }))?;
     backend.api_key_set.store(true, std::sync::atomic::Ordering::SeqCst);
+    *backend.api_key.lock().unwrap() = Some(key.to_string());
+    let dir = data_dir(&app)?;
+    if remember {
+        keystore::save(&dir, key)
+    } else {
+        keystore::remove(&dir);
+        Ok(())
+    }
+}
+
+/// The "Remember key on this Mac" switch for the key already in use: on saves it, off deletes the
+/// saved copy (the key stays in use until the app quits).
+#[tauri::command]
+fn remember_api_key(app: AppHandle, backend: State<Backend>, remember: bool) -> Result<(), String> {
+    let dir = data_dir(&app)?;
+    if !remember {
+        keystore::remove(&dir);
+        return Ok(());
+    }
+    let key = backend.api_key.lock().unwrap().clone().ok_or("There is no key to remember.")?;
+    keystore::save(&dir, &key)
+}
+
+/// Remove: forgets the key in the backend and deletes the saved copy.
+#[tauri::command]
+fn clear_api_key(app: AppHandle, backend: State<Backend>) -> Result<(), String> {
+    backend.send(json!({ "clear_secret": "anthropic_api_key" }))?;
+    backend.api_key_set.store(false, std::sync::atomic::Ordering::SeqCst);
+    *backend.api_key.lock().unwrap() = None;
+    keystore::remove(&data_dir(&app)?);
     Ok(())
 }
 
-#[tauri::command]
-fn clear_api_key(backend: State<Backend>) -> Result<(), String> {
-    backend.send(json!({ "clear_secret": "anthropic_api_key" }))?;
-    backend.api_key_set.store(false, std::sync::atomic::Ordering::SeqCst);
-    Ok(())
+/// At launch: sends a remembered key to the backend (an unreadable file is deleted by load()).
+fn restore_api_key(app: &AppHandle) {
+    let backend = app.state::<Backend>();
+    let Ok(dir) = data_dir(app) else { return };
+    if backend.stdin.lock().unwrap().is_none() {
+        return;
+    }
+    if let Some(key) = keystore::load(&dir) {
+        if backend.send(json!({ "set_secret": "anthropic_api_key", "value": key })).is_ok() {
+            backend.api_key_set.store(true, std::sync::atomic::Ordering::SeqCst);
+            *backend.api_key.lock().unwrap() = Some(key);
+        }
+    }
 }
 
 /// The main window. With a bundled backend, a script run before the page tells the frontend
@@ -477,11 +531,12 @@ pub fn run() {
             }
             let (backend, connection) = match start_backend(app.handle())? {
                 Some((backend, connection)) => (backend, Some(connection)),
-                None => (Backend { child: Mutex::new(None), stdin: Mutex::new(None), api_key_set: Default::default() }, None),
+                None => (Backend { child: Mutex::new(None), stdin: Mutex::new(None), api_key_set: Default::default(), api_key: Default::default() }, None),
             };
             app.manage(backend);
             app.manage(GatewaySetup(Mutex::new(gateway::Progress::default())));
             app.manage::<SharedSession>(Arc::new(session::Session::default()));
+            restore_api_key(app.handle());
             updater::manage(app.handle());
             add_app_menu_items(app.handle())?;
             open_main_window(app.handle(), connection.as_ref())?;
@@ -494,6 +549,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             api_key_status,
             set_api_key,
+            remember_api_key,
             clear_api_key,
             updater::check_for_update,
             updater::download_update,

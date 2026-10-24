@@ -59,7 +59,7 @@ The separate programs running on your Mac, and how they connect. There are two w
 flowchart TB
     subgraph bundle["Portfolio Manager.app"]
         direction TB
-        shell["Tauri shell (Rust)<br/>src-tauri/src/<br/>window, menus, sign in,<br/>settings, updates,<br/>links to the browser"]
+        shell["Tauri shell (Rust)<br/>src-tauri/src/<br/>window, menus, sign in,<br/>settings, updates,<br/>remembered API key (encrypted),<br/>links to the browser"]
         ui["React frontend<br/>frontend/src/<br/>everything you see"]
         be["Python backend<br/>backend/ (packed by PyInstaller)<br/>FastAPI on a random free port"]
         ibc["IBC + StdinLauncher (Java)<br/>starts Gateway and types<br/>the login for you"]
@@ -438,7 +438,8 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | Daily closes for the risk analysis (holdings, indexes, exchange rate pairs against the account's currency) | `risk_prices.sqlite` | about 3 years, updated once a day per symbol |
 | Returns over past crashes (2008, 2020, 2022) for the stress tests | `risk_prices.sqlite` (table `risk_scenarios`) | kept (fetched once per symbol) |
 | App settings (Gateway port, AI model, username) | `settings.json` | until changed |
-| Anthropic API key, Flex token | backend memory only (Mac app) or `.env` (dev) | until the app quits |
+| Anthropic API key | backend memory (Mac app), plus an encrypted copy (`api_key.enc` + `api_key.secret`, mode 600) only if "Remember key on this Mac" is on; `.env` in dev | until the app quits, or until removed when remembered |
+| Flex token | `.env` (dev; no way to enter it in the app yet) | until changed |
 | IBKR password | sent to Gateway once, never stored | not kept |
 | UI preferences (theme, text size, open sections, recent stocks) | browser localStorage | until cleared |
 | Watchlists (names and stocks) | browser localStorage (`watchlists`) | until deleted |
