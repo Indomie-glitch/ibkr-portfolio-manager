@@ -255,3 +255,13 @@ async function readEvents(response, onEvent) {
     }
   }
 }
+
+// Borrowing safeguard (#289): { account_id, block, change_here }
+export function fetchBorrowing() {
+  return getJson('/trading/borrowing')
+}
+
+// Browser version only (the Mac app uses Touch ID, desktop/appBorrowing.js): { block, confirm? }
+export function changeBorrowing(change) {
+  return postJson('/trading/borrowing', change)
+}

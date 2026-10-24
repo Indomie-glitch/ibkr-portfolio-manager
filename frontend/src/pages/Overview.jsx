@@ -12,8 +12,20 @@ function Overview({ account, holdings, onOpenHolding }) {
   const pnlPct = pnl != null && costBasis ? (pnl / costBasis) * 100 : null
   const cashShare = account.net_liquidation ? (account.cash / account.net_liquidation) * 100 : null
 
+  // Cash below zero in any currency is money owed to IBKR, charged interest daily (#289)
+  const owed = account.negative_balances ?? []
+
   return (
     <>
+      {owed.length > 0 && (
+        <div className="borrow-warning" role="alert">
+          <strong>You owe IBKR {owed.map((o) => formatMoney(o.amount, o.currency)).join(' and ')}.</strong>{' '}
+          {owed.length === 1 ? 'That cash balance is' : 'Those cash balances are'} below zero, which is a loan from IBKR
+          charged interest every day. Paying it off means converting another currency or adding cash in IBKR, or
+          selling holdings in that currency.
+        </div>
+      )}
+
       {/* ids: where the portfolio summary's citation chips scroll to */}
       <section id="portfolio-value">
         <p className="nlv-label">Net Liquidation Value</p>

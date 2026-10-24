@@ -5295,3 +5295,48 @@ button.ai-source:hover {
   color: var(--text-2);
   font-size: 13px;
 }
+
+/* Borrowing safeguard (#289): Block borrowing's switch is red when off (borrowing allowed) */
+.settings-toggle.danger-off[aria-checked='false'] {
+  background: var(--pill-loss);
+}
+
+.borrow-warning {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--loss-badge-bg);
+  color: var(--loss);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.borrow-backdrop {
+  z-index: 200;
+}
+
+.borrow-explainer {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.borrow-explainer ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.borrow-type {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.pill-button.danger-text {
+  color: var(--loss);
+}
