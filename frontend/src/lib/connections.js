@@ -301,6 +301,8 @@ export function buildMap({ stock, holdings = [], indices = [], members = {}, com
   boardOnly.forEach((d, i) => {
     const p = { x: boardXs[i], y: i % 2 ? PEOPLE_ROWS[1] : PEOPLE_ROWS[0] }
     const heldLinks = (d.also_on ?? []).map((a) => heldBySymbol.get(`${a.market}:${a.symbol}`)).filter(Boolean)
+    // Boards they still sit on: the document can list ones they've left, with dates
+    const current = (d.other_boards ?? []).filter((b) => !isFormerBoard(parseBoardEntry(b)))
     const id = `board:${i}`
     const node = {
       id, kind: 'director', x: p.x, y: p.y, r: 16, label: initials(d.name), group: 'people',
@@ -311,7 +313,7 @@ export function buildMap({ stock, holdings = [], indices = [], members = {}, com
         body: [
           [ROLE_WORDS[d.role] ?? 'Director', d.independent ? 'independent' : null, d.appointed_year ? `since ${d.appointed_year}` : null]
             .filter(Boolean).join(', '),
-          d.other_boards?.length ? `Also: ${d.other_boards.slice(0, 3).join('; ')}` : null,
+          current.length ? `Also: ${current.slice(0, 3).join('; ')}` : null,
         ].filter(Boolean).join('. '),
         forYou: heldLinks.length ? `Also on the board of ${listWords(heldLinks.map((h) => h.symbol))}, which you own.` : null,
       },
