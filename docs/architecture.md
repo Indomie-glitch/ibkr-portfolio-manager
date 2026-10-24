@@ -104,7 +104,7 @@ flowchart TB
 
     subgraph routers["routers/ (the API)"]
         r_app["app.py<br/>/health (connected,<br/>answering)"]
-        r_pos["positions.py<br/>/positions /account /quotes<br/>/search /prices /history<br/>/profile /stats /news /performance"]
+        r_pos["positions.py<br/>/positions /account /quotes<br/>/search /prices /history<br/>/profile /stats /news /performance<br/>/executives"]
         r_flex["flex.py<br/>/lots/status /lots/{id}"]
         r_sum["summaries.py<br/>/summary/... /portfolio-summary/...<br/>/usage"]
         r_trade["trading.py<br/>/trading/status /orders<br/>/orders/preview /stream<br/>cancel, modify,<br/>/trading/borrowing"]
