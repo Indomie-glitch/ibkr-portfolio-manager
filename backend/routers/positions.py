@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 import borrowing
 import fx
+import person_data
 import news_sentiment
 import yahoo
 from cache import cached
@@ -207,10 +208,18 @@ async def executives(con_id: int):
     """The company's executives from Yahoo (name, title, age, pay when listed; cached 1 week).
     Board-only members are kept apart under "directors" for #113. 404 for unmapped exchanges; 502
     when Yahoo fails; an empty list when Yahoo lists nobody (e.g. an ETF)."""
-    _, symbol = await yahoo_target(con_id)
+    contract, symbol = await yahoo_target(con_id)
 
     async def fetch():
-        return {"yahoo_symbol": symbol, **yahoo.executives_from_info(await yahoo_info(symbol))}
+        info = await yahoo_info(symbol)
+        found = yahoo.executives_from_info(info)
+        try:
+            # Kept for the weekly look-up of what Wikipedia and Wikidata say about them (#280)
+            person_data.record_executives("ASX" if symbol.endswith(".AX") else "US", contract.symbol,
+                                          info.get("longName") or info.get("shortName") or contract.symbol, found["executives"])
+        except Exception as exc:  # never a reason for this answer to fail
+            print(f"Person data: couldn't record executives: {exc.__class__.__name__}")
+        return {"yahoo_symbol": symbol, **found}
 
     return await call_yahoo(lambda: cached(("executives", symbol), EXECUTIVES_TTL, fetch))
 

@@ -44,6 +44,14 @@ def index_loader_enabled():
     return os.getenv("INDEX_LOADER", "").strip().lower() not in ("0", "false", "no", "off")
 
 
+def person_data_enabled():
+    """Whether the weekly check for new people's Wikipedia and Wikidata facts runs (#280). On by default;
+    PERSON_DATA=0 in .env (or "person_data": false from the app) turns it off."""
+    if IN_APP:
+        return SETTINGS.get("person_data") is not False
+    return os.getenv("PERSON_DATA", "").strip().lower() not in ("0", "false", "no", "off")
+
+
 def ib_port():
     """IB Gateway's API port: the Settings screen in the Mac app, IB_PORT in .env in development."""
     return int(SETTINGS.get("ib_port") or os.getenv("IB_PORT", "4002"))
