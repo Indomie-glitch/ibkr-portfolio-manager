@@ -12,16 +12,20 @@ function bounded(view) {
   return { zoom, x, y }
 }
 
-function Node({ node, hovered, onHover, onOpen }) {
-  const clickable = Boolean(node.open || node.link)
+function Node({ node, hovered, selected, onHover, onOpen, onSelect }) {
+  const openable = Boolean(node.open || node.link)
+  // In select mode (the full page) a click selects any node and a double click opens it; otherwise a click opens it
+  const clickable = onSelect ? true : openable
+  const activate = () => (onSelect ? onSelect(node) : onOpen(node))
   const common = {
-    className: `con-node con-${node.kind} ${node.mine ? 'mine' : ''} ${hovered ? 'hovered' : ''} ${clickable ? 'clickable' : ''}`,
+    className: `con-node con-${node.kind} ${node.mine ? 'mine' : ''} ${hovered ? 'hovered' : ''} ${selected ? 'selected' : ''} ${clickable ? 'clickable' : ''}`,
     onMouseEnter: () => onHover(node.id),
     onMouseLeave: () => onHover(null),
     onFocus: () => onHover(node.id),
     onBlur: () => onHover(null),
-    onClick: clickable ? () => onOpen(node) : undefined,
-    onKeyDown: clickable ? (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen(node)) : undefined,
+    onClick: clickable ? activate : undefined,
+    onDoubleClick: onSelect && openable ? () => onOpen(node) : undefined,
+    onKeyDown: clickable ? (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), activate()) : undefined,
     tabIndex: 0,
     role: clickable ? 'button' : 'img',
     'aria-label': `${node.tooltip.title}. ${node.tooltip.body ?? ''}`,
@@ -66,6 +70,14 @@ function Node({ node, hovered, onHover, onOpen }) {
   )
 }
 
+// The dashed ring round the selected node
+function SelectionRing({ node }) {
+  if (node.w) {
+    return <rect className="con-ring" x={node.x - node.w / 2 - 5} y={node.y - node.h / 2 - 5} width={node.w + 10} height={node.h + 10} rx="9" />
+  }
+  return <circle className="con-ring" cx={node.x} cy={node.y} r={(node.r ?? 16) + 8} />
+}
+
 function Tooltip({ node, view, size }) {
   // The node's position on screen: drawing units -> zoom and pan -> the map's size in pixels
   const scale = size.width / WIDTH
@@ -90,8 +102,10 @@ function Tooltip({ node, view, size }) {
 }
 
 // The relationship map: an SVG drawing that scales to the panel, with scroll to zoom (around the
-// pointer), drag to pan and double-click to reset. children: overlays (the competitors' scope keys).
-export default function ConnectionMap({ shown, onOpen, children }) {
+// pointer), drag to pan and double-click on empty space to reset. children: overlays (the competitors'
+// scope keys). onSelect + selectedId: the full page's select mode (click selects, double click opens);
+// zoomButtons adds the + and − control.
+export default function ConnectionMap({ shown, onOpen, onSelect, selectedId = null, zoomButtons = false, children }) {
   const boxRef = useRef(null)
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 })
   const [hovered, setHovered] = useState(null)
@@ -137,8 +151,19 @@ export default function ConnectionMap({ shown, onOpen, children }) {
     setView(bounded({ ...start.view, x: start.view.x + (event.clientX - start.x) * scale, y: start.view.y + (event.clientY - start.y) * scale }))
   }
 
+  function zoomBy(factor) {
+    // Around the middle of what's showing
+    setView((v) => {
+      const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * factor))
+      const dx = (WIDTH / 2 - v.x) / v.zoom
+      const dy = (HEIGHT / 2 - v.y) / v.zoom
+      return bounded({ zoom, x: WIDTH / 2 - dx * zoom, y: HEIGHT / 2 - dy * zoom })
+    })
+  }
+
   const nodeById = new Map(shown.nodes.map((n) => [n.id, n]))
   const hoveredNode = hovered ? nodeById.get(hovered) : null
+  const selectedNode = selectedId ? nodeById.get(selectedId) : null
 
   return (
     <div
@@ -147,7 +172,7 @@ export default function ConnectionMap({ shown, onOpen, children }) {
       onPointerDown={pointerDown}
       onPointerMove={pointerMove}
       onPointerUp={() => (drag.current = null)}
-      onDoubleClick={() => setView({ zoom: 1, x: 0, y: 0 })}
+      onDoubleClick={(event) => !event.target.closest('.con-node') && setView({ zoom: 1, x: 0, y: 0 })}
     >
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="group" aria-label="Connections map">
         <g transform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
@@ -165,12 +190,24 @@ export default function ConnectionMap({ shown, onOpen, children }) {
               {l.text}
             </text>
           ))}
+          {selectedNode && <SelectionRing node={selectedNode} />}
           {shown.nodes.map((n) => (
-            <Node key={n.id} node={n} hovered={hovered === n.id} onHover={setHovered} onOpen={onOpen} />
+            <Node key={n.id} node={n} hovered={hovered === n.id} selected={selectedId === n.id} onHover={setHovered}
+              onOpen={onOpen} onSelect={onSelect} />
           ))}
         </g>
       </svg>
       {children}
+      {zoomButtons && (
+        <div className="con-zoom" role="group" aria-label="Zoom">
+          <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.4)} disabled={view.zoom >= MAX_ZOOM}>
+            +
+          </button>
+          <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.4)} disabled={view.zoom <= MIN_ZOOM}>
+            −
+          </button>
+        </div>
+      )}
       {hoveredNode && <Tooltip node={hoveredNode} view={view} size={size} />}
     </div>
   )
