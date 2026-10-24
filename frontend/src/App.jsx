@@ -3,6 +3,7 @@ import { IN_APP, fetchAccount, fetchHealth, fetchPositions, fetchQuotes, fetchTr
 import { formatTime } from './lib/format.js'
 import { buildHoldings } from './lib/holdings.js'
 import { useAppearance } from './hooks/appearance.js'
+import { useTextSize } from './hooks/textSize.js'
 import { sizeWindowFor } from './desktop/appWindow.js'
 import ConnectionMessage from './components/ConnectionMessage.jsx'
 import SessionBanner from './components/SessionBanner.jsx'
@@ -92,6 +93,7 @@ function App() {
   // Only the newest request may update state, in case an older one finishes later
   const latestRequest = useRef(0)
   const [appearance, setAppearance] = useAppearance()
+  const [textSize, setTextSize] = useTextSize()
   // The Mac app's IBKR sign-in (null outside the app)
   const [login, refreshLogin] = useLogin()
   // Set by Reconnect on the "session ended" banner: show the sign-in form
@@ -333,6 +335,8 @@ function App() {
                 onClose={closeSettings}
                 appearance={appearance}
                 onAppearanceChange={setAppearance}
+                textSize={textSize}
+                onTextSizeChange={setTextSize}
                 login={login}
                 connected={connected}
                 onSignedOut={() => {

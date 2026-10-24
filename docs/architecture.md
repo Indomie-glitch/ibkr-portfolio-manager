@@ -227,7 +227,7 @@ flowchart TB
         api["lib/api.js<br/>every backend call"]
         helpers["lib/format.js, holdings.js,<br/>summaryDiff.js, summarySections.js,<br/>lotCards.js, listPanes.js,<br/>watchlists.js (localStorage store),<br/>orderTicket.js (ticket maths)"]
         riskhelpers["lib/riskData.js (one GET /risk<br/>shared by every panel),<br/>riskLayout.js, riskFormat.js,<br/>riskExplainers.js (ⓘ copy)"]
-        hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, useStockDrop,<br/>usePrices, useStockSearch,<br/>useMenu, appearance"]
+        hooks["hooks/useFetch, useLogin,<br/>useResizableWidth, useStockDrop,<br/>usePrices, useStockSearch,<br/>useMenu, appearance, textSize"]
     end
 
     subgraph desktop["desktop/ (Mac app only)"]
@@ -440,7 +440,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | App settings (Gateway port, AI model, username) | `settings.json` | until changed |
 | Anthropic API key, Flex token | backend memory only (Mac app) or `.env` (dev) | until the app quits |
 | IBKR password | sent to Gateway once, never stored | not kept |
-| UI preferences (theme, open sections, recent stocks) | browser localStorage | until cleared |
+| UI preferences (theme, text size, open sections, recent stocks) | browser localStorage | until cleared |
 | Watchlists (names and stocks) | browser localStorage (`watchlists`) | until deleted |
 
 In the Mac app the files live in `~/Library/Application Support/` under the app's id; in dev they live in `data/` at the top of the repo.
