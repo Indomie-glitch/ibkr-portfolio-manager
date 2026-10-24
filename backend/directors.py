@@ -37,6 +37,8 @@ TIMEOUT_S = 120
 ROLES = ("chair", "deputy_chair", "lead_independent_director", "managing_director_ceo", "executive_director", "director")
 # Checking for a newer document (no AI): once a week per company
 CHECK_EVERY = timedelta(days=7)
+# Documents tried for one company when the newest has no directors (a special meeting's proxy)
+MAX_DOCUMENTS = 3
 
 SYSTEM_PROMPT = """You read one company's proxy statement or annual report and list its board of \
 directors: the people who are directors now, or are standing for election at the next meeting.
@@ -44,7 +46,8 @@ directors: the people who are directors now, or are standing for election at the
 Rules:
 - Only people the document says are (or are nominated to be) directors of this company. Not
   executives who aren't directors, not the company secretary, not former directors who have left.
-- name: as the document writes it, without "Mr", "Ms", "Dr" and without degrees.
+- name: the full first and last name as the document writes it in the director's own biography or
+  nomination, without "Mr", "Ms", "Dr" and without degrees. Never just a surname.
 - role: chair, deputy_chair, lead_independent_director, managing_director_ceo (the CEO or managing
   director who is also on the board), executive_director (another executive on the board), or director.
 - independent: true or false only if the document says so, else null.
@@ -359,10 +362,15 @@ def can_read(market):
     return needs
 
 
-async def find_document(market, symbol):
+async def find_documents(market, symbol):
+    """The company's recent documents, newest first (ASX: just the latest annual report)."""
     if market == "US":
-        return await sources.latest_sec_document(symbol)
-    return await sources.latest_asx_report(symbol)
+        return await sources.sec_documents(symbol)
+    return [await sources.latest_asx_report(symbol)]
+
+
+async def find_document(market, symbol):
+    return (await find_documents(market, symbol))[0]
 
 
 async def read_document(document):
@@ -385,11 +393,18 @@ async def read_board(market, symbol, company_name, con_id=None, client=None):
     async with _locks.setdefault((market, symbol), asyncio.Lock()):
         document = {"company_name": company_name}
         try:
-            document = {**(await find_document(market, symbol)), "company_name": company_name}
-            read, passages = await read_document(document)
-            document = {**read, "company_name": company_name}
+            candidates = await find_documents(market, symbol)
             client = client or anthropic.AsyncAnthropic(api_key=config.anthropic_api_key(), timeout=TIMEOUT_S)
-            seats, warnings = await extract(company_name, document, passages, client, con_id)
+            seats, warnings = [], []
+            # The newest document first; a proxy for a special meeting has no directors to list, so the
+            # next one is tried (up to three: each is one call, a fraction of a cent)
+            for candidate in candidates[:MAX_DOCUMENTS]:
+                document = {**candidate, "company_name": company_name}
+                read, passages = await read_document(document)
+                document = {**read, "company_name": company_name}
+                seats, warnings = await extract(company_name, document, passages, client, con_id)
+                if seats:
+                    break
             if not seats:
                 raise sources.Unreadable("No directors were found in the document.")
             candidates = await sources.wikidata_people(market, symbol, document.get("cik"))
