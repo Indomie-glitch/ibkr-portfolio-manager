@@ -218,7 +218,7 @@ STATS = {
 
 
 class LoaderSettingTests(StoreTestCase):
-    """The background loader does nothing unless it is switched on (#286: no UI uses it yet)."""
+    """The background loader runs only while its setting is on (on by default since #114)."""
 
     def run_loader(self, enabled):
         refresh = mock.AsyncMock()
@@ -243,14 +243,15 @@ class LoaderSettingTests(StoreTestCase):
         seed.assert_called_once()
 
     def test_setting_sources(self):
+        # On by default since #114 uses the data; only an explicit "off" turns it off
         with mock.patch.object(c.config, "IN_APP", False):
-            for value, want in [("1", True), ("true", True), ("", False), ("0", False)]:
+            for value, want in [("", True), ("1", True), ("0", False), ("false", False), ("off", False)]:
                 with mock.patch.dict(os.environ, {"INDEX_LOADER": value}):
                     self.assertEqual(c.config.index_loader_enabled(), want, value)
         with mock.patch.object(c.config, "IN_APP", True), mock.patch.dict(c.config.SETTINGS, {}, clear=True):
-            self.assertFalse(c.config.index_loader_enabled())
-            c.config.SETTINGS["index_loader"] = True
             self.assertTrue(c.config.index_loader_enabled())
+            c.config.SETTINGS["index_loader"] = False
+            self.assertFalse(c.config.index_loader_enabled())
 
 
 class MarketDataTests(StoreTestCase):

@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { IN_APP, fetchAccount, fetchHealth, fetchPositions, fetchQuotes, fetchTradingStatus } from './lib/api.js'
 import { formatTime } from './lib/format.js'
 import { buildHoldings } from './lib/holdings.js'
 import { useAppearance } from './hooks/appearance.js'
+import { StockNavContext } from './lib/stockNav.js'
+import { marketOf } from './lib/connections.js'
+import { pageSubtitle } from './lib/connectionsPage.js'
 import { useTextSize } from './hooks/textSize.js'
 import { sizeWindowFor } from './desktop/appWindow.js'
 import ConnectionMessage from './components/ConnectionMessage.jsx'
@@ -15,6 +18,7 @@ import Overview from './pages/Overview.jsx'
 import OrderConfirm from './components/OrderConfirm.jsx'
 import OrderTicket from './components/OrderTicket.jsx'
 import Markets from './pages/Markets.jsx'
+import ConnectionsPage from './pages/ConnectionsPage.jsx'
 import Orders from './pages/Orders.jsx'
 import Positions from './pages/Positions.jsx'
 import Risk from './pages/Risk.jsx'
@@ -32,7 +36,7 @@ import { useLogin } from './hooks/useLogin.js'
 import { RefreshContext } from './hooks/useFetch.js'
 
 const AUTO_REFRESH_MS = 60_000
-const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', markets: 'Markets', orders: 'Orders', risk: 'Risk' }
+const PAGE_TITLES = { overview: 'Overview', positions: 'Positions', markets: 'Markets', orders: 'Orders', risk: 'Risk', connections: 'Connections' }
 // /health is a cheap local request, so check it often to notice drops and recoveries quickly
 const HEALTH_CHECK_MS = 5_000
 
@@ -55,7 +59,7 @@ async function readHealth() {
 // if the backend is up but IB Gateway isn't; 'not_answering' if Gateway is connected but IBKR stopped
 // answering (usually the account logged in somewhere else, #285); otherwise 'connected'
 // What the pages that need IB are called in the "session ended" note
-const PAGE_NAMES = { markets: 'Markets', watchlist: 'This watchlist', orders: 'Orders', risk: 'Risk' }
+const PAGE_NAMES = { markets: 'Markets', watchlist: 'This watchlist', orders: 'Orders', risk: 'Risk', connections: 'Connections' }
 
 function connectionState(health) {
   if (health === null) return IN_APP ? 'starting' : 'checking'
@@ -191,6 +195,26 @@ function App() {
     setPage('positions')
   }
 
+  // Another stock from a detail panel (Connections, #114): a holding opens on Positions, anything
+  // else on Markets (nonce: opening the same stock twice still counts)
+  const [marketsOpen, setMarketsOpen] = useState(null)
+  // The full Connections page (#279): the stock it's about, and its counts for the toolbar
+  const [connectionsStock, setConnectionsStock] = useState(null)
+  const [connectionSummary, setConnectionSummary] = useState(null)
+  function openConnections(stock) {
+    setConnectionsStock(stock)
+    setConnectionSummary(null)
+    setPage('connections')
+  }
+  function openStock(stock) {
+    if (positions.some((p) => p.con_id === stock.con_id)) {
+      openHolding(stock.con_id)
+      return
+    }
+    setMarketsOpen({ stock, nonce: Date.now() })
+    setPage('markets')
+  }
+
   // In the Mac app: the startup screen while the backend starts, the setup flow until signed in to
   // IBKR, then the dashboard (with a banner and the last figures if the session ends)
   const signedIn = login?.state === 'signed_in'
@@ -248,7 +272,8 @@ function App() {
     }
   }
 
-  const { holdings } = buildHoldings(positions, quotes, account)
+  // Memoised: the Connections page rebuilds its map when this changes
+  const { holdings } = useMemo(() => buildHoldings(positions, quotes, account), [positions, quotes, account])
   const updated = updatedAt ? `Updated ${formatTime(updatedAt)}` : 'Loading…'
   let subtitle =
     page === 'overview' ? `${updated} · Prices delayed 15 min` : `${holdings.length} holdings · ${updated}`
@@ -259,6 +284,9 @@ function App() {
   if (connection === 'stopped') subtitle = 'Not running'
   if (page === 'orders' && connected) subtitle = updated
   if (page === 'markets' && connected) subtitle = 'Search stocks on the ASX and US exchanges'
+  if (page === 'connections' && connected && connectionsStock) {
+    subtitle = pageSubtitle({ name: connectionsStock.name ?? connectionsStock.symbol, market: marketOf(connectionsStock) }, connectionSummary)
+  }
   // The Risk page uses daily closes, not the delayed quotes
   if (page === 'risk' && connected) {
     const stocks = holdings.filter((h) => h.sec_type === 'STK').length
@@ -323,6 +351,7 @@ function App() {
         <main className="content">
           {/* Sections that failed to load try again whenever the data is reloaded (#203) */}
           <RefreshContext.Provider value={dataVersion}>
+          <StockNavContext.Provider value={{ holdings, openStock, openConnections }}>
             <Toolbar
               title={page === 'watchlist' ? watchlist?.name : PAGE_TITLES[page]}
               subtitle={subtitle}
@@ -333,6 +362,7 @@ function App() {
               }}
               trading={connected ? trading : null}
               listKey={listKey}
+              back={page === 'connections' && connectionsStock ? { label: connectionsStock.symbol, onClick: () => openStock(connectionsStock) } : null}
             />
 
             {/* Settings works without a connection: it's where you'd fix one */}
@@ -396,7 +426,7 @@ function App() {
             )}
 
             {/* These pages need live data from IB, so there is no dimmed view: say why instead */}
-            {sessionEnded && ['markets', 'watchlist', 'orders', 'risk'].includes(page) && (
+            {sessionEnded && ['markets', 'watchlist', 'orders', 'risk', 'connections'].includes(page) && (
               <div className="page-message">
                 <div className="session-page-note" role="status">
                   <span>
@@ -413,6 +443,7 @@ function App() {
             {/* Searching needs IB, so no stale view here */}
             {showData && connected && page === 'markets' && (
               <Markets
+                openRequest={marketsOpen}
                 holdings={holdings}
                 refreshKey={dataVersion}
                 trading={trading}
@@ -449,6 +480,11 @@ function App() {
             {/* Daily prices come from Yahoo, but the holdings come from IB */}
             {showData && connected && page === 'risk' && <Risk onMeta={setRiskState} />}
 
+            {/* Opened from "Open full map" in a stock's Connections section (#279); back returns to that stock */}
+            {showData && connected && page === 'connections' && connectionsStock && (
+              <ConnectionsPage key={connectionsStock.con_id} holding={connectionsStock} name={connectionsStock.name} onSummary={setConnectionSummary} />
+            )}
+
             {ticket && connected && (
               <>
                 {/* Stays mounted under the review sheet, so Edit returns to the same numbers */}
@@ -482,6 +518,7 @@ function App() {
                 )}
               </>
             )}
+          </StockNavContext.Provider>
           </RefreshContext.Provider>
         </main>
       </div>

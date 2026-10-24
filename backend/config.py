@@ -4,7 +4,9 @@ Imported before anything that reads settings: in development it loads the repo's
 app passes settings as environment variables instead and sets PORTFOLIO_DATA_DIR to its
 Application Support folder.
 """
+import json
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -33,12 +35,13 @@ def ib_client_id():
 
 
 def index_loader_enabled():
-    """Whether the background task loads index members and their Yahoo data (about 20 minutes of
-    Yahoo calls). Off by default until there is a UI that uses them (#114): INDEX_LOADER=1 in .env
-    in development, "load_index_members" in the app's settings.json."""
+    """Whether the background task keeps index members and their Yahoo data up to date. On by
+    default since the Connections section uses them (#114); the bundled seed means it only tops up.
+    Off with INDEX_LOADER=0 in .env in development, or "load_index_members": false in the app's
+    settings.json."""
     if IN_APP:
-        return bool(SETTINGS.get("index_loader"))
-    return os.getenv("INDEX_LOADER", "").strip().lower() in ("1", "true", "yes", "on")
+        return SETTINGS.get("index_loader") is not False
+    return os.getenv("INDEX_LOADER", "").strip().lower() not in ("0", "false", "no", "off")
 
 
 def ib_port():
@@ -51,6 +54,31 @@ def anthropic_api_key():
     if IN_APP:
         return SECRETS.get("anthropic_api_key")
     return os.getenv("ANTHROPIC_API_KEY")
+
+
+# Settings bundled with the Mac app's backend at build time (write_app_config.py), not in the repo
+APP_CONFIG_PATH = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent)) / "app_config.json"
+
+
+def bundled_setting(name):
+    try:
+        return json.loads(APP_CONFIG_PATH.read_text()).get(name)
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def sec_contact_email():
+    """The contact address SEC requires in every EDGAR request (its fair-access rule; without one
+    EDGAR answers 403): SEC_CONTACT_EMAIL in .env in development; in the Mac app, the address bundled
+    at build time (app_config.json). Never written in the code (#113)."""
+    if IN_APP:
+        return SETTINGS.get("sec_contact_email") or bundled_setting("sec_contact_email") or None
+    return os.getenv("SEC_CONTACT_EMAIL") or None
+
+
+# Board extraction (#113) always uses the cheapest current model, whatever the summaries use: it
+# fills a fixed answer shape from a document, and the seed covers hundreds of companies
+DIRECTORS_MODEL = "claude-haiku-5-5"
 
 
 def flex_token():

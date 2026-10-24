@@ -265,3 +265,43 @@ export function fetchBorrowing() {
 export function changeBorrowing(change) {
   return postJson('/trading/borrowing', change)
 }
+
+// ---------- Connections (#114): indexes, competitors, executives, board ----------
+
+// Reading a board downloads the annual report or proxy and asks Claude: up to a minute or so
+const BOARD_TIMEOUT_MS = 150_000
+
+// The indexes a stock is in: { market, indices: [{ id, name, weight, rank, count, as_of }] } (#110)
+export function fetchStockIndices(conId) {
+  return getJson(`/indices/${conId}`)
+}
+
+// One index's members, largest weight first (#109)
+export function fetchIndexMembers(indexId) {
+  return getJson(`/indices/${encodeURIComponent(indexId)}/members`)
+}
+
+// Companies in the stock's industry (#111); scope "same_market" ranks among its own market only
+export function fetchCompetitors(conId, scope = 'all') {
+  return getJson(`/competitors/${conId}?scope=${scope}`)
+}
+
+// Executives from Yahoo, and board-only members apart (#112)
+export function fetchExecutives(conId) {
+  return getJson(`/executives/${conId}`)
+}
+
+// The board as read from the proxy statement or annual report (#113)
+export function fetchBoard(conId) {
+  return getJson(`/directors/${conId}`)
+}
+
+// Reads the board now with Claude on the user's API key (about half a US cent)
+export function readBoard(conId) {
+  return postJson(`/directors/${conId}`, {}, { timeoutMs: BOARD_TIMEOUT_MS })
+}
+
+// The user's own acceptance of ASX's terms (announcements for private and personal use)
+export function acceptAsxTerms(accept) {
+  return postJson('/directors/asx-terms', { accept })
+}

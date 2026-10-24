@@ -81,6 +81,9 @@ jobs:
 
       - name: Build the backend and IBC
         working-directory: frontend
+        env:
+          # Bundled into the app so it can read US boards from SEC EDGAR (backend/write_app_config.py)
+          SEC_CONTACT_EMAIL: ${{ secrets.SEC_CONTACT_EMAIL }}
         run: |
           npm ci
           npm run build:backend
