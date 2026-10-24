@@ -14,6 +14,9 @@ from ib_connection import ConnectionStatus
 
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
 RECONNECT_SECONDS = 5
+# How often to check that IBKR still answers while connected, and how long to wait (#285)
+CHECK_EVERY_S = 20
+CHECK_TIMEOUT_S = 10
 
 ib = IB()
 # Why we aren't connected (shown to the user after a while) and which client ID to use
@@ -58,6 +61,19 @@ async def get_bars(con_id, duration, bar_size, max_age):
     history_cache[key] = (time.monotonic(), bars)
     return bars
 
+async def check_answering(timeout=CHECK_TIMEOUT_S):
+    """One check that IBKR answers: positions and open orders, both of which need IBKR's servers.
+    Records the outcome on connection; True if answered."""
+    try:
+        await asyncio.wait_for(asyncio.gather(ib.reqPositionsAsync(), ib.reqAllOpenOrdersAsync()), timeout)
+    except asyncio.TimeoutError:
+        connection.check_failed()
+        return False
+    except Exception:  # an IB error answer still means it's answering
+        pass
+    connection.answering()
+    return True
+
 async def keep_connected():
     """Connect to IB Gateway, and reconnect whenever the connection drops.
 
@@ -65,6 +81,7 @@ async def keep_connected():
     and recovers on its own when Gateway comes back.
     """
     connected_port = None
+    last_check = 0
     while True:
         port = config.ib_port()
         if ib.isConnected() and port != connected_port:
@@ -79,6 +96,7 @@ async def keep_connected():
                 connection.connected()
                 # 3 = delayed data, which is free without a market data subscription
                 ib.reqMarketDataType(3)
+                last_check = time.monotonic()
                 print(f"Connected to IB Gateway on {IB_HOST}:{port} as client {connection.client_id}")
             except Exception as exc:
                 # Gateway closed, still starting up, or not logged in yet; try again shortly
@@ -86,6 +104,10 @@ async def keep_connected():
                 connection.failed(exc)
                 print(f"IB Gateway not available ({exc.__class__.__name__}, {connection.problem}); "
                       f"retrying in {RECONNECT_SECONDS}s as client {connection.client_id}")
+        elif time.monotonic() - last_check >= CHECK_EVERY_S:
+            last_check = time.monotonic()
+            if not await check_answering():
+                print("IB Gateway is connected but IBKR didn't answer the check request")
         await asyncio.sleep(RECONNECT_SECONDS)
 
 NOT_CONNECTED = "IB Gateway is not connected"

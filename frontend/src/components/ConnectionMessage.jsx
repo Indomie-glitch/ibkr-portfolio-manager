@@ -23,6 +23,18 @@ const MESSAGES = {
     body: 'Signed in. Your account appears in a few seconds.',
     neutral: true,
   },
+  // Gateway is connected but IBKR stopped answering: IBKR allows one session per username, so a
+  // login elsewhere cuts this one off while Gateway's port stays open (#285)
+  not_answering: IN_APP
+    ? {
+        title: 'Your IBKR session may have been taken over by another login',
+        body: 'IBKR allows one session per username. If you logged in to this account somewhere else (the IBKR mobile app, Client Portal or TWS), this session was cut off. Sign in again here to take it back; that logs the other one out.',
+        action: 'Sign in again',
+      }
+    : {
+        title: 'Your IBKR session may have been taken over by another login',
+        body: 'IB Gateway is connected but IBKR isn’t answering. IBKR allows one session per username, so a login to this account somewhere else (the IBKR mobile app, Client Portal, TWS or another Gateway) cuts this one off. Log in again in IB Gateway; the page picks it up by itself.',
+      },
   stopped: {
     title: 'Portfolio Manager’s background service isn’t running',
     body: 'Quit and reopen the app. If this keeps happening, the log is in ~/Library/Logs/com.indomieglitch.portfoliomanager/backend.log',
@@ -59,7 +71,7 @@ function problemMessage({ problem, port, client_id: clientId }) {
   }
 }
 
-function ConnectionMessage({ state, health, lastUpdated }) {
+function ConnectionMessage({ state, health, lastUpdated, onSignInAgain }) {
   let message = MESSAGES[IN_APP && state === 'disconnected' ? 'connecting' : state]
   if (IN_APP && state === 'disconnected' && health?.problem && health.problem_for_s >= EXPLAIN_AFTER_S) {
     message = problemMessage(health)
@@ -71,6 +83,11 @@ function ConnectionMessage({ state, health, lastUpdated }) {
         <h2>{message.title}</h2>
         <p>{message.body}</p>
         {message.command && <code>{message.command}</code>}
+        {message.action && onSignInAgain && (
+          <button type="button" className="settings-button primary" onClick={onSignInAgain}>
+            {message.action}
+          </button>
+        )}
         <p className="connection-retry">
           <span className="pulse" /> {message.neutral ? 'Waiting for it to answer' : 'Checking again every few seconds'}
           {lastUpdated && ` · last data from ${formatTime(lastUpdated)}`}
