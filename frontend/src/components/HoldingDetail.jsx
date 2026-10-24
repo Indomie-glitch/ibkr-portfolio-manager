@@ -84,7 +84,7 @@ function HoldingDetail({ holding, refreshKey, trading, onTrade }) {
   const lots = useFetch(() => (owned ? fetchLots(holding.con_id) : Promise.resolve(null)), holding.con_id)
   const lotsStatus = useFetch(() => (owned ? fetchLotsStatus() : Promise.resolve(null)), holding.con_id)
   const lotsLoading = owned && (lots.loading || lotsStatus.loading)
-  const dates = lotCards(lots.data, lotsStatus.data?.configured, { inApp: IN_APP })
+  const dates = lotCards(lots.data, lotsStatus.data?.configured, { inApp: IN_APP, flexError: lotsStatus.data?.last_error })
 
   const price = holding.last
   // Buy and Sell open the order ticket while connected; otherwise they say why not
