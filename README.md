@@ -344,8 +344,9 @@ in both the browser version and the Mac app. Orders on a live account use real m
   default and saved per IBKR account; turning it off explains the risks first and needs Touch ID or
   your Mac password (typing BORROW in the browser version). With it off, orders that borrow still
   show the amount before you place them. Overview warns if any currency's cash is already below
-  zero. Sells are never blocked. Open orders aren't counted yet: two buys that each fit your cash
-  can still borrow together.
+  zero. Sells are never blocked. Open buy orders (from this app, TWS or the phone) are counted: what they
+  will use when they fill is taken off the cash first, so two buys that each fit your cash but
+  together would borrow are blocked.
 * **Regular trading hours only.** Orders never trade before the open or after the close.
 * **You choose how long an order lasts.** **Day** orders end at today's close if they haven't
   filled. **Good till cancelled** orders stay open on later days until they fill or you cancel them,

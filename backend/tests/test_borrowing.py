@@ -1,4 +1,5 @@
 """Tests for the borrowing safeguard maths and setting (#289)."""
+import asyncio
 import os
 import sys
 import tempfile
@@ -43,6 +44,35 @@ class BorrowNeededTests(unittest.TestCase):
         borrow = b.borrow_needed("BUY", 100, "USD", {"AUD": 9000, "USD": -300}, "AUD")
         self.assertEqual(borrow["amount"], 106)
 
+    def test_two_buys_that_each_fit_but_together_borrow(self):
+        # 10,000 AUD cash. The first buy (6,000 + 6 fee) fits. With it open, the second (6,000)
+        # can't be covered: 10,000 - 6,006 = 3,994 left, so 2,012 would be borrowed
+        cash = {"AUD": 10000}
+        self.assertIsNone(b.borrow_needed("BUY", 6000, "AUD", cash, "AUD"))
+        reserved = b.reserved_by_open_buys([("AUD", 6000)])
+        self.assertEqual(reserved, {"AUD": 6006})
+        borrow = b.borrow_needed("BUY", 6000, "AUD", cash, "AUD", reserved)
+        self.assertEqual((borrow["amount"], borrow["available"], borrow["reserved"]), (2012, 3994, 6006))
+        self.assertIn("3,994.00 AUD left after 6,006.00 AUD for your open buy orders", b.borrow_message(borrow, "AUD", True))
+
+    def test_open_buys_are_counted_per_currency(self):
+        # 3,000 USD cash, an open AUD buy and two open USD buys: only the USD ones count for USD
+        cash = {"AUD": 50000, "USD": 3000}
+        reserved = b.reserved_by_open_buys([("AUD", 9000), ("USD", 1000), ("USD", 1000)])
+        self.assertEqual(reserved, {"AUD": 9009, "USD": 2012})
+        self.assertIsNone(b.borrow_needed("BUY", 900, "USD", cash, "AUD", reserved))  # 906 <= 988
+        borrow = b.borrow_needed("BUY", 1000, "USD", cash, "AUD", reserved)            # 1,006 > 988
+        self.assertEqual((borrow["amount"], borrow["reason"]), (18, "currency"))
+
+    def test_open_buys_using_all_the_cash(self):
+        borrow = b.borrow_needed("BUY", 100, "USD", {"AUD": 9000, "USD": 500}, "AUD", {"USD": 800})
+        self.assertEqual((borrow["amount"], borrow["available"], borrow["reserved"]), (106, 0, 500))
+
+    def test_open_buys_in_the_base_currency_stop_a_convert_first_hint(self):
+        # No USD, and the AUD is already spoken for: converting AUD isn't the advice, adding cash is
+        borrow = b.borrow_needed("BUY", 100, "USD", {"AUD": 1000}, "AUD", {"AUD": 1000})
+        self.assertEqual(borrow["reason"], "cash")
+
     def test_sells_are_never_checked(self):
         self.assertIsNone(b.borrow_needed("SELL", 1e9, "USD", {}, "AUD"))
 
@@ -55,6 +85,76 @@ class BorrowNeededTests(unittest.TestCase):
     def test_negative_balances_for_overview(self):
         self.assertEqual(b.negative_balances({"AUD": 100, "USD": -1234.567, "SGD": -0.001}),
                          [{"currency": "USD", "amount": 1234.57}])
+
+
+class CheckedOrderTests(unittest.TestCase):
+    """The route: open orders (from this app, TWS or the phone) are taken off the cash (#289)."""
+
+    def check(self, order, cash, open_trades, currency="AUD", price=100.0, allowed=False, replacing=None):
+        from types import SimpleNamespace
+
+        from ib_async import Contract, Order, OrderStatus, Trade
+        from routers import trading as routes
+
+        contract = Contract(conId=1, symbol="BHP", secType="STK", currency=currency)
+        account = {"currency": "AUD", "fx_rates": {"AUD": 1.0, "USD": 1.5}, "cash_by_currency": cash}
+        trades = [Trade(contract=Contract(conId=cid, symbol="X", secType="STK", currency=ccy),
+                        order=Order(orderId=oid, action=action, totalQuantity=qty, orderType=kind, lmtPrice=limit),
+                        orderStatus=OrderStatus(status="PreSubmitted")) for oid, cid, ccy, action, qty, kind, limit in open_trades]
+        request = routes.OrderRequest(con_id=1, **order)
+        # The 10,000 order limit stops a real order from reaching the not-enough-cash case, so lift it here
+        status = {"can_trade": True, "reason": None, "max_order_value": 1e9, "account": "paper", "account_label": "Paper"}
+        with mock.patch.object(routes, "get_contract_info", mock.AsyncMock(return_value=(contract, "BHP"))), \
+                mock.patch.object(routes, "account", mock.AsyncMock(return_value=account)), \
+                mock.patch.object(routes.ib, "portfolio", return_value=[]), \
+                mock.patch.object(routes.ib, "openTrades", return_value=trades), \
+                mock.patch.object(routes.ib, "reqAllOpenOrdersAsync", mock.AsyncMock(return_value=[])), \
+                mock.patch.object(routes.ib, "isConnected", return_value=True), \
+                mock.patch.object(routes.ib, "managedAccounts", return_value=["DU1"]), \
+                mock.patch.object(routes.trading, "status", return_value=status), \
+                mock.patch.object(routes.borrowing, "borrowing_allowed", return_value=allowed):
+            return asyncio.run(routes.checked_order(request, replacing_order_id=replacing))
+
+    LIMIT_BUY = {"action": "BUY", "quantity": 60, "order_type": "LMT", "limit_price": 100}
+
+    def test_the_first_buy_fits_and_the_second_does_not(self):
+        cash = {"AUD": 10000}
+        self.assertEqual(self.check(self.LIMIT_BUY, cash, [])["problems"], [])
+        # An open limit buy of 60 x 100 (a market order is valued at the last price seen)
+        open_buy = [(5, 2, "AUD", "BUY", 60, "LMT", 100.0)]
+        checked = self.check(self.LIMIT_BUY, cash, open_buy)
+        self.assertEqual(checked["borrow"]["amount"], 2012)
+        self.assertEqual(len(checked["problems"]), 1)
+        self.assertIn("open buy orders", checked["problems"][0])
+
+    def test_open_market_orders_use_the_last_price_seen(self):
+        from routers import trading as routes
+        routes.last_prices[2] = 100.0
+        checked = self.check(self.LIMIT_BUY, {"AUD": 10000}, [(5, 2, "AUD", "BUY", 60, "MKT", 0.0)])
+        self.assertEqual(checked["borrow"]["reserved"], 6006)
+
+    def test_sells_and_other_currencies_do_not_use_up_the_cash(self):
+        cash = {"AUD": 10000, "USD": 500}
+        open_orders = [(5, 2, "AUD", "SELL", 60, "LMT", 100.0), (6, 3, "USD", "BUY", 100, "LMT", 100.0)]
+        self.assertEqual(self.check(self.LIMIT_BUY, cash, open_orders)["problems"], [])
+
+    def test_changing_an_open_order_does_not_count_the_old_one(self):
+        cash = {"AUD": 10000}
+        open_buy = [(5, 2, "AUD", "BUY", 60, "LMT", 100.0)]
+        self.assertEqual(self.check(self.LIMIT_BUY, cash, open_buy, replacing=5)["problems"], [])
+
+    def test_not_enough_cash_even_with_nothing_open(self):
+        # 100 x 100 = 10,000 against 4,000 AUD in the account
+        checked = self.check({"action": "BUY", "quantity": 100, "order_type": "LMT", "limit_price": 100}, {"AUD": 4000}, [])
+        self.assertEqual((checked["borrow"]["amount"], checked["borrow"]["reason"]), (6010, "cash"))
+        self.assertIn("Lower the quantity, or add cash first", checked["problems"][0])
+
+    def test_with_borrowing_allowed_it_still_warns(self):
+        open_buy = [(5, 2, "AUD", "BUY", 60, "LMT", 100.0)]
+        checked = self.check(self.LIMIT_BUY, {"AUD": 10000}, open_buy, allowed=True)
+        self.assertEqual(checked["problems"], [])
+        self.assertFalse(checked["borrow"]["blocked"])
+        self.assertIn("2,012.00 AUD", checked["borrow"]["message"])
 
 
 class SettingTests(unittest.TestCase):
