@@ -51,6 +51,13 @@ class NameTests(unittest.TestCase):
         self.assertEqual(people.match_key("Dr. Anne Smith AC FAA"), "anne smith")
         self.assertIsNone(people.match_key("Cher"))
 
+    def test_honours_come_off_the_end_not_the_start(self):
+        # AMD's and Goldman Sachs's director "KC McClure": KC isn't a King's Counsel here
+        self.assertEqual(people.match_key("KC McClure"), "kc mcclure")
+        self.assertEqual(people.match_key("Jane Smith KC"), "jane smith")
+        self.assertEqual(people.match_key("Sir Rod Eddington AC"), "rod eddington")
+        self.assertIsNone(people.match_key("Duffy"))  # a surname alone isn't enough to match anyone
+
     def test_apostrophes_match_whichever_kind_a_document_uses(self):
         self.assertEqual(people.match_key("Paul O’Malley"), people.match_key("Paul O'Malley"))
         self.assertEqual(people.match_key("Christine O’Reilly"), "christine oreilly")
@@ -223,6 +230,52 @@ class TextTests(unittest.TestCase):
         self.assertEqual(sources.select_passages([("Page 1", "Nothing about the company's governance.")]), [])
 
 
+class SelectionTests(unittest.TestCase):
+    """Choosing the pages that describe the board (what the seed run found wrong, #113)."""
+
+    BIO = "Jane Doe | Director since 2019 | Age: 61. Other public company directorships: Acme Corp. Committees: Audit."
+    BYLAWS = "Section 10. A director may be elected at any meeting. Nomination of candidates to serve as director. " * 40
+    COMP = "Director compensation: fees $120,000 stock awards $200,000 total $320,000 " + "1 2 3 4 5 6 7 8 9 0 " * 60
+
+    def test_numbers_pages_score_below_biographies(self):
+        self.assertGreater(sources.section_score(self.BIO * 3), sources.section_score(self.COMP))
+
+    def test_biography_pages_come_first_even_when_other_pages_mention_directors_more(self):
+        sections = [("Page 1", "Cover page"), ("Page 2", self.BIO * 2), ("Page 3", self.BIO * 2), ("Page 4", self.BYLAWS),
+                    ("Page 5", self.BYLAWS), ("Page 6", self.BIO * 2)]
+        chosen = [label for label, _ in sources.select_passages(sections, budget_chars=len(self.BIO) * 7)]
+        for label in ("Page 2", "Page 3", "Page 6"):
+            self.assertIn(label, chosen)
+
+    def test_one_giant_page_is_cut_up_so_its_board_part_can_be_chosen(self):
+        filler = "Risk factors and business description.\n" * 400
+        giant = [("Page 1", filler + "\n" + (self.BIO + "\n") * 30 + filler)]
+        parts = sources.split_large(giant, limit=12_000)
+        self.assertTrue(all(len(text) <= 12_000 * 0.8 for _, text in parts))
+        self.assertEqual(parts[0][0], "Page 1, part 1")
+        chosen = sources.select_passages(giant)
+        self.assertTrue(chosen)
+        self.assertTrue(all("Director since" in text or "Risk" in text for _, text in chosen))
+        self.assertIn("Director since", " ".join(text for _, text in chosen))
+
+    def test_small_sections_are_left_alone(self):
+        sections = [("Page 1", "short"), ("Page 2", "also short")]
+        self.assertEqual(sources.split_large(sections), sections)
+
+
+class InformationStatementTests(unittest.TestCase):
+    def test_def_14c_when_there_is_no_proxy(self):
+        found = sources.choose_filings(submissions(("10-K", "2026-02-23", "0001-26-1", "k.htm"),
+                                                   ("DEF 14C", "2026-03-20", "0001-26-2", "i.htm")), 922621, NOW)
+        self.assertEqual([f["kind"] for f in found], ["DEF 14C"])
+
+    def test_every_recent_proxy_newest_first_and_the_form_preference(self):
+        found = sources.choose_filings(submissions(
+            ("DEF 14A", "2026-10-05", "0001-26-3", "special.htm"), ("DEF 14A", "2026-04-30", "0001-26-2", "annual.htm"),
+            ("DEF 14A", "2024-04-30", "0001-24-1", "old.htm"), ("DEF 14C", "2026-06-01", "0001-26-4", "c.htm")), 1, NOW)
+        self.assertEqual([f["filed"] for f in found], ["2026-10-05", "2026-04-30"])  # the old one is out; 14C only without 14A
+
+
 class WikidataTests(unittest.TestCase):
     def test_answer_grouped_by_person(self):
         answer = {"results": {"bindings": [
@@ -327,7 +380,7 @@ class ExtractTests(StoreTestCase):
 class ReadBoardTests(StoreTestCase):
     def read(self, market, symbol, name, answer, document=None, passages=PASSAGES, wikidata=()):
         document = document or {**DOC, "title": f"{name} document"}
-        with mock.patch.object(directors, "find_document", mock.AsyncMock(return_value=document)), \
+        with mock.patch.object(directors, "find_documents", mock.AsyncMock(return_value=[document])), \
                 mock.patch.object(directors, "read_document", mock.AsyncMock(return_value=(document, passages))), \
                 mock.patch.object(sources, "wikidata_people", mock.AsyncMock(return_value=list(wikidata))):
             return run(directors.read_board(market, symbol, name, client=FakeClient(answer)))
@@ -361,7 +414,7 @@ class ReadBoardTests(StoreTestCase):
         self.assertEqual(sorted(s["symbol"] for s in found["seats"]), ["BHP", "INTC"])
 
     def test_no_document_is_saved_without_calling_claude(self):
-        with mock.patch.object(directors, "find_document", mock.AsyncMock(side_effect=sources.NoDocument("No proxy"))):
+        with mock.patch.object(directors, "find_documents", mock.AsyncMock(side_effect=sources.NoDocument("No proxy"))):
             client = FakeClient({"directors": []})
             result = run(directors.read_board("US", "XYZ", "XYZ Corp", client=client))
         self.assertEqual((result["status"], result["error"]), ("no_document", "No proxy"))
@@ -369,7 +422,7 @@ class ReadBoardTests(StoreTestCase):
 
     def test_a_download_failure_keeps_the_stored_board(self):
         self.read("US", "AAPL", "Apple Inc.", {"directors": [director("Peter Harmer")]})
-        with mock.patch.object(directors, "find_document", mock.AsyncMock(side_effect=sources.SourceUnavailable("SEC down"))):
+        with mock.patch.object(directors, "find_documents", mock.AsyncMock(side_effect=sources.SourceUnavailable("SEC down"))):
             with self.assertRaises(sources.SourceUnavailable):
                 run(directors.read_board("US", "AAPL", "Apple Inc.", client=FakeClient({"directors": []})))
         self.assertEqual(len(directors.board("US", "AAPL")["directors"]), 1)
@@ -377,6 +430,47 @@ class ReadBoardTests(StoreTestCase):
     def test_nothing_found_in_the_document_is_unreadable(self):
         result = self.read("US", "AAPL", "Apple Inc.", {"directors": [director("Jane Invented")]})
         self.assertEqual(result["status"], "unreadable")
+
+
+class FallbackTests(StoreTestCase):
+    """A company's newest proxy can be for a special meeting, with no directors in it."""
+
+    def run_read(self, docs, answers):
+        client = FakeClient({"directors": []})
+        replies = iter(answers)
+
+        async def create(**kwargs):
+            client.messages.calls.append(kwargs)
+            return SimpleNamespace(stop_reason="end_turn", usage=SimpleNamespace(input_tokens=1000, output_tokens=100),
+                                   content=[SimpleNamespace(type="text", text=json.dumps(next(replies)))])
+        client.messages.create = create
+
+        async def read_document(document):
+            return document, PASSAGES
+        with mock.patch.object(directors, "find_documents", mock.AsyncMock(return_value=docs)), \
+                mock.patch.object(directors, "read_document", read_document), \
+                mock.patch.object(sources, "wikidata_people", mock.AsyncMock(return_value=[])):
+            return run(directors.read_board("US", "MSTR", "Strategy Inc", client=client)), client
+
+    def test_the_next_proxy_is_used_when_the_newest_has_no_directors(self):
+        docs = [{**DOC, "title": "special meeting", "filed": "2026-10-05"}, {**DOC, "title": "annual meeting", "filed": "2026-04-30"}]
+        result, client = self.run_read(docs, [{"directors": []}, {"directors": [director("Peter Harmer")]}])
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["document"]["title"], "annual meeting")
+        self.assertEqual(len(client.messages.calls), 2)  # one call per document tried
+        self.assertEqual(usage_store.monthly()["by_feature"]["directors"]["calls"], 2)
+
+    def test_stops_at_the_first_proxy_with_directors(self):
+        docs = [{**DOC, "title": "newest"}, {**DOC, "title": "older"}]
+        result, _ = self.run_read(docs, [{"directors": [director("Peter Harmer")]}])
+        self.assertEqual(result["document"]["title"], "newest")
+        self.assertEqual(usage_store.monthly()["by_feature"]["directors"]["calls"], 1)
+
+    def test_gives_up_after_three_documents(self):
+        docs = [{**DOC, "title": f"proxy {i}"} for i in range(5)]
+        result, _ = self.run_read(docs, [{"directors": []}] * 5)
+        self.assertEqual((result["status"], result["error"]), ("unreadable", "No directors were found in the document."))
+        self.assertEqual(usage_store.monthly()["by_feature"]["directors"]["calls"], directors.MAX_DOCUMENTS)
 
 
 class NeedsTests(StoreTestCase):
