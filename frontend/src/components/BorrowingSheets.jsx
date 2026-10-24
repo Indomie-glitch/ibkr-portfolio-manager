@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IN_APP } from '../lib/api.js'
+import { CAN_CONFIRM_OWNER } from '../desktop/appBorrowing.js'
 
 // The sheets for "Block borrowing" in Settings (#289). Rendered on <body> so they sit above the
 // Settings sheet. Turning blocking off explains borrowing first; Cancel is the default button.
@@ -29,7 +29,7 @@ function SheetFrame({ title, children, onCancel }) {
 export function AllowBorrowingSheet({ onCancel, onConfirm, busy, error }) {
   // The browser version has no Touch ID, so BORROW is typed instead
   const [typed, setTyped] = useState('')
-  const ready = IN_APP || typed.trim() === 'BORROW'
+  const ready = CAN_CONFIRM_OWNER || typed.trim() === 'BORROW'
   return (
     <SheetFrame title="Allow orders to borrow?" onCancel={onCancel}>
       <div className="borrow-explainer">
@@ -42,7 +42,7 @@ export function AllowBorrowingSheet({ onCancel, onConfirm, busy, error }) {
         </ul>
         <p>Orders that borrow will still show how much before you place them.</p>
       </div>
-      {!IN_APP && (
+      {!CAN_CONFIRM_OWNER && (
         <label className="form-row borrow-type">
           <span>Type BORROW to confirm</span>
           <input
@@ -59,7 +59,7 @@ export function AllowBorrowingSheet({ onCancel, onConfirm, busy, error }) {
       <div className="sheet-footer">
         <div className="spacer" />
         <button type="button" className="pill-button secondary danger-text" onClick={onConfirm} disabled={!ready || busy}>
-          {busy && IN_APP ? 'Waiting for Touch ID…' : 'Allow borrowing'}
+          {busy && CAN_CONFIRM_OWNER ? 'Waiting for Touch ID…' : 'Allow borrowing'}
         </button>
         {/* Cancel is the default: focused, and the primary style */}
         {/* oxlint-disable-next-line jsx-a11y/no-autofocus */}
@@ -67,7 +67,7 @@ export function AllowBorrowingSheet({ onCancel, onConfirm, busy, error }) {
           Cancel
         </button>
       </div>
-      {IN_APP && <p className="sheet-note">Next, macOS asks for Touch ID or your Mac password. Nothing is stored.</p>}
+      {CAN_CONFIRM_OWNER && <p className="sheet-note">Next, macOS asks for Touch ID or your Mac password. Nothing is stored.</p>}
     </SheetFrame>
   )
 }

@@ -9,7 +9,7 @@ import { TEXT_SIZES } from '../lib/textSize.js'
 import { gatewayStatus, installGateway } from '../desktop/appGateway.js'
 import { savedLogin, signOut } from '../desktop/appSession.js'
 import { getSettings, saveSettings } from '../desktop/appSettings.js'
-import { allowBorrowing, blockBorrowing } from '../desktop/appBorrowing.js'
+import { CAN_CONFIRM_OWNER, allowBorrowing, blockBorrowing, confirmOwner } from '../desktop/appBorrowing.js'
 import { AllowBorrowingSheet, BlockBorrowingSheet } from '../components/BorrowingSheets.jsx'
 import { CheckCircleIcon, ChevronsIcon } from '../components/icons.jsx'
 
@@ -376,17 +376,18 @@ function TradingGroup({ connected }) {
     setBusy(true)
     setError(null)
     try {
-      if (IN_APP) {
-        const confirmed = await allowBorrowing(setting.account_id)
-        if (!confirmed) {
-          // Cancelled or failed: the switch stays on
-          close()
-          setNote({ text: 'Not changed: macOS didn’t confirm it was you. Borrowing is still blocked.' })
-          return
-        }
-      } else {
-        await changeBorrowing({ block: false, confirm: 'BORROW' })
+      // The app: Rust asks macOS and tells its backend. `npm run tauri dev`: macOS is asked here, then
+      // the development backend is told the same way as in the browser
+      const confirmed = IN_APP
+        ? await allowBorrowing(setting.account_id)
+        : !CAN_CONFIRM_OWNER || (await confirmOwner())
+      if (!confirmed) {
+        // Cancelled or failed: the switch stays on
+        close()
+        setNote({ text: 'Not changed: macOS didn’t confirm it was you. Borrowing is still blocked.' })
+        return
       }
+      if (!IN_APP) await changeBorrowing({ block: false, confirm: 'BORROW' })
       setSetting({ ...setting, block: false })
       setNote(null)
       close()

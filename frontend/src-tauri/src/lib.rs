@@ -260,6 +260,15 @@ async fn allow_borrowing(app: AppHandle, account_id: String) -> Result<bool, Str
     Ok(true)
 }
 
+/// Only the Touch ID / Mac password prompt, for `npm run tauri dev`: there the backend is your own
+/// development one (no stdin to it), so the page sends the change itself after this says yes.
+#[tauri::command]
+async fn confirm_borrowing() -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(|| borrowing::confirm_owner(borrowing::REASON))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// "Block borrowing" back on for this IBKR account (no password needed to make things safer).
 #[tauri::command]
 fn block_borrowing(app: AppHandle, account_id: String) -> Result<(), String> {
@@ -598,6 +607,7 @@ pub fn run() {
             get_settings,
             save_settings,
             allow_borrowing,
+            confirm_borrowing,
             block_borrowing,
             gateway_status,
             install_gateway,
