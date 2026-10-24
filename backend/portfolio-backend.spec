@@ -13,6 +13,8 @@ for package in ("curl_cffi", "certifi"):
     datas += package_datas
     binaries += package_binaries
     hiddenimports += package_hidden
+# Index members with sectors already looked up, so a fresh install only tops them up (constituents.py)
+datas += [("seed/indices.json", "seed")]
 
 a = Analysis(
     ["app_main.py"],

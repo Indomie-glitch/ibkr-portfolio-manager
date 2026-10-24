@@ -464,27 +464,47 @@ async def fetch_altman_inputs(symbol):
     return await _run(_fetch_altman_inputs, symbol)
 
 
-# ---------- Market caps for index members (constituents.py) ----------
+# ---------- Market data for index members (constituents.py) ----------
 
-def _fetch_asx_market_caps():
-    query = yf.EquityQuery("eq", ["exchange", "ASX"])
-    quotes = []
-    # Two pages of 250 (the most Yahoo sends at once): the ASX 200 ranks by free float, so some
-    # members are outside the 250 largest by full market cap
-    for offset in (0, 250):
-        quotes += yf.screen(query, offset=offset, sortField="intradaymarketcap", sortAsc=False, size=250).get("quotes") or []
-    caps = {}
-    for quote in quotes:
-        symbol = (quote.get("symbol") or "").removesuffix(".AX")
-        cap = _number(quote.get("marketCap"))
-        if symbol and cap:
-            caps[symbol] = {"market_cap": cap, "name": quote.get("longName") or quote.get("shortName")}
-    if not caps:
-        raise YahooUnavailable("Yahoo's screener returned no ASX market caps")
-    return caps
+# Yahoo's codes for the US exchanges (NASDAQ, NYSE, NYSE American, Cboe BZX, NYSE Arca); leaving out
+# over-the-counter listings halves the pages needed to reach every S&P 500 member
+SCREEN_EXCHANGES = {"ASX": ["ASX"], "US": ["NMS", "NYQ", "NGM", "NCM", "ASE", "BTS", "PCX"]}
+SCREEN_PAGE = 250  # the most Yahoo's screener sends at once
+SCREEN_MAX_PAGES = {"ASX": 2, "US": 8}
 
 
-async def fetch_asx_market_caps():
-    """The 500 largest ASX stocks' market caps (AUD) and names in two calls: {"BHP": {market_cap, name}}.
-    Enough for the whole ASX 200."""
-    return await _run(_fetch_asx_market_caps)
+def ib_symbol(yahoo_ticker, market):
+    """Yahoo's ticker -> IB's symbol: "BHP.AX" -> "BHP", "BRK-B" -> "BRK B" (the reverse of ticker_for)."""
+    symbol = yahoo_ticker.removesuffix(".AX") if market == "ASX" else yahoo_ticker
+    return symbol.replace("-", " ")
+
+
+def _fetch_market_stats(market, wanted):
+    exchanges = SCREEN_EXCHANGES[market]
+    query = yf.EquityQuery("is-in", ["exchange", *exchanges]) if len(exchanges) > 1 else yf.EquityQuery("eq", ["exchange", exchanges[0]])
+    stats = {}
+    for page in range(SCREEN_MAX_PAGES[market]):
+        quotes = yf.screen(query, offset=page * SCREEN_PAGE, sortField="intradaymarketcap", sortAsc=False,
+                           size=SCREEN_PAGE).get("quotes") or []
+        for quote in quotes:
+            cap = _number(quote.get("marketCap"))
+            if quote.get("symbol") and cap:
+                stats[ib_symbol(quote["symbol"], market)] = {
+                    "market_cap": cap,
+                    "pe": _number(quote.get("trailingPE")),
+                    "return_1y": _number(quote.get("fiftyTwoWeekChangePercent")),  # price change, %
+                    "name": quote.get("longName") or quote.get("shortName"),
+                }
+        # Largest first, so stop once every wanted stock has been seen
+        if len(quotes) < SCREEN_PAGE or (wanted and wanted <= stats.keys()):
+            break
+    if not stats:
+        raise YahooUnavailable(f"Yahoo's screener returned nothing for {market}")
+    return stats
+
+
+async def fetch_market_stats(market, wanted=None):
+    """Market cap (local currency), trailing P/E, 52-week price change (%) and name of a market's
+    largest stocks, from Yahoo's screener a page of 250 at a time (ASX: up to 2 pages, enough for
+    the ASX 200; US: up to 8, stopping once every symbol in wanted is found). Keys are IB symbols."""
+    return await _run(_fetch_market_stats, market, set(wanted or ()))

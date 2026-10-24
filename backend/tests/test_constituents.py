@@ -196,35 +196,97 @@ class RefreshTests(StoreTestCase):
         self.assertFalse(self.index("sp500")["stale"])
 
 
-class MarketCapTests(StoreTestCase):
-    def test_caps_and_better_names(self):
+def stats_source(by_market):
+    """A fake fetch(market, wanted) for refresh_market_stats; a market mapped to an exception raises it."""
+    calls = []
+
+    async def fetch(market, wanted):
+        calls.append((market, set(wanted)))
+        result = by_market[market]
+        if isinstance(result, Exception):
+            raise result
+        return result
+    fetch.calls = calls
+    return fetch
+
+
+STATS = {
+    "US": {"AAPL": {"market_cap": 5e12, "pe": 35.0, "return_1y": 12.5, "name": "Apple Inc."},
+           "MSFT": {"market_cap": 4e12, "pe": 30.0, "return_1y": 8.0, "name": "Microsoft Corporation"}},
+    "ASX": {"BHP": {"market_cap": 2.9e11, "pe": 19.9, "return_1y": 32.8, "name": "BHP Group Limited"}},
+}
+
+
+class MarketDataTests(StoreTestCase):
+    def test_caps_pe_return_and_better_names(self):
         self.refresh_indexes({"sp500": SP500, "asx20": ASX20})
-
-        async def us():
-            return {"AAPL": {"market_cap": 5e12, "name": None}, "MSFT": {"market_cap": 4e12, "name": None}}
-
-        async def asx():
-            return {"BHP": {"market_cap": 2.9e11, "name": "BHP Group Limited"}}
-        asyncio.run(c.refresh_market_caps(NOW, us, asx, force=True))
+        fetch = stats_source(STATS)
+        asyncio.run(c.refresh_market_stats(NOW, fetch, force=True))
+        self.assertEqual(fetch.calls, [("US", {"AAPL", "ALL"}), ("ASX", {"BHP", "ALL"})])  # members only
         apple = c.members("sp500")["members"][0]
-        self.assertEqual((apple["market_cap"], apple["name"]), (5e12, "Apple Inc"))
-        bhp = c.members("asx20")["members"][0]
-        self.assertEqual((bhp["market_cap"], bhp["name"]), (2.9e11, "BHP Group Limited"))
+        self.assertEqual((apple["market_cap"], apple["pe"], apple["return_1y"], apple["name"]),
+                         (5e12, 35.0, 12.5, "Apple Inc."))
+        self.assertEqual(c.members("asx20")["members"][0]["name"], "BHP Group Limited")
 
-    def test_a_failure_keeps_the_last_caps(self):
+    def test_daily(self):
         self.refresh_indexes({"sp500": SP500, "asx20": ASX20})
+        fetch = stats_source(STATS)
+        asyncio.run(c.refresh_market_stats(NOW, fetch))
+        asyncio.run(c.refresh_market_stats(NOW + timedelta(hours=23), fetch))
+        asyncio.run(c.refresh_market_stats(NOW + timedelta(days=1), fetch))
+        self.assertEqual([m for m, _ in fetch.calls], ["US", "ASX", "US", "ASX"])
 
-        async def us():
-            return {"AAPL": {"market_cap": 5e12, "name": None}}
-
-        async def down():
-            raise OSError("timed out")
-        asyncio.run(c.refresh_market_caps(NOW, us, us, force=True))
-        asyncio.run(c.refresh_market_caps(NOW + timedelta(days=8), down, down))
+    def test_a_failure_keeps_the_last_data(self):
+        self.refresh_indexes({"sp500": SP500, "asx20": ASX20})
+        asyncio.run(c.refresh_market_stats(NOW, stats_source(STATS), force=True))
+        down = stats_source({"US": OSError("timed out"), "ASX": OSError("timed out")})
+        asyncio.run(c.refresh_market_stats(NOW + timedelta(days=2), down))
         self.assertEqual(c.members("sp500")["members"][0]["market_cap"], 5e12)
-        caps = c.status()["market_caps"]["US"]
-        self.assertEqual(caps["as_of"], NOW.isoformat())
-        self.assertEqual(caps["last_error"], "Couldn't load US market caps (OSError).")
+        data = c.status()["market_data"]["US"]
+        self.assertEqual(data["as_of"], NOW.isoformat())
+        self.assertEqual(data["last_error"], "Couldn't load US market data (OSError).")
+
+
+class StorageTests(StoreTestCase):
+    def test_a_store_from_before_111_gets_the_new_columns(self):
+        import sqlite3
+        conn = sqlite3.connect(c.DB_PATH)
+        conn.execute("""CREATE TABLE companies (market TEXT NOT NULL, symbol TEXT NOT NULL, name TEXT, market_cap REAL,
+                        market_cap_at TEXT, sector TEXT, industry TEXT, profile_at TEXT, PRIMARY KEY (market, symbol))""")
+        conn.execute("INSERT INTO companies (market, symbol, name) VALUES ('US', 'AAPL', 'Apple')")
+        conn.commit()
+        conn.close()
+        self.assertEqual(c.universe(), [])  # opens and upgrades the store without losing the row
+        with c._connect() as conn:
+            row = conn.execute("SELECT name, pe, return_1y FROM companies").fetchone()
+        self.assertEqual(tuple(row), ("Apple", None, None))
+
+    def test_seed_round_trip(self):
+        self.refresh_indexes({"sp500": SP500, "asx20": ASX20})
+        asyncio.run(c.refresh_market_stats(NOW, stats_source(STATS), force=True))
+        seed = Path(self.dir.name) / "seed" / "indices.json"
+        c.export_seed(seed)
+        before = c.members("sp500")
+        c.DB_PATH.unlink()
+        self.assertTrue(c.load_seed_if_missing(seed))
+        self.assertEqual(c.members("sp500"), before)
+        # Only a fresh install loads it: an existing store is never overwritten
+        self.assertFalse(c.load_seed_if_missing(seed))
+
+
+
+class BundledSeedTests(unittest.TestCase):
+    def test_the_bundled_seed_is_complete(self):
+        """seed/indices.json: every index with enough members, every member company looked up."""
+        data = json.loads(c.SEED_PATH.read_text())
+        counts = {}
+        for member in data["members"]:
+            counts[member["index_id"]] = counts.get(member["index_id"], 0) + 1
+        for index_id, index in c.INDEXES.items():
+            self.assertGreaterEqual(counts.get(index_id, 0), index["min_count"], index_id)
+        members = {(m["market"], m["symbol"]) for m in data["members"]}
+        looked_up = {(co["market"], co["symbol"]) for co in data["companies"] if co["profile_at"]}
+        self.assertEqual(members - looked_up, set())
 
 
 class ProfileTests(StoreTestCase):
@@ -246,18 +308,16 @@ class ProfileTests(StoreTestCase):
         # Looked up: not again until the lookup is 90 days old
         self.assertEqual(asyncio.run(c.fill_profiles(NOW + timedelta(days=30), info, pause_s=0)), 0)
 
-    def test_profile_market_cap_only_fills_a_gap(self):
+    def test_profile_market_data_only_fills_a_gap(self):
         self.refresh_indexes({"sp500": SP500, "asx20": ASX20})
-
-        async def us():
-            return {"AAPL": {"market_cap": 5e12, "name": None}}
-        asyncio.run(c.refresh_market_caps(NOW, us, us, force=True))
+        asyncio.run(c.refresh_market_stats(NOW, stats_source(STATS), force=True))
 
         async def info(symbol):
-            return {"sector": "Technology", "marketCap": 1e9}
+            return {"sector": "Technology", "marketCap": 1e9, "trailingPE": 9.0, "52WeekChange": 0.25}
         asyncio.run(c.fill_profiles(NOW, info, pause_s=0))
-        caps = {m["symbol"]: m["market_cap"] for m in c.members("sp500")["members"]}
-        self.assertEqual(caps, {"AAPL": 5e12, "ALL": 1e9})  # the screener's cap is kept
+        data = {m["symbol"]: (m["market_cap"], m["pe"], m["return_1y"]) for m in c.members("sp500")["members"]}
+        # The screener's numbers are kept; Allstate wasn't in its pages, so the profile's are used
+        self.assertEqual(data, {"AAPL": (5e12, 35.0, 12.5), "ALL": (1e9, 9.0, 25.0)})
 
     def test_stops_when_yahoo_keeps_failing(self):
         self.refresh_indexes({"sp500": SP500, "asx20": ASX20})
