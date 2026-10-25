@@ -44,6 +44,22 @@ def index_loader_enabled():
     return os.getenv("INDEX_LOADER", "").strip().lower() not in ("0", "false", "no", "off")
 
 
+def pipeline_enabled():
+    """Whether the supply chain pipeline's workers run in the background (#116). Off by default: they spend AI budget
+    and download filings. PIPELINE=1 in .env (or "pipeline": true from the app) turns them on."""
+    if IN_APP:
+        return SETTINGS.get("pipeline") is True
+    return os.getenv("PIPELINE", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def pipeline_workers():
+    """How many workers run side by side (PIPELINE_WORKERS, default 2)."""
+    try:
+        return max(1, min(8, int(os.getenv("PIPELINE_WORKERS", "2"))))
+    except ValueError:
+        return 2
+
+
 def ib_port():
     """IB Gateway's API port: the Settings screen in the Mac app, IB_PORT in .env in development."""
     return int(SETTINGS.get("ib_port") or os.getenv("IB_PORT", "4002"))
