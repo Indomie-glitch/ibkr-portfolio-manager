@@ -15,34 +15,25 @@ Every decision is saved in name_resolutions (method for a match, reason for a sk
 twice; a skip is looked at again after RETRY_SKIPPED_DAYS (the index data or OpenFIGI may know more by then).
 OpenFIGI being unreachable is not a decision and is not saved.
 """
+import json
 import re
 import unicodedata
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 import constituents
 from supply_chain import graph, openfigi
 from supply_chain.db import now, transaction
 
+ALIASES_PATH = Path(__file__).resolve().parent.parent / "seed" / "aliases.json"
 RETRY_SKIPPED_DAYS = 30
+DOMINANT_LISTINGS = 3  # a share class with this many times the listings of the next is the company's primary one
 LEGAL_ENDINGS = {
     "inc", "incorporated", "corp", "corporation", "co", "company", "ltd", "limited", "llc", "lp", "llp", "plc", "sa", "ag",
     "nv", "bv", "se", "spa", "sas", "oyj", "ab", "asa", "as", "gmbh", "kk", "pty", "pcl", "tbk", "sab", "de", "cv", "the",
 }
-ALIASES = {  # short names filings use -> the full name's key
-    "tsmc": "taiwan semiconductor manufacturing",
-    "taiwan semiconductor": "taiwan semiconductor manufacturing",
-    "hon hai": "hon hai precision industry",
-    "hynix": "sk hynix",
-    "amd": "advanced micro devices",
-    "amazon": "amazon com",
-    "micron": "micron technology",
-    "marvell": "marvell technology",
-    "meta": "meta platforms",
-    "dell": "dell technologies",
-    "supermicro": "super micro computer",
-    "asml": "asml holding",
-}
-EXCHANGE_MARKETS = {  # OpenFIGI exchange codes -> the market names the store uses
+EXCHANGE_MARKETS = {  # also: HK, SG, CH, SE, IT, ES
+    "HK": "HK", "SP": "SG", "SW": "CH", "SS": "SE", "IM": "IT", "SM": "ES", "C1": "CN", "C2": "CN", "CH": "CN",  # OpenFIGI exchange codes -> the market names the store uses
     "US": "US", "UN": "US", "UW": "US", "UQ": "US", "UA": "US", "UR": "US", "UP": "US", "UV": "US",
     "AU": "ASX", "KS": "KR", "KP": "KR", "JT": "JP", "TT": "TW", "FP": "FR", "LN": "GB", "CT": "CA", "NA": "NL", "GY": "DE",
 }
@@ -63,13 +54,25 @@ def name_key(name):
         words.pop()
     while len(words) > 1 and words[0] == "the":
         words.pop(0)
-    key = " ".join(words)
-    return ALIASES.get(key, key)
+    return " ".join(words)
 
 
 def is_unnamed(name):
     """"Customer A", "one customer", "a large distributor": the filing didn't say who."""
     return bool(UNNAMED.match(re.sub(r"[^a-z0-9]+", " ", str(name or "").lower()).strip()))
+
+
+_alias_cache = {}
+
+
+def alias_entries(path=None):
+    """{name key of a common name: the entry it belongs to} from seed/aliases.json (names filings use that differ from the
+    legal name: Foxconn = Hon Hai Precision). The company's own legal name is not an alias, so it is matched the usual way."""
+    path = Path(path or ALIASES_PATH)
+    if path not in _alias_cache:
+        entries = json.loads(path.read_text(encoding="utf-8"))["aliases"]
+        _alias_cache[path] = {name_key(alias): entry for entry in entries for alias in entry["aliases"]}
+    return _alias_cache[path]
 
 
 def result(status, company_id=None, method=None, reason=None, detail=None, cached=False):
@@ -142,6 +145,20 @@ def figi_groups(key, rows):
     if len(own) == 1 and receipts:
         merged[next(iter(own))] = next(iter(own.values())) + [r for rows_ in receipts.values() for r in rows_]
     return merged
+
+
+def primary_group(groups):
+    """The share class to use: the only one, or the one with most of the listings when it has DOMINANT_LISTINGS times as many
+    as the next (Lenovo: the Hong Kong shares with their dollar, euro and yuan counters, against two stray lines). Otherwise
+    None: several companies of one name, which is not for us to pick."""
+    if not groups:
+        return None
+    if len(groups) == 1:
+        return next(iter(groups))
+    ranked = sorted(groups, key=lambda g: len(groups[g]), reverse=True)
+    if len(groups[ranked[0]]) >= DOMINANT_LISTINGS * max(len(groups[ranked[1]]), 1) and len(groups[ranked[0]]) >= DOMINANT_LISTINGS:
+        return ranked[0]
+    return None
 
 
 async def search_figi(search, name, key):
@@ -222,6 +239,12 @@ async def resolve(conn, name, index_companies=None, search=None, retry_skipped_d
     if len(known) > 1:
         return _save(conn, name, key, result("skipped", reason="ambiguous", detail=f"{len(known)} companies in the store have this name: {known}"))
 
+    # 1b. the alias list: stored with the company as a name identifier, so the next time it's the store that answers
+    entry = alias_entries().get(key)
+    if entry:
+        return _matched(conn, name, key, [(entry["ticker"], entry["market"])], entry["name"], "alias_list",
+                        f"common name of {entry['name']} ({entry['ticker']}, {entry['market']})")
+
     # 2. index members
     hits = index_hits(key, index_companies)
     if hits:
@@ -238,15 +261,16 @@ async def resolve(conn, name, index_companies=None, search=None, retry_skipped_d
     except openfigi.OpenFigiUnavailable as exc:
         return result("unavailable", reason="openfigi_unavailable", detail=str(exc))
     groups = figi_groups(key, rows)
-    if len(groups) == 1:
-        listings = next(iter(groups.values()))
+    primary = primary_group(groups)
+    if primary:
+        listings = groups[primary]
         tickers = sorted({(r["ticker"], EXCHANGE_MARKETS[r["exchCode"]]) for r in listings if r.get("ticker") and r.get("exchCode") in EXCHANGE_MARKETS})
         canonical = listings[0]["name"].title() if listings[0]["name"].isupper() else listings[0]["name"]
         outcome = _matched(conn, name, key, tickers, canonical, "openfigi",
-                           f"OpenFIGI: {', '.join(f'{t} ({m})' for t, m in tickers) or 'no listing on a known exchange'}", figi=next(iter(groups)))
+                           f"OpenFIGI: {', '.join(f'{t} ({m})' for t, m in tickers) or 'no listing on a known exchange'}", figi=primary)
         if outcome["status"] == "matched":
             try:
-                graph.add_identifier(conn, outcome["company_id"], "share_class_figi", next(iter(groups)), source="openfigi")
+                graph.add_identifier(conn, outcome["company_id"], "share_class_figi", primary, source="openfigi")
             except graph.IdentifierConflict:
                 pass
         return outcome
