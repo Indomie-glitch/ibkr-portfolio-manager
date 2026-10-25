@@ -206,6 +206,12 @@ class Resolving(unittest.TestCase):
         self.assertEqual(self.calls, ["Wistron Corporation", "wistron"])
         self.assertEqual(graph.find_company(self.conn, "ticker", "3231", "TW"), outcome["company_id"])
 
+    def test_answer_with_only_other_names_is_retried_without_the_legal_ending(self):
+        self.figi_rows["Lenovo Group Limited"] = [figi("BOC ASI-CW27 LENOVO GROUP", "13226", "HK", "BBG-WAR", sec_type="Warrant")]
+        self.figi_rows["lenovo group"] = [figi("LENOVO GROUP LTD", "992", "HK", "BBG-LEN")]
+        self.assertEqual(self.resolve("Lenovo Group Limited")["status"], "matched")
+        self.assertEqual(self.calls, ["Lenovo Group Limited", "lenovo group"])
+
     def test_listing_only_on_unknown_exchanges_still_matches_by_share_class(self):
         self.figi_rows["Zork Ltd"] = [figi("ZORK LTD", "ZRK", "ZZ", "BBG-ZORK")]
         first = self.resolve("Zork Ltd")

@@ -145,10 +145,11 @@ def figi_groups(key, rows):
 
 
 async def search_figi(search, name, key):
-    """The OpenFIGI answer for a name; when the full name finds nothing, the name without its legal ending is tried too
-    (OpenFIGI doesn't find "Wistron Corporation" but does find "wistron")."""
+    """The OpenFIGI answer for a name; when the full name finds nothing with that name, the name without its legal ending
+    is tried too (OpenFIGI finds nothing for "Wistron Corporation", and only warrants for "Lenovo Group Limited", but the
+    companies themselves for "wistron" and "lenovo group")."""
     rows = await search(name)
-    if not rows and key != re.sub(r"[^a-z0-9]+", " ", name.lower()).strip():
+    if not any(name_key(row.get("name")) == key for row in rows) and key != re.sub(r"[^a-z0-9]+", " ", name.lower()).strip():
         rows = await search(key)
     return rows
 
