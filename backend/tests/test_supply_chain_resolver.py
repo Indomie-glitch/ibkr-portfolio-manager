@@ -45,8 +45,8 @@ class Keys(unittest.TestCase):
         self.assertEqual(resolver.name_key("AT&T Inc."), resolver.name_key("AT and T Inc"))
         self.assertEqual(resolver.name_key("Nestlé S.A."), "nestle")
 
-    def test_tsmc_is_an_alias_of_the_full_name(self):
-        self.assertEqual(resolver.name_key("TSMC"), resolver.name_key("Taiwan Semiconductor Manufacturing Company Limited"))
+    def test_common_names_are_not_folded_into_the_legal_name_by_the_key(self):
+        self.assertNotEqual(resolver.name_key("TSMC"), resolver.name_key("Taiwan Semiconductor Manufacturing Company Limited"))
 
     def test_a_legal_word_that_is_the_whole_name_is_kept(self):
         self.assertEqual(resolver.name_key("Company"), "company")
@@ -82,8 +82,9 @@ class Resolving(unittest.TestCase):
         themes.seed_themes(self.conn)
         for name in ("TSMC", "Taiwan Semiconductor Manufacturing Co., Ltd.", "Taiwan Semiconductor Manufacturing Company Limited"):
             outcome = self.resolve(name)
-            self.assertEqual((outcome["status"], outcome["method"]), ("matched", "identifier_store"), name)
+            self.assertEqual((outcome["status"], outcome["method"]), ("matched", "alias_list" if name == "TSMC" else "identifier_store"), name)
         self.assertEqual(graph.find_company(self.conn, "ticker", "TSM", "US"), outcome["company_id"])
+        self.assertEqual(graph.find_company(self.conn, "name", "tsmc"), outcome["company_id"])  # stored, so reused
         self.assertEqual(self.calls, [])
 
     def test_store_wins_over_index_data(self):
@@ -201,10 +202,10 @@ class Resolving(unittest.TestCase):
         self.assertEqual(self.resolve("Orion Corp")["reason"], "ambiguous")
 
     def test_empty_answer_is_retried_without_the_legal_ending(self):
-        self.figi_rows["Wistron"] = [figi("WISTRON CORP", "3231", "TT", "BBG-W")]
-        outcome = self.resolve("Wistron Corporation")
-        self.assertEqual(self.calls, ["Wistron Corporation", "wistron"])
-        self.assertEqual(graph.find_company(self.conn, "ticker", "3231", "TW"), outcome["company_id"])
+        self.figi_rows["acme widgets"] = [figi("ACME WIDGETS CORP", "ACW", "TT", "BBG-W")]
+        outcome = self.resolve("Acme Widgets Corporation")
+        self.assertEqual(self.calls, ["Acme Widgets Corporation", "acme widgets"])
+        self.assertEqual(graph.find_company(self.conn, "ticker", "ACW", "TW"), outcome["company_id"])
 
     def test_answer_with_only_other_names_is_retried_without_the_legal_ending(self):
         self.figi_rows["Lenovo Group Limited"] = [figi("BOC ASI-CW27 LENOVO GROUP", "13226", "HK", "BBG-WAR", sec_type="Warrant")]
@@ -217,6 +218,55 @@ class Resolving(unittest.TestCase):
         first = self.resolve("Zork Ltd")
         self.assertEqual(first["status"], "matched")
         self.assertEqual(graph.find_company(self.conn, "share_class_figi", "BBG-ZORK"), first["company_id"])
+
+    def test_alias_list_matches_and_stores_the_common_name(self):
+        for name in ("Foxconn", "Hon Hai", "FOXCONN"):
+            outcome = self.resolve(name)
+            self.assertEqual((outcome["status"], outcome["method"]), ("matched", "alias_list"), name)
+        company = graph.find_company(self.conn, "ticker", "2317", "TW")
+        self.assertEqual(outcome["company_id"], company)
+        self.assertEqual(graph.find_company(self.conn, "name", "foxconn"), company)
+        self.assertEqual(self.conn.execute("SELECT source FROM identifiers WHERE scheme = 'name' AND value = 'foxconn'").fetchone()[0], "alias_list")
+        self.assertEqual(self.calls, [])
+
+    def test_alias_reuses_the_company_already_in_the_store(self):
+        themes.seed_themes(self.conn)
+        before = self.conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+        outcome = self.resolve("Foxconn")
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0], before)
+        self.assertEqual(self.conn.execute("SELECT name FROM companies WHERE id = ?", (outcome["company_id"],)).fetchone()[0],
+                         "Hon Hai Precision Industry Co., Ltd.")
+
+    def test_every_alias_entry_is_well_formed(self):
+        entries = {e["ticker"] + e["market"]: e for e in resolver.alias_entries().values()}
+        self.assertGreater(len(entries), 15)
+        keys = [resolver.name_key(a) for e in entries.values() for a in e["aliases"]]
+        self.assertEqual(len(keys), len(set(keys)))  # one meaning per name
+        for entry in entries.values():
+            self.assertTrue(entry["name"] and entry["ticker"] and entry["market"])
+
+    def test_several_listings_of_one_company_pick_the_primary(self):
+        lenovo = [figi("LENOVO GROUP LTD", f"992L{i}", "HK" if i == 0 else "XW", "BBG-HK") for i in range(9)] + [
+            figi("LENOVO GROUP LTD", "LHL0", "GY", "BBG-STRAY"), figi("LENOVO GROUP LTD", "992USD", "X2", None)]
+        lenovo[-1]["shareClassFIGI"] = None
+        self.figi_rows["Lenovo Group Limited"] = lenovo
+        outcome = self.resolve("Lenovo Group Limited")
+        self.assertEqual(outcome["status"], "matched")
+        self.assertEqual(graph.find_company(self.conn, "share_class_figi", "BBG-HK"), outcome["company_id"])
+        self.assertEqual(graph.find_company(self.conn, "ticker", "992L0", "HK"), outcome["company_id"])
+        self.assertIsNone(graph.find_company(self.conn, "share_class_figi", "BBG-STRAY"))
+
+    def test_close_call_between_share_classes_is_still_ambiguous(self):
+        rows = [figi("TWIN CORP", f"T{i}", "US", "BBG-A") for i in range(4)] + [figi("TWIN CORP", f"U{i}", "LN", "BBG-B") for i in range(3)]
+        self.figi_rows["Twin Corp"] = rows
+        self.assertEqual(self.resolve("Twin Corp")["reason"], "ambiguous")
+
+    def test_primary_group_rule(self):
+        self.assertIsNone(resolver.primary_group({}))
+        self.assertEqual(resolver.primary_group({"a": [1]}), "a")
+        self.assertEqual(resolver.primary_group({"a": [1] * 9, "b": [1] * 3}), "a")
+        self.assertIsNone(resolver.primary_group({"a": [1] * 5, "b": [1] * 3}))
+        self.assertIsNone(resolver.primary_group({"a": [1, 1], "b": [1]}))  # too few to call one primary
 
     def test_short_brand_names(self):
         for short, ticker in (("AMD", "AMD"), ("Amazon", "AMZN"), ("Micron", "MU"), ("Marvell", "MRVL")):

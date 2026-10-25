@@ -282,7 +282,7 @@ class FromEdgar(unittest.TestCase):
             out = run(xbrl.import_filing(self.conn, self.nvda, 1045810, self.filing))
         self.assertEqual(len(out["rows"]), 8)
         linked = {r["row"]["label"] for r in out["results"] if r["status"] == "linked"}
-        self.assertEqual(linked, {"Customer A", "Customer B", "Apple, Inc.", "Supplier A"})
+        self.assertEqual(linked, {"Customer A", "Customer B", "Apple, Inc.", "Supplier A", "Luxshare"})  # Luxshare: the alias list
         document = self.conn.execute("SELECT * FROM documents WHERE id = ?", (out["document_id"],)).fetchone()
         self.assertEqual((document["kind"], document["company_id"]), ("10-K", self.nvda))
 

@@ -19,6 +19,8 @@ datas += [("seed/indices.json", "seed")]
 datas += [("seed/directors.json", "seed")]
 # Companies each supply chain theme starts with (supply_chain/themes.py, #121)
 datas += [("seed/themes.json", "seed")]
+# Common company names that differ from the legal name (supply_chain/resolver.py, #317)
+datas += [("seed/aliases.json", "seed")]
 # Build-time settings such as the SEC contact email (write_app_config.py; gitignored)
 datas += [("app_config.json", ".")]
 
