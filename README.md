@@ -83,7 +83,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 8: Risk analysis:** a Risk page with 10 headline figures and 12 panels (concentration, exposure, correlation, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution, example mixes, bankruptcy risk, liquidity), each explained in plain words with your own numbers, and the main findings in the AI portfolio summary ([the maths](docs/risk-maths.md))
 * [ ] **Milestone 9: Company connections:** index members, the indexes a stock belongs to, competitors, executives, boards of directors and the Connections section on the stock detail are done; the full map page is next
 * [x] **Milestone 10:** Supply chain graph foundation: the schema with the evidence behind every link, a job queue, the SEC client and scout, an AI hardware watch list, company name matching, the major customer figures tagged in 10-Ks, and a pipeline status sheet in Settings ([docs/supply-chain-graph.md](docs/supply-chain-graph.md)). The supplier map itself is Milestones 11 to 13
-* [ ] **Milestone 11:** Extraction agents
+* [ ] **Milestone 11:** Extraction agents: the document chunker (filings cut into sections and chunks for Claude to read) is done
 * [ ] **Milestone 12:** Supply chain explorer
 * [ ] **Milestone 13:** Analyst agent and shared graph
 

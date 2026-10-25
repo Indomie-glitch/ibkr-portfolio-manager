@@ -7,6 +7,8 @@ datas, binaries, hiddenimports = [], [], []
 hiddenimports += collect_submodules("uvicorn")
 # pandas imports openpyxl only when reading an .xlsx (index holdings files, constituents.py)
 hiddenimports += collect_submodules("openpyxl")
+# the document chunker (supply_chain/chunker.py) picks BeautifulSoup's lxml parser by name, which PyInstaller can't see
+hiddenimports += collect_submodules("lxml") + collect_submodules("bs4")
 # yfinance's HTTP client ships native libraries and certificates
 for package in ("curl_cffi", "certifi"):
     package_datas, package_binaries, package_hidden = collect_all(package)
