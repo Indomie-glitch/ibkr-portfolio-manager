@@ -151,7 +151,7 @@ flowchart TB
         dirs["directors.py<br/>boards read by Claude,<br/>checked against the document<br/>(SQLite); seed/directors.json (US)"]
         dsrc["directors_sources.py<br/>EDGAR proxy, ASX annual report,<br/>board pages only, Wikidata"]
         secc["sec_client.py<br/>the one EDGAR client: User-Agent,<br/>rate limit, retries, filing lists,<br/>download + SHA-256"]
-        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers<br/>(supply_chain.sqlite; no endpoints yet)"]
+        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json)<br/>(supply_chain.sqlite; no endpoints yet)"]
         ppl["people.py<br/>same person across companies<br/>(Wikidata ID, or name + the<br/>document naming the company)"]
     end
 

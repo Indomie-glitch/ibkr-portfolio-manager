@@ -154,7 +154,7 @@ queued -> running -> done
 |---|---|---|
 | #116 | job queue and workers (done) | `jobs`, `runs` |
 | #117 | SEC client (done; `sec_client.py`, shared with the boards job; `supply_chain/sec.py` registers and downloads filings) | `documents` (hash, status) |
-| #121 | AI hardware seed (about 50 companies) | `companies`, `identifiers`, `themes` |
+| #121 | AI hardware seed (done; 59 companies in `backend/seed/themes.json`, loaded by `supply_chain/themes.py`) | `companies`, `identifiers`, `themes` |
 | #119 | resolver (OpenFIGI) | `identifiers` |
 | #118 | SEC scout | `themes`, `documents`, `jobs` |
 | #120 | XBRL customer concentration | `relationships`, `evidence`, placeholder companies |

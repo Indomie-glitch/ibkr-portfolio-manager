@@ -1,0 +1,424 @@
+{
+  "themes": [
+    {
+      "slug": "ai-hardware",
+      "name": "AI hardware",
+      "description": "The companies that make the chips, machines, memory, networking, power, cooling and buildings behind AI computing. A starting list, not a complete one.",
+      "companies": [
+        {
+          "name": "NVIDIA Corporation",
+          "ticker": "NVDA",
+          "market": "US",
+          "segment": "chips",
+          "country": "US"
+        },
+        {
+          "name": "Advanced Micro Devices, Inc.",
+          "ticker": "AMD",
+          "market": "US",
+          "segment": "chips",
+          "country": "US"
+        },
+        {
+          "name": "Broadcom Inc.",
+          "ticker": "AVGO",
+          "market": "US",
+          "segment": "chips",
+          "country": "US"
+        },
+        {
+          "name": "Marvell Technology, Inc.",
+          "ticker": "MRVL",
+          "market": "US",
+          "segment": "chips",
+          "country": "US"
+        },
+        {
+          "name": "Intel Corporation",
+          "ticker": "INTC",
+          "market": "US",
+          "segment": "chips",
+          "country": "US"
+        },
+        {
+          "name": "Qualcomm Incorporated",
+          "ticker": "QCOM",
+          "market": "US",
+          "segment": "chips",
+          "country": "US"
+        },
+        {
+          "name": "Arm Holdings plc",
+          "ticker": "ARM",
+          "market": "US",
+          "segment": "chips",
+          "country": "GB"
+        },
+        {
+          "name": "Alphabet Inc.",
+          "ticker": "GOOGL",
+          "market": "US",
+          "segment": "chips",
+          "country": "US"
+        },
+        {
+          "name": "Taiwan Semiconductor Manufacturing Company Limited",
+          "ticker": "TSM",
+          "market": "US",
+          "segment": "foundry",
+          "country": "TW"
+        },
+        {
+          "name": "GlobalFoundries Inc.",
+          "ticker": "GFS",
+          "market": "US",
+          "segment": "foundry",
+          "country": "US"
+        },
+        {
+          "name": "Samsung Electronics Co., Ltd.",
+          "ticker": "005930",
+          "market": "KR",
+          "segment": "foundry",
+          "country": "KR"
+        },
+        {
+          "name": "ASML Holding N.V.",
+          "ticker": "ASML",
+          "market": "US",
+          "segment": "equipment",
+          "country": "NL"
+        },
+        {
+          "name": "Applied Materials, Inc.",
+          "ticker": "AMAT",
+          "market": "US",
+          "segment": "equipment",
+          "country": "US"
+        },
+        {
+          "name": "Lam Research Corporation",
+          "ticker": "LRCX",
+          "market": "US",
+          "segment": "equipment",
+          "country": "US"
+        },
+        {
+          "name": "KLA Corporation",
+          "ticker": "KLAC",
+          "market": "US",
+          "segment": "equipment",
+          "country": "US"
+        },
+        {
+          "name": "Tokyo Electron Limited",
+          "ticker": "8035",
+          "market": "JP",
+          "segment": "equipment",
+          "country": "JP"
+        },
+        {
+          "name": "Advantest Corporation",
+          "ticker": "6857",
+          "market": "JP",
+          "segment": "equipment",
+          "country": "JP"
+        },
+        {
+          "name": "Teradyne, Inc.",
+          "ticker": "TER",
+          "market": "US",
+          "segment": "equipment",
+          "country": "US"
+        },
+        {
+          "name": "Entegris, Inc.",
+          "ticker": "ENTG",
+          "market": "US",
+          "segment": "equipment",
+          "country": "US"
+        },
+        {
+          "name": "Amkor Technology, Inc.",
+          "ticker": "AMKR",
+          "market": "US",
+          "segment": "packaging",
+          "country": "US"
+        },
+        {
+          "name": "Synopsys, Inc.",
+          "ticker": "SNPS",
+          "market": "US",
+          "segment": "design software",
+          "country": "US"
+        },
+        {
+          "name": "Cadence Design Systems, Inc.",
+          "ticker": "CDNS",
+          "market": "US",
+          "segment": "design software",
+          "country": "US"
+        },
+        {
+          "name": "Micron Technology, Inc.",
+          "ticker": "MU",
+          "market": "US",
+          "segment": "memory",
+          "country": "US"
+        },
+        {
+          "name": "SK hynix Inc.",
+          "ticker": "000660",
+          "market": "KR",
+          "segment": "memory",
+          "country": "KR"
+        },
+        {
+          "name": "Western Digital Corporation",
+          "ticker": "WDC",
+          "market": "US",
+          "segment": "memory",
+          "country": "US"
+        },
+        {
+          "name": "Seagate Technology Holdings plc",
+          "ticker": "STX",
+          "market": "US",
+          "segment": "memory",
+          "country": "IE"
+        },
+        {
+          "name": "Sandisk Corporation",
+          "ticker": "SNDK",
+          "market": "US",
+          "segment": "memory",
+          "country": "US"
+        },
+        {
+          "name": "Arista Networks, Inc.",
+          "ticker": "ANET",
+          "market": "US",
+          "segment": "networking",
+          "country": "US"
+        },
+        {
+          "name": "Cisco Systems, Inc.",
+          "ticker": "CSCO",
+          "market": "US",
+          "segment": "networking",
+          "country": "US"
+        },
+        {
+          "name": "Coherent Corp.",
+          "ticker": "COHR",
+          "market": "US",
+          "segment": "networking",
+          "country": "US"
+        },
+        {
+          "name": "Lumentum Holdings Inc.",
+          "ticker": "LITE",
+          "market": "US",
+          "segment": "networking",
+          "country": "US"
+        },
+        {
+          "name": "Corning Incorporated",
+          "ticker": "GLW",
+          "market": "US",
+          "segment": "networking",
+          "country": "US"
+        },
+        {
+          "name": "Credo Technology Group Holding Ltd",
+          "ticker": "CRDO",
+          "market": "US",
+          "segment": "networking",
+          "country": "US"
+        },
+        {
+          "name": "Astera Labs, Inc.",
+          "ticker": "ALAB",
+          "market": "US",
+          "segment": "networking",
+          "country": "US"
+        },
+        {
+          "name": "Ciena Corporation",
+          "ticker": "CIEN",
+          "market": "US",
+          "segment": "networking",
+          "country": "US"
+        },
+        {
+          "name": "Celestica Inc.",
+          "ticker": "CLS",
+          "market": "US",
+          "segment": "servers",
+          "country": "CA"
+        },
+        {
+          "name": "Super Micro Computer, Inc.",
+          "ticker": "SMCI",
+          "market": "US",
+          "segment": "servers",
+          "country": "US"
+        },
+        {
+          "name": "Dell Technologies Inc.",
+          "ticker": "DELL",
+          "market": "US",
+          "segment": "servers",
+          "country": "US"
+        },
+        {
+          "name": "Hewlett Packard Enterprise Company",
+          "ticker": "HPE",
+          "market": "US",
+          "segment": "servers",
+          "country": "US"
+        },
+        {
+          "name": "Hon Hai Precision Industry Co., Ltd.",
+          "ticker": "2317",
+          "market": "TW",
+          "segment": "servers",
+          "country": "TW"
+        },
+        {
+          "name": "Jabil Inc.",
+          "ticker": "JBL",
+          "market": "US",
+          "segment": "servers",
+          "country": "US"
+        },
+        {
+          "name": "Vertiv Holdings Co",
+          "ticker": "VRT",
+          "market": "US",
+          "segment": "power and cooling",
+          "country": "US"
+        },
+        {
+          "name": "Eaton Corporation plc",
+          "ticker": "ETN",
+          "market": "US",
+          "segment": "power and cooling",
+          "country": "IE"
+        },
+        {
+          "name": "Schneider Electric SE",
+          "ticker": "SU",
+          "market": "FR",
+          "segment": "power and cooling",
+          "country": "FR"
+        },
+        {
+          "name": "GE Vernova Inc.",
+          "ticker": "GEV",
+          "market": "US",
+          "segment": "power and cooling",
+          "country": "US"
+        },
+        {
+          "name": "nVent Electric plc",
+          "ticker": "NVT",
+          "market": "US",
+          "segment": "power and cooling",
+          "country": "IE"
+        },
+        {
+          "name": "Trane Technologies plc",
+          "ticker": "TT",
+          "market": "US",
+          "segment": "power and cooling",
+          "country": "IE"
+        },
+        {
+          "name": "Modine Manufacturing Company",
+          "ticker": "MOD",
+          "market": "US",
+          "segment": "power and cooling",
+          "country": "US"
+        },
+        {
+          "name": "Bloom Energy Corporation",
+          "ticker": "BE",
+          "market": "US",
+          "segment": "power and cooling",
+          "country": "US"
+        },
+        {
+          "name": "Constellation Energy Corporation",
+          "ticker": "CEG",
+          "market": "US",
+          "segment": "power and cooling",
+          "country": "US"
+        },
+        {
+          "name": "Vistra Corp.",
+          "ticker": "VST",
+          "market": "US",
+          "segment": "power and cooling",
+          "country": "US"
+        },
+        {
+          "name": "Equinix, Inc.",
+          "ticker": "EQIX",
+          "market": "US",
+          "segment": "data centres",
+          "country": "US"
+        },
+        {
+          "name": "Digital Realty Trust, Inc.",
+          "ticker": "DLR",
+          "market": "US",
+          "segment": "data centres",
+          "country": "US"
+        },
+        {
+          "name": "NEXTDC Limited",
+          "ticker": "NXT",
+          "market": "AU",
+          "segment": "data centres",
+          "country": "AU"
+        },
+        {
+          "name": "CoreWeave, Inc.",
+          "ticker": "CRWV",
+          "market": "US",
+          "segment": "data centres",
+          "country": "US"
+        },
+        {
+          "name": "Oracle Corporation",
+          "ticker": "ORCL",
+          "market": "US",
+          "segment": "data centres",
+          "country": "US"
+        },
+        {
+          "name": "Microsoft Corporation",
+          "ticker": "MSFT",
+          "market": "US",
+          "segment": "data centres",
+          "country": "US"
+        },
+        {
+          "name": "Amazon.com, Inc.",
+          "ticker": "AMZN",
+          "market": "US",
+          "segment": "data centres",
+          "country": "US"
+        },
+        {
+          "name": "Meta Platforms, Inc.",
+          "ticker": "META",
+          "market": "US",
+          "segment": "data centres",
+          "country": "US"
+        }
+      ]
+    }
+  ]
+}
