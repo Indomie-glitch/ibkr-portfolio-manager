@@ -230,15 +230,20 @@ def log_events(conn, now=None, kind="all", limit=LOG_LIMIT):
     if kind in ("all", "links"):
         rows = conn.execute(
             """SELECT r.created_at, r.supplier_revenue_share AS rev, r.customer_supply_share AS supply, r.customer_share_scope AS scope,
-                      s.id AS supplier_id, s.name AS supplier, c.id AS customer_id, c.name AS customer, r.tier
+                      s.id AS supplier_id, s.name AS supplier, c.id AS customer_id, c.name AS customer, r.tier, r.kind,
+                      e.verification
                FROM relationships r JOIN companies s ON s.id = r.supplier_id JOIN companies c ON c.id = r.customer_id
+               JOIN evidence e ON e.id = r.primary_evidence_id
                ORDER BY r.created_at DESC, r.id DESC LIMIT ?""", (LINK_LIMIT,)).fetchall()
         for row in rows:
             supplier = ticker_of(conn, row["supplier_id"]) or short_name(row["supplier"])
             customer = ticker_of(conn, row["customer_id"]) or short_name(row["customer"])
             share = f" · {row['rev']:g}% of revenue" if row["rev"] is not None else (
                 f" · {row['supply']:g}% of {row['scope'] or 'purchases'}" if row["supply"] is not None else "")
-            events.append({"at": row["created_at"], "tag": "LINK", "text": f"{supplier} → {customer}{share}", "job_id": None, "company_id": row["supplier_id"]})
+            arrow = "↔" if row["kind"] == "partnership" else "→"  # a partnership has no direction
+            checked = " · verified" if row["verification"] == "verified" else ""
+            events.append({"at": row["created_at"], "tag": "LINK", "text": f"{supplier} {arrow} {customer}{share}{checked}", "job_id": None,
+                           "company_id": row["supplier_id"]})
     events.sort(key=lambda e: e["at"], reverse=True)
     return events[:limit]
 

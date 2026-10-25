@@ -118,7 +118,7 @@ SUPERVISE_EVERY_S = 5
 
 async def run_workers(path, count):
     """Runs `count` workers and the scout's scheduler until cancelled; they finish the job in hand when it is."""
-    from supply_chain import reader, scout, xbrl  # noqa: F401  registers the scout, download, xbrl and read handlers
+    from supply_chain import reader, scout, verifier, xbrl  # noqa: F401  registers the scout, download, xbrl, read and verify handlers
     workers = [Worker(path, name=f"{socket.gethostname()}-{os.getpid()}-{i}") for i in range(count)]
     workers[0].start(exclusive=True)  # one process: whatever was running before is a leftover
     control.active_workers = count
