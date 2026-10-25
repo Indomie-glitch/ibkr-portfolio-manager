@@ -90,6 +90,16 @@ def wikidata_match(name, candidates):
     return next(iter(found.values())) if len(found) == 1 else None
 
 
+LEGAL_WORDS = re.compile(r"\b(limited|ltd|inc|incorporated|corp|corporation|plc|company|co|holdings|nv|sa|ag|se|llc|lp)\b")
+
+
+def company_key(name):
+    """"BHP Group Limited" -> "bhp group": the words of a company's name without legal words, for
+    finding the company in a description (the frontend's companyKey does the same for holdings)."""
+    text = re.sub(r"[^a-z0-9 ]", " ", _ascii(str(name or "")).lower().replace("&", " and "))
+    return " ".join(LEGAL_WORDS.sub(" ", text).split())
+
+
 def company_named(company_name, texts):
     """Whether any of texts (a person's other boards, as written in a document) names the company,
     e.g. "BHP Group Limited" in ["Director of BHP Group", "Chair of Orica"]."""

@@ -34,7 +34,7 @@ flowchart LR
     funds[("ETF holdings files<br/>State Street, iShares")]
     sec[("SEC EDGAR<br/>US proxy statements")]
     asx[("ASX announcements<br/>annual reports<br/>(personal use)")]
-    wikidata[("Wikidata<br/>people's IDs and<br/>Wikipedia links")]
+    wikidata[("Wikidata + Wikipedia<br/>people's IDs, articles,<br/>photos (Commons)")]
     claude[("Anthropic API<br/>Claude writes the<br/>AI summaries, judges news<br/>sentiment, reads boards")]
     gh[("GitHub Releases<br/>new app versions")]
 
@@ -46,7 +46,7 @@ flowchart LR
     app -->|"index members, weekly<br/>(no key; off by default)"| funds
     app -->|"proxy statements<br/>(contact email)"| sec
     app -->|"annual reports, on request<br/>(after you accept ASX's terms)"| asx
-    app -->|"who is who<br/>(no key)"| wikidata
+    app -->|"who is who, summaries,<br/>photos (no key)"| wikidata
     app -->|"facts sheet, headlines or board pages in,<br/>summary, sentiment or directors out (API key)"| claude
     app -->|"check for update,<br/>download signed update"| gh
 ```
@@ -150,6 +150,7 @@ flowchart TB
         comp["competitors.py<br/>same industry, widen,<br/>rank in US dollars (pure)"]
         dirs["directors.py<br/>boards read by Claude,<br/>checked against the document<br/>(SQLite); seed/directors.json (US)"]
         dsrc["directors_sources.py<br/>EDGAR proxy, ASX annual report,<br/>board pages only, Wikidata"]
+        pdat["person_data.py + wikimedia.py<br/>Wikipedia + Wikidata facts about<br/>executives and directors (SQLite);<br/>seed/persons.json, weekly"]
         secc["sec_client.py<br/>the one EDGAR client: User-Agent,<br/>rate limit, retries, filing lists,<br/>download + SHA-256"]
         scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration,<br/>pipeline switches + status<br/>(supply_chain.sqlite; GET/POST /pipeline)"]
         ppl["people.py<br/>same person across companies<br/>(Wikidata ID, or name + the<br/>document naming the company)"]
@@ -160,6 +161,7 @@ flowchart TB
     main -->|"keep_refreshed task"| lots
     main -->|"keep_refreshed task"| cons
     main -->|"keep_checked task"| dirs
+    main -->|"weekly task"| pdat
     ib_core --> ib_conn
 
     r_pos --> ib_core & yahoo & cache & names & senti & fx
@@ -180,6 +182,8 @@ flowchart TB
     r_dir --> dirs & ib_core & web
     r_dir -.->|reuses Yahoo info| r_pos
     dirs --> dsrc & ppl & usage & cons
+    pdat --> dirs & dsrc & ppl
+    r_pos -.->|records executives| pdat
     dsrc --> secc
     scg --> cons
     scg --> secc
@@ -461,6 +465,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | Saved AI summaries | `summaries.sqlite` | last 20 per stock, last 20 portfolio |
 | News sentiment per article | `news_sentiment.sqlite` | 90 days |
 | Claude API usage: tokens and estimated cost per call | `usage.sqlite` | kept (`GET /usage` totals a month) |
+| People facts: Wikipedia link, summary, photo and licence, birth year, education, positions and boards, and how each match was made (`person_data.sqlite`; the bundled `seed/persons.json`) | `person_data.sqlite` | new people weekly; skipped people retried after 30 days |
 | Supply chain graph (companies, identifiers, documents, relationships, evidence, rejected, jobs, runs, themes; [the schema](supply-chain-graph.md)) | `supply_chain.sqlite` | every relationship keeps the evidence it came from; ended links are kept |
 | Supply chain pipeline switches (run, paused, monthly budget) | `pipeline_settings.json` next to the database | until changed |
 | Boards of directors (each seat with its document, page and quote; Wikidata IDs) and whether you accepted ASX's terms | `directors.sqlite` (US index members from the bundled `seed/directors.json`; ASX boards only when you ask) | until a newer document is read |
