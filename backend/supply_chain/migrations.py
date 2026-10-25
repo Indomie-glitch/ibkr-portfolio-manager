@@ -195,7 +195,27 @@ CREATE TABLE rejected (
 );
 """
 
+NAME_RESOLUTIONS = """
+-- How each company name from a filing was (or wasn't) matched to a company (#119): the decision is kept so the same
+-- name isn't looked up again, and a skipped name says why
+CREATE TABLE name_resolutions (
+    id INTEGER PRIMARY KEY,
+    name_key TEXT NOT NULL UNIQUE,     -- the name normalised (resolver.name_key)
+    name TEXT NOT NULL,                -- as first seen
+    status TEXT NOT NULL CHECK (status IN ('matched', 'skipped')),
+    company_id INTEGER REFERENCES companies (id),
+    method TEXT,                       -- identifier_store, index_data, openfigi (matched only)
+    reason TEXT,                       -- skipped only: unnamed, no_match, ambiguous, possible_subsidiary, conflict
+    detail TEXT,                       -- the candidates considered, in plain words
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    CHECK ((status = 'matched' AND company_id IS NOT NULL AND method IS NOT NULL) OR (status = 'skipped' AND reason IS NOT NULL))
+);
+CREATE INDEX name_resolutions_company ON name_resolutions (company_id);
+"""
+
 # (version, name, sql). Add new migrations at the end.
 MIGRATIONS = [
     (1, "initial graph schema (#115)", INITIAL),
+    (2, "company name resolutions (#119)", NAME_RESOLUTIONS),
 ]

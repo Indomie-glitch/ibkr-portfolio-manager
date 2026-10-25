@@ -12,9 +12,9 @@ _KEY_PATTERN = re.compile(re.escape(_PREFIX) + r"[A-Za-z0-9_\-]{8,}")
 
 
 def _known_secrets():
-    """Secrets with no recognisable shape (the Flex token is just digits), masked by their value."""
+    """Secrets with no recognisable shape (the Flex token is just digits; the OpenFIGI key), masked by their value."""
     import config  # here, not at the top: config imports modules that import this one
-    return [value for value in (config.flex_token(),) if value and len(value) >= 8]
+    return [value for value in (config.flex_token(), config.openfigi_api_key()) if value and len(value) >= 8]
 
 
 def mask_secrets(text):

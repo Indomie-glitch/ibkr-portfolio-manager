@@ -56,28 +56,29 @@ class MigrationTests(GraphCase):
         self.assertEqual(again.execute("SELECT COUNT(*) FROM companies").fetchone()[0], 3)
 
     def test_a_later_migration_is_applied_once_and_in_order(self):
-        extra = [*MIGRATIONS, (2, "add a note to companies", "ALTER TABLE companies ADD COLUMN note TEXT;"),
-                 (3, "and an index", "CREATE INDEX companies_country ON companies (country);")]
-        self.assertEqual(db.migrate(self.conn, extra), [2, 3])
+        n = len(MIGRATIONS)
+        extra = [*MIGRATIONS, (n + 1, "add a note to companies", "ALTER TABLE companies ADD COLUMN note TEXT;"),
+                 (n + 2, "and an index", "CREATE INDEX companies_country ON companies (country);")]
+        self.assertEqual(db.migrate(self.conn, extra), [n + 1, n + 2])
         self.assertEqual(db.migrate(self.conn, extra), [])
         self.conn.execute("UPDATE companies SET note = 'x' WHERE id = ?", (self.apple,))
-        self.assertEqual(db.version(self.conn), 3)
+        self.assertEqual(db.version(self.conn), n + 2)
 
     def test_a_failing_migration_is_undone_completely(self):
-        bad = [*MIGRATIONS, (2, "half works", "CREATE TABLE half (id INTEGER);\nINSERT INTO nowhere VALUES (1);")]
+        bad = [*MIGRATIONS, (len(MIGRATIONS) + 1, "half works", "CREATE TABLE half (id INTEGER);\nINSERT INTO nowhere VALUES (1);")]
         with self.assertRaises(sqlite3.OperationalError):
             db.migrate(self.conn, bad)
         self.assertIsNone(self.conn.execute("SELECT name FROM sqlite_master WHERE name = 'half'").fetchone())
-        self.assertEqual(db.version(self.conn), 1)
+        self.assertEqual(db.version(self.conn), len(MIGRATIONS))
 
     def test_a_newer_database_is_refused(self):
-        newer = [(1, *MIGRATIONS[0][1:]), (2, "from the future", "CREATE TABLE future (id INTEGER);")]
+        newer = [*MIGRATIONS, (len(MIGRATIONS) + 1, "from the future", "CREATE TABLE future (id INTEGER);")]
         db.migrate(self.conn, newer)
         with self.assertRaises(db.SchemaError):
             db.migrate(self.conn)
 
     def test_an_edited_migration_is_noticed(self):
-        edited = [(1, MIGRATIONS[0][1], MIGRATIONS[0][2] + "\n-- edited")]
+        edited = [(1, MIGRATIONS[0][1], MIGRATIONS[0][2] + "\n-- edited"), *MIGRATIONS[1:]]
         with self.assertRaises(db.SchemaError):
             db.migrate(self.conn, edited)
 

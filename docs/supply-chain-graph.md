@@ -125,6 +125,18 @@ erDiagram
   so an edited old migration is noticed. The database is `supply_chain.sqlite` (in `data/`, or Application Support
   in the Mac app).
 
+## Matching names to companies (#119)
+
+Filings name companies in their own words ("TSMC", "Micron Technology, Inc.", "Customer A"). `resolver.resolve(conn, name)` maps a name to a company, and says how:
+
+1. **Identifier store**: a company in the graph with that name, or a stored alias (`name` identifiers).
+2. **Index data**: S&P 500, Nasdaq 100, Dow and ASX members (names and tickers from `constituents.py`).
+3. **OpenFIGI**: a name search (works without a key at 25 a minute; `OPENFIGI_API_KEY` raises it to 250); accepted only when every equity listing with that name belongs to one share class.
+
+Names are compared after normalising (case, accents, punctuation, `&`/`and`, `N.V.`/`NV`, and endings such as Inc, Corp, Co, Ltd, Limited, plc, AG, SA removed) plus a few aliases (`TSMC`). Nothing looser: a name that merely *starts* with a known company ("Apple Operations International Limited") is skipped as a probable subsidiary, a name two different companies share is skipped as ambiguous, and "Customer A" is skipped as unnamed. Share classes (GOOG / GOOGL) count as one company when their company market cap is the same.
+
+Each decision is saved in `name_resolutions` (matched: `method`; skipped: `reason` and `detail`), with the identifiers that were learnt carrying the method as their `source`. The same name is not looked up twice; a skipped name is looked at again after 30 days. OpenFIGI being unreachable is not a decision and is not saved.
+
 ## Job queue and workers (#116)
 
 Pipeline work is a **job** (`supply_chain/jobs.py`): a kind (`scout`, `download`, `read` ...) and a key (what it is
@@ -155,7 +167,7 @@ queued -> running -> done
 | #116 | job queue and workers (done) | `jobs`, `runs` |
 | #117 | SEC client (done; `sec_client.py`, shared with the boards job; `supply_chain/sec.py` registers and downloads filings) | `documents` (hash, status) |
 | #121 | AI hardware seed (done; 59 companies in `backend/seed/themes.json`, loaded by `supply_chain/themes.py`) | `companies`, `identifiers`, `themes` |
-| #119 | resolver (OpenFIGI) | `identifiers` |
+| #119 | name resolver (done; `supply_chain/resolver.py` + `openfigi.py`) | `identifiers` |
 | #118 | SEC scout (done; `supply_chain/scout.py`: watches theme companies for 10-K, 10-Q, 8-K and queues downloads) | `themes`, `documents`, `jobs` |
 | #120 | XBRL customer concentration | `relationships`, `evidence`, placeholder companies |
 | #122 | pipeline status page (design first) | counts of `jobs`, `runs`, `documents` |
