@@ -1,0 +1,27 @@
+{
+  "aliases": [
+    {"name": "Hon Hai Precision Industry Co., Ltd.", "ticker": "2317", "market": "TW", "aliases": ["Foxconn", "Hon Hai", "Foxconn Technology Group"]},
+    {"name": "Taiwan Semiconductor Manufacturing Company Limited", "ticker": "TSM", "market": "US", "aliases": ["TSMC", "Taiwan Semiconductor"]},
+    {"name": "SK hynix Inc.", "ticker": "000660", "market": "KR", "aliases": ["Hynix"]},
+    {"name": "ASML Holding N.V.", "ticker": "ASML", "market": "US", "aliases": ["ASML"]},
+    {"name": "Advanced Micro Devices, Inc.", "ticker": "AMD", "market": "US", "aliases": ["AMD"]},
+    {"name": "Amazon.com, Inc.", "ticker": "AMZN", "market": "US", "aliases": ["Amazon", "Amazon Web Services", "AWS"]},
+    {"name": "Micron Technology, Inc.", "ticker": "MU", "market": "US", "aliases": ["Micron"]},
+    {"name": "Marvell Technology, Inc.", "ticker": "MRVL", "market": "US", "aliases": ["Marvell"]},
+    {"name": "Meta Platforms, Inc.", "ticker": "META", "market": "US", "aliases": ["Meta", "Facebook"]},
+    {"name": "Dell Technologies Inc.", "ticker": "DELL", "market": "US", "aliases": ["Dell"]},
+    {"name": "Super Micro Computer, Inc.", "ticker": "SMCI", "market": "US", "aliases": ["Supermicro"]},
+    {"name": "Hewlett Packard Enterprise Company", "ticker": "HPE", "market": "US", "aliases": ["HPE"]},
+    {"name": "International Business Machines Corporation", "ticker": "IBM", "market": "US", "aliases": ["IBM"]},
+    {"name": "Luxshare Precision Industry Co., Ltd.", "ticker": "002475", "market": "CN", "aliases": ["Luxshare"]},
+    {"name": "Quanta Computer Inc.", "ticker": "2382", "market": "TW", "aliases": ["Quanta"]},
+    {"name": "Pegatron Corporation", "ticker": "4938", "market": "TW", "aliases": ["Pegatron"]},
+    {"name": "Compal Electronics, Inc.", "ticker": "2324", "market": "TW", "aliases": ["Compal"]},
+    {"name": "Inventec Corporation", "ticker": "2356", "market": "TW", "aliases": ["Inventec"]},
+    {"name": "Wistron Corporation", "ticker": "3231", "market": "TW", "aliases": ["Wistron"]},
+    {"name": "MediaTek Inc.", "ticker": "2454", "market": "TW", "aliases": ["MediaTek"]},
+    {"name": "United Microelectronics Corporation", "ticker": "UMC", "market": "US", "aliases": ["UMC"]},
+    {"name": "Semiconductor Manufacturing International Corporation", "ticker": "981", "market": "HK", "aliases": ["SMIC"]},
+    {"name": "Samsung Electronics Co., Ltd.", "ticker": "005930", "market": "KR", "aliases": ["Samsung Electronics"]}
+  ]
+}
