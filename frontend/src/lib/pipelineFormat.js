@@ -28,13 +28,13 @@ export function nextMonthStart(now = new Date()) {
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 
-// The Settings row's one line: "Running · 2 workers · US$4.12 of US$10 spent this month. 3 reports failed and are retrying."
+// The Settings row's one line: "Running · 2 workers · US$4.12 of US$10 spent this month. 3 items need attention, 3 retrying."
 export function settingsLine(pipeline, now = new Date()) {
   if (!pipeline) return 'Checking…'
   const { status, workers, cost, attention } = pipeline
   const spent = `${usd(cost.month)} of ${usd(cost.budget)} spent this month`
   const trouble = attention.total
-    ? ` ${plural(attention.total, 'report')} ${attention.total === 1 ? 'needs' : 'need'} attention${attention.retrying ? `, ${attention.retrying} retrying` : ''}.`
+    ? ` ${plural(attention.total, 'item')} ${attention.total === 1 ? 'needs' : 'need'} attention${attention.retrying ? `, ${attention.retrying} retrying` : ''}.`
     : ''
   if (status === 'off') return 'Off. Turn on Run pipeline to start reading company reports.'
   if (status === 'paused') return `Paused. Press Run now in the pipeline to continue. ${spent}.${trouble}`
@@ -80,7 +80,8 @@ export function tiles(pipeline) {
       value: String(attention.total),
       tone: attention.total ? 'loss' : undefined,
       sub: attention.total
-        ? [attention.retrying && `${attention.retrying} retrying`, attention.stuck && `${attention.stuck} stopped`].filter(Boolean).join(', ')
+        ? [attention.retrying && `${attention.retrying} retrying`, attention.stuck && `${attention.stuck} stopped`,
+            attention.unchecked && `${attention.unchecked} unchecked`].filter(Boolean).join(', ')
         : 'Nothing needs attention',
     },
     { id: 'cost', label: 'COST · MONTH', value: usd(cost.month), tone: 'amber', sub: `${cost.percent}% of your ${usd(cost.budget)} budget` },

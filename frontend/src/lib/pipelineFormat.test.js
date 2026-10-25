@@ -22,7 +22,7 @@ const pipeline = (over = {}) => ({
   workers: 2,
   coverage: { read: 46, total: 52, not_on_edgar: 0 },
   links: { total: 3912, week: 214, ended: 18 },
-  attention: { stuck: 0, retrying: 3, total: 3 },
+  attention: { stuck: 0, retrying: 3, unchecked: 0, total: 3 },
   cost: { month: 4.12, week: 1.86, per_filing: 0.03, budget: 10, budget_left: 5.88, percent: 41 },
   companies: { all: 52, reading: 2, waiting: 29, failed: 3, up_to_date: 18, not_on_edgar: 0 },
   ...over,
@@ -55,7 +55,7 @@ describe('budget field', () => {
 
 describe('settingsLine', () => {
   it('describes each state in plain words', () => {
-    expect(settingsLine(pipeline())).toBe('Running · 2 workers · US$4.12 of US$10.00 spent this month. 3 reports need attention, 3 retrying.')
+    expect(settingsLine(pipeline())).toBe('Running · 2 workers · US$4.12 of US$10.00 spent this month. 3 items need attention, 3 retrying.')
     expect(settingsLine(pipeline({ attention: { stuck: 0, retrying: 0, total: 0 }, workers: 1 }))).toBe('Running · 1 worker · US$4.12 of US$10.00 spent this month.')
     expect(settingsLine(pipeline({ status: 'off' }))).toMatch(/^Off\./)
     expect(settingsLine(pipeline({ status: 'paused' }))).toMatch(/^Paused\. Press Run now/)
@@ -94,6 +94,7 @@ describe('tiles', () => {
   })
   it('lists stopped ones too', () => {
     expect(tiles(pipeline({ attention: { stuck: 2, retrying: 1, total: 3 } }))[2].sub).toBe('1 retrying, 2 stopped')
+    expect(tiles(pipeline({ attention: { stuck: 0, retrying: 0, unchecked: 2, total: 2 } }))[2].sub).toBe('2 unchecked')
   })
 })
 

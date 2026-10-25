@@ -23,7 +23,7 @@ import anthropic
 
 import config
 import usage_store
-from supply_chain import chunker, db, graph, jobs, resolver
+from supply_chain import chunker, db, graph, jobs, resolver, verifier
 from supply_chain.db import now
 from supply_chain.worker import Permanent, handler
 from supply_chain.xbrl import GROUP_WORDS
@@ -440,6 +440,7 @@ def queue_unread(conn):
 @handler("read")
 async def read_job(job, conn):
     totals = await read_document(conn, int(job["key"]), run_id=job.get("run_id"))
+    verifier.queue_verify(conn, int(job["key"]), job.get("company_id"))  # the Verifier (#125) checks what was found
     if not totals["chunks"]:
         return {"notes": "nothing to read"}
     notes = (f"{totals['chunks']} chunks ({totals['skipped']} read before), {totals['candidates']} candidates, "

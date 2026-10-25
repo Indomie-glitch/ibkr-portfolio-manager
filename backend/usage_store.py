@@ -12,14 +12,15 @@ from config import DATA_DIR
 
 DB_PATH = DATA_DIR / "usage.sqlite"
 
-FEATURES = ("stock_summary", "portfolio_summary", "news_sentiment", "directors", "supply_chain_reader")
+FEATURES = ("stock_summary", "portfolio_summary", "news_sentiment", "directors", "supply_chain_reader", "supply_chain_verifier")
 
-# US$ per million tokens (input, output), for the models config.AI_MODELS offers. Claude Haiku 5.5
+# US$ per million tokens (input, output), for the models config.AI_MODELS offers and the supply chain pipeline uses. Claude Haiku 5.5
 # costs more when a prompt is over 100K tokens; the app's prompts are far smaller, but it's priced anyway.
 PRICES = {
     "claude-haiku-4-5": {"input": 1.00, "output": 5.00},
     "claude-haiku-5-5": {"input": 0.10, "output": 0.50, "long_input": 0.50, "long_output": 2.50, "long_from": 100_000},
     "claude-sonnet-5-5": {"input": 2.00, "output": 10.00},
+    "claude-sonnet-5": {"input": 2.00, "output": 10.00},  # answers claude-sonnet-5-5's refusals (server-side fallback)
 }
 
 

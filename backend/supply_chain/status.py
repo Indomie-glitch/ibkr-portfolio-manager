@@ -11,7 +11,7 @@ A watched company is one in a theme (theme_companies). Its status:
 import json
 from datetime import datetime, timedelta, timezone
 
-from supply_chain import control, jobs
+from supply_chain import control, jobs, verifier
 
 WEEK = timedelta(days=7)
 LOG_LIMIT = 150
@@ -161,6 +161,7 @@ def overview(conn, now=None):
     link_total, link_week, link_ended = conn.execute(
         """SELECT SUM(status != 'ended'), SUM(status != 'ended' AND first_seen >= ?), SUM(status = 'ended') FROM relationships""", (week_ago,)).fetchone()
     stuck = conn.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('failed', 'dead')").fetchone()[0]
+    unchecked = verifier.unchecked_count(conn)  # links Claude couldn't check (verifier.MAX_VERIFY_ATTEMPTS)
     retrying = conn.execute("SELECT COUNT(*) FROM jobs WHERE status = 'queued' AND attempts > 0 AND last_error IS NOT NULL").fetchone()[0]
     month = control.spent_this_month(conn, now)
     week = jobs.spent_since(conn, now - WEEK)
@@ -174,7 +175,7 @@ def overview(conn, now=None):
         "themes": theme_names(conn), "watched": len(rows),
         "coverage": {"read": read, "total": len(rows), "not_on_edgar": counts["not on EDGAR"]},
         "links": {"total": link_total or 0, "week": link_week or 0, "ended": link_ended or 0},
-        "attention": {"stuck": stuck, "retrying": retrying, "total": stuck + retrying},
+        "attention": {"stuck": stuck, "retrying": retrying, "unchecked": unchecked, "total": stuck + retrying + unchecked},
         "cost": {"month": round(month, 4), "week": round(week, 4), "per_filing": round(per_filing, 4) if per_filing else None,
                  "budget": budget, "budget_left": round(max(budget - month, 0), 4), "percent": round(100 * month / budget) if budget else 0},
         "companies": {"all": len(rows), **{key.replace(" ", "_"): value for key, value in counts.items()}},
@@ -230,15 +231,20 @@ def log_events(conn, now=None, kind="all", limit=LOG_LIMIT):
     if kind in ("all", "links"):
         rows = conn.execute(
             """SELECT r.created_at, r.supplier_revenue_share AS rev, r.customer_supply_share AS supply, r.customer_share_scope AS scope,
-                      s.id AS supplier_id, s.name AS supplier, c.id AS customer_id, c.name AS customer, r.tier
+                      s.id AS supplier_id, s.name AS supplier, c.id AS customer_id, c.name AS customer, r.tier, r.kind,
+                      e.verification
                FROM relationships r JOIN companies s ON s.id = r.supplier_id JOIN companies c ON c.id = r.customer_id
+               JOIN evidence e ON e.id = r.primary_evidence_id
                ORDER BY r.created_at DESC, r.id DESC LIMIT ?""", (LINK_LIMIT,)).fetchall()
         for row in rows:
             supplier = ticker_of(conn, row["supplier_id"]) or short_name(row["supplier"])
             customer = ticker_of(conn, row["customer_id"]) or short_name(row["customer"])
             share = f" · {row['rev']:g}% of revenue" if row["rev"] is not None else (
                 f" · {row['supply']:g}% of {row['scope'] or 'purchases'}" if row["supply"] is not None else "")
-            events.append({"at": row["created_at"], "tag": "LINK", "text": f"{supplier} → {customer}{share}", "job_id": None, "company_id": row["supplier_id"]})
+            arrow = "↔" if row["kind"] == "partnership" else "→"  # a partnership has no direction
+            checked = " · verified" if row["verification"] == "verified" else ""
+            events.append({"at": row["created_at"], "tag": "LINK", "text": f"{supplier} {arrow} {customer}{share}{checked}", "job_id": None,
+                           "company_id": row["supplier_id"]})
     events.sort(key=lambda e: e["at"], reverse=True)
     return events[:limit]
 
@@ -246,7 +252,8 @@ def log_events(conn, now=None, kind="all", limit=LOG_LIMIT):
 # ---------- Actions ----------
 
 def retry(conn, job_id=None, company_id=None):
-    """Queues failed (or dead) jobs again, one or all of a company's. Returns how many."""
+    """Queues failed (or dead) jobs again, one or all of a company's; a company's unchecked candidates get fresh attempts
+    too. Returns how many."""
     if job_id is not None:
         rows = conn.execute("SELECT id FROM jobs WHERE id = ? AND status IN ('failed', 'dead')", (job_id,)).fetchall()
     elif company_id is not None:
@@ -255,7 +262,8 @@ def retry(conn, job_id=None, company_id=None):
         raise ValueError("Say which job or company to retry.")
     for row in rows:
         jobs.requeue(conn, row["id"])
-    return len(rows)
+    unchecked = verifier.retry_unchecked(conn, company_id) if company_id is not None else 0
+    return len(rows) + unchecked
 
 
 def run_now(conn, now=None):

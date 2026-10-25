@@ -108,6 +108,11 @@ DIRECTORS_MODEL = "claude-haiku-5-5"
 # use: a fixed answer shape from a passage, for every filing of every watched company. The Verifier checks its claims.
 READER_MODEL = "claude-haiku-5-5"
 
+# The Verifier (#125) checks each Reader claim against its paragraph: fewer calls, and a wrong link costs more than a
+# missed one, so a stronger model than the Reader's. A refusal can be answered by Anthropic's fallback model instead
+# (verifier.py records which model answered).
+VERIFIER_MODEL = "claude-sonnet-5-5"
+
 
 def flex_token():
     """The IBKR Flex Web Service token (a secret: memory only in the Mac app, IB_FLEX_TOKEN in .env in
