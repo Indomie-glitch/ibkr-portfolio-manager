@@ -131,6 +131,19 @@ def add_relationship(conn, supplier_id, customer_id, evidence, kind="supplies", 
     return relationship_id
 
 
+def refresh_shares(conn, relationship_id):
+    """Sets the relationship's shares from its newest evidence that states each one (by stated_on), so a later filing's
+    figure replaces an older one while the older stays as evidence."""
+    stamp = now()
+    for columns in (("supplier_revenue_share",), ("customer_supply_share", "customer_share_scope")):
+        row = conn.execute(f"""SELECT {', '.join(columns)}, stated_on FROM evidence WHERE relationship_id = ? AND {columns[0]} IS NOT NULL
+                               ORDER BY stated_on DESC, id DESC LIMIT 1""", (relationship_id,)).fetchone()
+        if row:
+            assignments = ", ".join(f"{c} = ?" for c in columns)
+            conn.execute(f"UPDATE relationships SET {assignments}, shares_as_of = MAX(COALESCE(shares_as_of, ''), ?), updated_at = ? WHERE id = ?",
+                         (*[row[c] for c in columns], row["stated_on"], stamp, relationship_id))
+
+
 # ---------- Rejected candidates ----------
 
 def reject(conn, document_id, quote, reason, rejected_by, supplier_name=None, customer_name=None, supplier_id=None, customer_id=None,

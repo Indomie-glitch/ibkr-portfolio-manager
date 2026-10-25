@@ -118,7 +118,7 @@ async def keep_running(path=None, count=None):
     pipeline spends AI budget). Several workers run side by side when PIPELINE_WORKERS says so."""
     while not config.pipeline_enabled():
         await asyncio.sleep(60)  # noticed when it is switched on
-    from supply_chain import scout  # registers the scout and download handlers
+    from supply_chain import scout, xbrl  # noqa: F401  registers the scout, download and xbrl handlers
     count = count or config.pipeline_workers()
     workers = [Worker(path, name=f"{socket.gethostname()}-{os.getpid()}-{i}") for i in range(count)]
     workers[0].start(exclusive=True)  # one process: whatever was running before is a leftover

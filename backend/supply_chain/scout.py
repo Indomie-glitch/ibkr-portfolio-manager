@@ -25,6 +25,7 @@ LOOKBACK_DAYS = {"10-K": 400, "20-F": 400, "10-Q": 200, "8-K": 60, "6-K": 60}
 SCOUT_EVERY_S = 12 * 3600
 SCHEDULE_EVERY_S = 3600
 SCOUT_PRIORITY = 70
+XBRL_PRIORITY = 55  # the tagged customer figures in a 10-K (#120)
 
 
 def cik_of(conn, company_id):
@@ -83,6 +84,9 @@ async def scan(conn, company_id, today=None):
                      {"document_id": document_id, "cik": cik, "accession": filing["accession"], "filename": filing["primary_document"],
                       "form": filing["form"]},
                      priority=FORMS[filing["form"]], company_id=company_id, document_id=document_id)
+        if filing["form"] == "10-K" and filing.get("xbrl"):
+            jobs.enqueue(conn, "xbrl", filing["accession"], {"cik": cik, "filing": filing}, priority=XBRL_PRIORITY,
+                         company_id=company_id, document_id=document_id)
     return {"cik": cik, "found": found, "new": new}
 
 

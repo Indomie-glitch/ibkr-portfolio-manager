@@ -125,6 +125,21 @@ erDiagram
   so an edited old migration is noticed. The database is `supply_chain.sqlite` (in `data/`, or Application Support
   in the Mac app).
 
+## Customer concentration from XBRL (#120)
+
+10-Ks tag each "major customer" percentage as `us-gaap:ConcentrationRiskPercentage1`, with dimensions for the counterparty (`srt:MajorCustomersAxis`, or a supplier / vendor axis) and the benchmark (revenue, accounts receivable, purchases). `xbrl.import_filing` reads the filing's XBRL instance (`<doc>_htm.xml`) and label file (`_lab.xml`) and writes each figure as a relationship with **tier 1** evidence (extractor `xbrl`) pointing at the 10-K: the quote is the fact as tagged ("Apple, Inc.: 91% of revenue, 2025-03-30 to 2026-03-28 [us-gaap:ConcentrationRiskPercentage1, MajorCustomersAxis = crus:AppleIncMember]"), the locator the fact and context ids, `stated_on` the period end.
+
+| Member | What happens |
+|---|---|
+| Unnamed ("Customer A", "Major Customer One", "Undisclosed Customer 1", "Supplier A", "Company A") | A placeholder company for the filer, one per label **and fiscal year** ("Customer A (unnamed customer of CoreWeave, Inc., year to 2025-12-31)"), because this year's Customer A need not be last year's. Never sent to the name lookup. |
+| Named ("Apple, Inc.", "HP Inc.", "Dell Inc.") | The name resolver (#119). A match links the real company; anything else goes to `rejected` (`unresolved_company`), not guessed. |
+| Group ("Top Ten Customers", "Three Largest Customers", "Ablecom and Compuware") | Left out: not one company. |
+| Narrowed by a region or product line | Left out. A business segment is kept as a note. |
+
+Benchmarks: a revenue share fills `supplier_revenue_share` (the filer supplies the counterparty); a purchases share means the counterparty is the filer's **supplier** and fills `customer_supply_share` with the benchmark as scope ("Supplier A: 63.1% of purchases, total" for Super Micro); a receivables share is kept as a `share_note` on the evidence only. Revenue and receivables figures of the same label and year are one relationship. Other benchmarks ("Manufacturer Concentration") are left out. The same figure tagged twice keeps the more precise one. `graph.refresh_shares` sets a relationship's shares from its newest evidence, so an older filing loaded later doesn't overwrite a newer figure.
+
+The scout queues an `xbrl` job (priority 55) for every new 10-K that has XBRL data. 10-Qs (quarterly shares) and 20-Fs (IFRS tags) are not read yet.
+
 ## Matching names to companies (#119)
 
 Filings name companies in their own words ("TSMC", "Micron Technology, Inc.", "Customer A"). `resolver.resolve(conn, name)` maps a name to a company, and says how:
@@ -169,7 +184,7 @@ queued -> running -> done
 | #121 | AI hardware seed (done; 59 companies in `backend/seed/themes.json`, loaded by `supply_chain/themes.py`) | `companies`, `identifiers`, `themes` |
 | #119 | name resolver (done; `supply_chain/resolver.py` + `openfigi.py`) | `identifiers` |
 | #118 | SEC scout (done; `supply_chain/scout.py`: watches theme companies for 10-K, 10-Q, 8-K and queues downloads) | `themes`, `documents`, `jobs` |
-| #120 | XBRL customer concentration | `relationships`, `evidence`, placeholder companies |
+| #120 | XBRL customer concentration (done; `supply_chain/xbrl.py`) | `relationships`, `evidence`, placeholder companies |
 | #122 | pipeline status page (design first) | counts of `jobs`, `runs`, `documents` |
 | M11 | chunker, reader, verifier, orchestrator, merge | `evidence`, `rejected`, `runs.cost_usd`, `relationships.confidence` |
 | M12 | graph API and explorer | indexes on both ends of `relationships`; chains of up to three layers by a recursive query |
