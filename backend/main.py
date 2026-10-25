@@ -10,9 +10,10 @@ import config  # first: loads .env before other modules read settings
 import constituents
 import directors
 import person_data
+from supply_chain import worker as pipeline
 import lots
 from ib_core import NOT_CONNECTED, ib, keep_connected
-from routers import app as app_routes, directors as directors_routes, flex, indices, positions, risk, summaries, trading
+from routers import app as app_routes, directors as directors_routes, flex, indices, pipeline as pipeline_routes, positions, risk, summaries, trading
 from web import ALLOWED_ORIGINS, end_streams_on_stop
 
 @asynccontextmanager
@@ -37,12 +38,15 @@ async def lifespan(app: FastAPI):
     except Exception as exc:  # a damaged seed: people are looked up by the weekly check instead
         print(f"Person data: couldn't load the seed: {exc.__class__.__name__}")
     person_task = asyncio.create_task(person_data.keep_checked())
+    # The supply chain pipeline's workers: only while PIPELINE=1 (they download filings and spend AI budget)
+    pipeline_task = asyncio.create_task(pipeline.keep_running())
     yield
     task.cancel()
     lots_task.cancel()
     indices_task.cancel()
     directors_task.cancel()
     person_task.cancel()
+    pipeline_task.cancel()
     ib.disconnect()
 
 app = FastAPI(lifespan=lifespan)
@@ -57,7 +61,7 @@ class PathCORS:
                                        allow_headers=["X-App-Token"])
 
     async def __call__(self, scope, receive, send):
-        summary_path = scope["type"] == "http" and (scope["path"].startswith(("/summary/", "/orders/", "/directors/"))
+        summary_path = scope["type"] == "http" and (scope["path"].startswith(("/summary/", "/orders/", "/directors/", "/pipeline/"))
                                                     or scope["path"] in ("/portfolio-summary", "/orders", "/trading/borrowing"))
         await (self.get_post if summary_path else self.get_only)(scope, receive, send)
 
@@ -78,5 +82,5 @@ app.add_middleware(PathCORS)
 async def connection_error(request: Request, exc: ConnectionError):
     return JSONResponse(status_code=503, content={"detail": NOT_CONNECTED})
 
-for routes in (app_routes, positions, flex, summaries, trading, risk, indices, directors_routes):
+for routes in (app_routes, positions, flex, summaries, trading, risk, indices, directors_routes, pipeline_routes):
     app.include_router(routes.router)

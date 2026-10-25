@@ -61,6 +61,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * Connections on every stock's detail (Positions, Markets, watchlists): a relationship map with the stock in the middle, the indexes it's in (S&P 500, Nasdaq 100, Dow, ASX 20 / 50 / 200, with its rank and weight) and your holdings in them, the largest companies in its industry sized by market cap (its own market, or both), its executives and its board. Anything linked to what you own is amber, including a director who sits on the board of one of your holdings. Hover for details, click to open a stock, scroll to zoom. **Open full map** opens a full page: the same map with depth 1 or 2 (depth 2 adds the other boards each director sits on), an inspector for the selected node (for a person, their roles at other companies and a Wikipedia link when known), find in map, and a list of every connection, the ones touching your holdings first. Index members and market data are refreshed in the background (Yahoo, no API key; a bundled copy means it only tops up), on by default: `INDEX_LOADER=0` in `.env`, or `"load_index_members": false` in the app's `settings.json`, turns it off
 * Boards of directors (in Connections): each director's role, independence, year joined, age, committees and other company boards, read by Claude (Haiku 5.5) from the company's own document and linked to the page it came from. US boards come from SEC proxy statements; the S&P 500's ship with the app. ASX boards come from the company's annual report on the ASX, which ASX allows for personal use only, so they are read in your own app when you ask (a few US cents on your API key) after you accept ASX's terms. Each name and quote is checked against the document. People are linked across companies ("also on BHP's board") only by Wikidata ID or when one document names the other company; a shared name alone is shown as a possible match. A newer proxy or annual report is spotted weekly
 * Person data (backend, no UI yet): what Wikipedia and Wikidata say about the executives and directors above: Wikipedia link and short summary, a photo with its licence and credit, birth year, education, positions held and other boards. A person is matched only when it's certain: Wikidata lists them as a board member, CEO or chair of the company, or exactly one person with that name has evidence tying them to it (the company in their description, employer or positions, or a business occupation and a birth year that agrees with the age in the document). Anyone with more than one plausible match, a name match without evidence, or no match is skipped with the reason, and how each match was made is stored. Many people, especially Australian directors, have no entry. A bundled copy ships with the app and new people are looked up once a week (`PERSON_DATA=0` in `.env` turns that off)
+* Supply chain pipeline (Settings > Supply chain pipeline, off by default): reads the SEC filings of an AI hardware watch list in the background and the customer figures companies tag in them, with a switch, a monthly budget in US dollars (it pauses itself when used up; it uses your own Anthropic key when it reads reports with Claude) and a status sheet: coverage, links found, what needs attention, cost, the companies with their filings, and a live log. The supplier map itself comes in a later version
 * Competitors (backend, no UI yet): for any ASX or US stock, the index companies in the same industry from both markets, largest first, with market cap, 1-year change, P/E and whether you own them; widens to related industries or the sector when there are fewer than 4
 
 ### Planned
@@ -81,7 +82,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, IBKR password never stored, optional encrypted API key, DMG
 * [x] **Milestone 8: Risk analysis:** a Risk page with 10 headline figures and 12 panels (concentration, exposure, correlation, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution, example mixes, bankruptcy risk, liquidity), each explained in plain words with your own numbers, and the main findings in the AI portfolio summary ([the maths](docs/risk-maths.md))
 * [ ] **Milestone 9: Company connections:** index members, the indexes a stock belongs to, competitors, executives, boards of directors and the Connections section on the stock detail are done; the full map page is next
-* [ ] **Milestone 10:** Supply chain graph foundation
+* [x] **Milestone 10:** Supply chain graph foundation: the schema with the evidence behind every link, a job queue, the SEC client and scout, an AI hardware watch list, company name matching, the major customer figures tagged in 10-Ks, and a pipeline status sheet in Settings ([docs/supply-chain-graph.md](docs/supply-chain-graph.md)). The supplier map itself is Milestones 11 to 13
 * [ ] **Milestone 11:** Extraction agents
 * [ ] **Milestone 12:** Supply chain explorer
 * [ ] **Milestone 13:** Analyst agent and shared graph
@@ -212,6 +213,8 @@ cp .env.example .env
 |---|---|
 | `SEC_CONTACT_EMAIL` | Needed for US boards of directors: SEC requires a contact email in every EDGAR request. The Mac app's build bundles it (`backend/write_app_config.py`; CI reads the `SEC_CONTACT_EMAIL` repository secret), so anyone with the app can read it |
 | `PERSON_DATA` | Optional: `0` turns off the weekly look-up of new people on Wikipedia and Wikidata (on by default; people with a bundled result are never looked up again) |
+| `PIPELINE`, `PIPELINE_WORKERS` | Optional: `1` starts the supply chain pipeline's background workers with the app (off by default: they download filings and spend AI budget); the number of workers (default 2) |
+| `OPENFIGI_API_KEY` | Optional: a free OpenFIGI key for the supply chain pipeline's company name matching; without one OpenFIGI allows 25 searches a minute, with one 250 |
 | `INDEX_LOADER` | Optional: `0` turns off the background refresh of index members and their market data (on by default; the endpoints still answer from whatever is stored) |
 | `ANTHROPIC_API_KEY` | Your Claude API key (needed for AI summaries; only used by the backend) |
 | `AI_MODEL` | Claude model for summaries, `claude-haiku-4-5` by default |
@@ -319,6 +322,10 @@ cd frontend/src-tauri && cargo test
 | `POST /directors/{con_id}` | Reads (or re-reads) the board now with Claude Haiku 5.5 on your API key (about US$0.005; 10 to 60 seconds) |
 | `GET /directors/asx-terms`, `POST /directors/asx-terms` | Whether you've accepted ASX's terms (company announcements for private and personal use), and accepting or withdrawing that; ASX boards can't be read without it |
 | `GET /people/{person_id}` | Every board seat one person holds among the boards read so far |
+| `GET /pipeline` | The supply chain pipeline's status (off, running, paused, budget used up), workers, coverage, links, what needs attention, cost against the monthly budget, and its switches |
+| `GET /pipeline/companies`, `GET /pipeline/companies/{company_id}/filings` | The watched companies with latest filing, when it was read, links, 7 day change, status and cost; one company's filings and where each stands |
+| `GET /pipeline/log?kind=all\|links\|failed` | The live log: RUN, LINK, DONE, FAIL, SCOUT lines, newest first |
+| `POST /pipeline/settings`, `POST /pipeline/run-now`, `POST /pipeline/retry` | Switch it on or off, pause it, set the monthly budget; look at every watched company now; retry failed items |
 | `GET /competitors/{con_id}` | Companies in the stock's industry among the index members (ASX and US), largest market cap first, with market, market cap, 1-year change, P/E and whether you own each; the stock itself is marked. Says which level was used (industry, related industries or sector) and whether sectors are still loading. `?scope=same_market` ranks only among companies on the stock's own market |
 | **AI usage** | |
 | `GET /usage?month=YYYY-MM` | Tokens and estimated cost (US$) of every Claude call in a month (default this month), in total and per feature (stock summaries, portfolio summaries, news sentiment) |
@@ -392,7 +399,7 @@ ibkr-portfolio-manager/
 ├── backend/          FastAPI app (main.py), IB Gateway connection, REST API
 ├── frontend/         React app (Vite)
 │   └── src-tauri/    Mac app shell (Tauri, Rust)
-├── docs/             Architecture diagrams, setup guides and specs
+├── docs/             Architecture diagrams, setup guides, specs and the supply chain graph design
 │   └── screenshots/  Screenshots used in this README
 ├── scripts/          screenshots.mjs: retakes the README screenshots with headless Chrome
 ├── .env.example      Template for environment variables

@@ -25,16 +25,13 @@ from datetime import datetime, timedelta
 from html.parser import HTMLParser
 
 import config
+import sec_client
 
 REPO = "https://github.com/Indomie-glitch/ibkr-portfolio-manager"
 TIMEOUT_S = 60
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024  # the largest ASX annual reports are ~40 MB
 FILING_MAX_AGE = timedelta(days=548)  # 18 months: a proxy older than that is out of date
 
-SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
-SEC_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
-SEC_ARCHIVE_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{document}"
-SEC_MIN_INTERVAL_S = 0.2  # 5 requests a second at most (EDGAR allows 10)
 SEC_FORMS = ("DEF 14A", "DEF 14C", "20-F")  # in order of preference (14C: an information statement)
 
 ASX_LIST_URL = ("https://www.asx.com.au/asx/v2/statistics/announcements.do"
@@ -87,44 +84,32 @@ async def get(url, headers=None):
         raise SourceUnavailable(f"Couldn't download from {host} ({exc.__class__.__name__}).") from exc
 
 
-# ---------- SEC EDGAR ----------
+# ---------- SEC EDGAR (the fetching is in sec_client.py, shared with the supply chain pipeline) ----------
 
-_sec_lock = asyncio.Lock()
-_sec_last = 0.0
-_sec_tickers = {"at": 0.0, "map": None}
+sec_ticker = sec_client.sec_ticker
 
 
 def sec_headers():
-    email = config.sec_contact_email()
-    if not email:
-        raise SourceUnavailable("US boards need a contact email for SEC (SEC_CONTACT_EMAIL).")
-    return {"User-Agent": f"PortfolioManager {email}", "Accept-Encoding": "identity"}
+    try:
+        return sec_client.headers()
+    except sec_client.SecUnavailable as exc:
+        raise SourceUnavailable(str(exc)) from exc
 
 
 async def sec_get(url):
-    """One EDGAR request, spaced out to stay under SEC's rate limit."""
-    global _sec_last
-    headers = sec_headers()
-    async with _sec_lock:
-        wait = SEC_MIN_INTERVAL_S - (time.monotonic() - _sec_last)
-        if wait > 0:
-            await asyncio.sleep(wait)
-        _sec_last = time.monotonic()
-    return await get(url, headers)
-
-
-def sec_ticker(ib_symbol):
-    """IB's "BRK B" is SEC's "BRK-B"."""
-    return ib_symbol.strip().upper().replace(" ", "-").replace(".", "-")
+    """One EDGAR request (rate limited, retried, with the contact User-Agent); SourceUnavailable when it can't be had."""
+    try:
+        return await sec_client.get_bytes(url)
+    except sec_client.SecUnavailable as exc:
+        raise SourceUnavailable(str(exc)) from exc
 
 
 async def sec_cik(ib_symbol):
-    """The company's SEC number (CIK) from SEC's ticker list (fetched once a day), or None."""
-    if _sec_tickers["map"] is None or time.monotonic() - _sec_tickers["at"] > 24 * 3600:
-        data = json.loads(await sec_get(SEC_TICKERS_URL))
-        _sec_tickers["map"] = {row["ticker"].upper(): int(row["cik_str"]) for row in data.values()}
-        _sec_tickers["at"] = time.monotonic()
-    return _sec_tickers["map"].get(sec_ticker(ib_symbol))
+    """The company's SEC number (CIK) from SEC's ticker list, or None."""
+    try:
+        return await sec_client.cik_for_ticker(ib_symbol)
+    except sec_client.SecUnavailable as exc:
+        raise SourceUnavailable(str(exc)) from exc
 
 
 def choose_filings(submissions, cik, now):
@@ -144,8 +129,7 @@ def choose_filings(submissions, cik, now):
             found.append({
                 "source": "sec", "kind": form, "filed": row["filingDate"],
                 "title": f"{submissions.get('name') or 'Company'} {form} ({row['filingDate']})",
-                "url": SEC_ARCHIVE_URL.format(cik=cik, accession=row["accessionNumber"].replace("-", ""),
-                                              document=row["primaryDocument"]),
+                "url": sec_client.document_url(cik, row["accessionNumber"], row["primaryDocument"]),
             })
         if found:
             return found
@@ -162,7 +146,10 @@ async def sec_documents(ib_symbol, now=None):
     cik = await sec_cik(ib_symbol)
     if cik is None:
         raise NoDocument(f"SEC has no company with the ticker {sec_ticker(ib_symbol)}.")
-    submissions = json.loads(await sec_get(SEC_SUBMISSIONS_URL.format(cik=cik)))
+    try:
+        submissions = await sec_client.submissions(cik)
+    except sec_client.SecUnavailable as exc:
+        raise SourceUnavailable(str(exc)) from exc
     found = choose_filings(submissions, cik, now or datetime.now())
     if not found:
         raise NoDocument("No proxy statement (DEF 14A) or 20-F on EDGAR in the last 18 months.")

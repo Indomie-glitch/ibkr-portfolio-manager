@@ -1,8 +1,9 @@
 // The Settings content, laid out like the Figma frame "M7 / 8 Settings" (macOS System Settings style
 // groups). It's shown in the Settings sheet (components/SettingsSheet.jsx), in the section order of the
-// Figma "Settings overlay": Account, AI summaries, IB Gateway, Appearance.
+// Figma "Settings overlay": Account, AI summaries, Supply chain pipeline, IB Gateway, Trading, Appearance.
 import { useEffect, useState } from 'react'
-import { IN_APP, changeBorrowing, fetchBorrowing } from '../lib/api.js'
+import { IN_APP, changeBorrowing, fetchBorrowing, fetchPipeline, savePipelineSettings } from '../lib/api.js'
+import { budgetText, parseBudget, settingsLine, usd } from '../lib/pipelineFormat.js'
 import { apiKeyStatus, clearApiKey, rememberApiKey, setApiKey } from '../desktop/appApiKey.js'
 import { APPEARANCES } from '../hooks/appearance.js'
 import { TEXT_SIZES } from '../lib/textSize.js'
@@ -350,6 +351,97 @@ function ModelRow({ settings, onSave }) {
   )
 }
 
+// The supply chain pipeline (#122, Figma Pipeline / Settings entry 157:1091): the switch, the monthly budget and a
+// one line status with the button that opens the pipeline sheet. The switches live in the backend
+// (supply_chain/control.py), so they work the same in the app and in development.
+function PipelineGroup({ onOpenPipeline }) {
+  const [pipeline, setPipeline] = useState(null)
+  const [budget, setBudget] = useState('')
+  const [budgetNote, setBudgetNote] = useState(null)
+  const [note, setNote] = useState(null)
+
+  useEffect(() => {
+    let ignore = false
+    const load = () =>
+      fetchPipeline()
+        .then((answer) => {
+          if (ignore) return
+          setPipeline(answer)
+          setBudget((typed) => (typed === '' ? budgetText(answer.settings.budget_usd) : typed))
+        })
+        .catch((err) => !ignore && setNote({ error: true, text: err.message }))
+    load()
+    const timer = setInterval(load, 10_000)
+    return () => {
+      ignore = true
+      clearInterval(timer)
+    }
+  }, [])
+
+  async function change(update, then) {
+    try {
+      await savePipelineSettings(update)
+      const answer = await fetchPipeline()
+      setPipeline(answer)
+      setNote(null)
+      then?.(answer)
+    } catch (err) {
+      setNote({ error: true, text: err.message })
+    }
+  }
+
+  function saveBudget(event) {
+    event.preventDefault()
+    const value = parseBudget(budget, pipeline?.settings.max_budget)
+    if (value == null) {
+      setBudgetNote({ error: true, text: `Enter an amount in US dollars, more than 0 and up to ${usd(pipeline?.settings.max_budget ?? 1000)}.` })
+      return
+    }
+    change({ budget_usd: value }, () => {
+      setBudget(budgetText(value))
+      setBudgetNote({ text: `Saved. The budget is ${usd(value)} a month.` })
+    })
+  }
+
+  const enabled = pipeline?.settings.enabled ?? false
+  return (
+    <Group title="Supply chain pipeline" footnote="Spending is on your own Anthropic account. Fetching filings from the SEC is free.">
+      <Row
+        label="Run pipeline"
+        note={note ?? { text: 'Reads company reports in the background to build the supplier map. Uses your Anthropic key, off by default.' }}
+      >
+        <Toggle label="Run pipeline" checked={enabled} onChange={(value) => pipeline && change({ enabled: value })} />
+      </Row>
+      <Row
+        label="Monthly budget"
+        note={budgetNote ?? { text: 'The pipeline pauses itself when this is used up, and starts again next month.' }}
+      >
+        <form className="settings-inline" onSubmit={saveBudget}>
+          <span className="settings-value">US$</span>
+          <input
+            className="settings-field budget"
+            inputMode="decimal"
+            value={budget}
+            onChange={(e) => {
+              setBudget(e.target.value)
+              setBudgetNote(null)
+            }}
+            aria-label="Monthly budget in US dollars"
+          />
+          <button type="submit" className="settings-button primary" disabled={!pipeline}>
+            Save
+          </button>
+        </form>
+      </Row>
+      <Row label="Pipeline" note={{ text: settingsLine(pipeline) }}>
+        <button type="button" className="settings-button primary" onClick={onOpenPipeline} disabled={!onOpenPipeline}>
+          Open pipeline…
+        </button>
+      </Row>
+    </Group>
+  )
+}
+
 // "Block borrowing" (#289): on by default, per IBKR account. Off needs the warning sheet and then
 // Touch ID / the Mac password (app) or BORROW typed (browser); back on needs a short confirmation.
 function TradingGroup({ connected }) {
@@ -476,7 +568,7 @@ function AppearanceGroup({ appearance, onAppearanceChange, textSize, onTextSizeC
   )
 }
 
-function Settings({ appearance, onAppearanceChange, textSize, onTextSizeChange, login, connected, onSignedOut }) {
+function Settings({ appearance, onAppearanceChange, textSize, onTextSizeChange, login, connected, onSignedOut, onOpenPipeline }) {
   const [settings, setSettings] = useState(null)
   // The IBKR username last signed in with (settings.json; the password is never stored)
   const [username, setUsername] = useState(null)
@@ -510,6 +602,7 @@ function Settings({ appearance, onAppearanceChange, textSize, onTextSizeChange, 
         <p className="settings-footnote">
           In development, the API key, Gateway port and model come from .env (ANTHROPIC_API_KEY, IB_PORT, AI_MODEL).
         </p>
+        <PipelineGroup onOpenPipeline={onOpenPipeline} />
         <TradingGroup connected={connected} />
         <AppearanceGroup
           appearance={appearance}
@@ -538,6 +631,7 @@ function Settings({ appearance, onAppearanceChange, textSize, onTextSizeChange, 
         <ApiKeyRow />
         <ModelRow settings={settings} onSave={save} />
       </Group>
+      <PipelineGroup onOpenPipeline={onOpenPipeline} />
       {settings && <GatewayGroup settings={settings} onSave={save} />}
       <TradingGroup connected={connected} />
       <AppearanceGroup
