@@ -12,7 +12,7 @@ import directors
 from supply_chain import worker as pipeline
 import lots
 from ib_core import NOT_CONNECTED, ib, keep_connected
-from routers import app as app_routes, directors as directors_routes, flex, indices, positions, risk, summaries, trading
+from routers import app as app_routes, directors as directors_routes, flex, indices, pipeline as pipeline_routes, positions, risk, summaries, trading
 from web import ALLOWED_ORIGINS, end_streams_on_stop
 
 @asynccontextmanager
@@ -52,7 +52,7 @@ class PathCORS:
                                        allow_headers=["X-App-Token"])
 
     async def __call__(self, scope, receive, send):
-        summary_path = scope["type"] == "http" and (scope["path"].startswith(("/summary/", "/orders/", "/directors/"))
+        summary_path = scope["type"] == "http" and (scope["path"].startswith(("/summary/", "/orders/", "/directors/", "/pipeline/"))
                                                     or scope["path"] in ("/portfolio-summary", "/orders", "/trading/borrowing"))
         await (self.get_post if summary_path else self.get_only)(scope, receive, send)
 
@@ -73,5 +73,5 @@ app.add_middleware(PathCORS)
 async def connection_error(request: Request, exc: ConnectionError):
     return JSONResponse(status_code=503, content={"detail": NOT_CONNECTED})
 
-for routes in (app_routes, positions, flex, summaries, trading, risk, indices, directors_routes):
+for routes in (app_routes, positions, flex, summaries, trading, risk, indices, directors_routes, pipeline_routes):
     app.include_router(routes.router)

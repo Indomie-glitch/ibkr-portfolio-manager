@@ -17,7 +17,7 @@ from datetime import timedelta
 
 import config
 from secrets_guard import mask_secrets
-from supply_chain import db, jobs
+from supply_chain import control, db, jobs
 
 HANDLERS = {}
 HANDLER_TIMEOUT_S = 15 * 60
@@ -113,17 +113,54 @@ class Worker:
                 self.conn = None
 
 
-async def keep_running(path=None, count=None):
-    """Background task for the app's lifespan: runs the workers while config.pipeline_enabled() (off by default: the
-    pipeline spends AI budget). Several workers run side by side when PIPELINE_WORKERS says so."""
-    while not config.pipeline_enabled():
-        await asyncio.sleep(60)  # noticed when it is switched on
+SUPERVISE_EVERY_S = 5
+
+
+async def run_workers(path, count):
+    """Runs `count` workers and the scout's scheduler until cancelled; they finish the job in hand when it is."""
     from supply_chain import scout, xbrl  # noqa: F401  registers the scout, download and xbrl handlers
-    count = count or config.pipeline_workers()
     workers = [Worker(path, name=f"{socket.gethostname()}-{os.getpid()}-{i}") for i in range(count)]
     workers[0].start(exclusive=True)  # one process: whatever was running before is a leftover
+    control.active_workers = count
     try:
         await asyncio.gather(scout.keep_scheduling(path), *(w.run_forever(exclusive=False) for w in workers))
     finally:
+        control.active_workers = 0
         for w in workers:
             w.stop()
+
+
+async def keep_running(path=None, count=None, every_s=SUPERVISE_EVERY_S):
+    """Background task for the app's lifespan. While the pipeline is switched on, not paused and under this month's budget
+    (control.should_run), workers run; when that stops being true they are stopped (the job in hand goes back in the queue without costing an attempt) and
+    they start again by themselves when it is true again. The pipeline spends AI budget, so it is off until switched on
+    (PIPELINE=1 in .env, the app's setting, or Settings > Supply chain pipeline)."""
+    from supply_chain import themes  # here: themes imports graph, which imports this package's db
+    count = count or config.pipeline_workers()
+    conn = db.open_graph(path)
+    try:
+        themes.seed_themes(conn)  # the watch list (seed/themes.json); safe to repeat, and local only
+    except Exception as exc:
+        print(f"Supply chain: couldn't load the watch list: {exc.__class__.__name__}")
+    running = None
+    try:
+        while True:
+            try:
+                want = control.should_run(conn)
+            except Exception as exc:  # an unreadable settings file or database: try again shortly
+                print(f"Supply chain: couldn't check the pipeline switches: {exc.__class__.__name__}")
+                want = running is not None
+            if want and running is None:
+                running = asyncio.create_task(run_workers(path, count))
+            elif not want and running is not None:
+                running.cancel()
+                await asyncio.gather(running, return_exceptions=True)
+                running = None
+            elif running is not None and running.done():
+                running = None  # it ended by itself (an error): start it again
+            await asyncio.sleep(every_s)
+    finally:
+        if running is not None:
+            running.cancel()
+            await asyncio.gather(running, return_exceptions=True)
+        conn.close()

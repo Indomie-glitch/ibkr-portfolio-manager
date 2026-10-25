@@ -151,7 +151,7 @@ flowchart TB
         dirs["directors.py<br/>boards read by Claude,<br/>checked against the document<br/>(SQLite); seed/directors.json (US)"]
         dsrc["directors_sources.py<br/>EDGAR proxy, ASX annual report,<br/>board pages only, Wikidata"]
         secc["sec_client.py<br/>the one EDGAR client: User-Agent,<br/>rate limit, retries, filing lists,<br/>download + SHA-256"]
-        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration<br/>(supply_chain.sqlite; no endpoints yet)"]
+        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration,<br/>pipeline switches + status<br/>(supply_chain.sqlite; GET/POST /pipeline)"]
         ppl["people.py<br/>same person across companies<br/>(Wikidata ID, or name + the<br/>document naming the company)"]
     end
 
@@ -233,6 +233,7 @@ flowchart TB
     App --> ConPage["pages/ConnectionsPage.jsx<br/>full map, inspector, list<br/>(from 'Open full map')"]
     ConPage --> detail
     App --> Settings["SettingsSheet.jsx + pages/Settings.jsx<br/>(opened from the account menu)"]
+    Settings --> PipelineSheet["PipelineSheet.jsx + pipeline/<br/>supply chain pipeline: tiles,<br/>companies, live log<br/>(opened from Settings)"]
     App --> Ticket["OrderTicket.jsx<br/>buy/sell form, live preview"] --> Confirm["OrderConfirm.jsx<br/>review sheet, then 'Order filled'"]
 
     Overview --> StatCard & PositionsTable & AllocationCard & PortfolioSummaryCard["PortfolioSummaryCard.jsx<br/>AI portfolio summary"]
@@ -461,6 +462,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | News sentiment per article | `news_sentiment.sqlite` | 90 days |
 | Claude API usage: tokens and estimated cost per call | `usage.sqlite` | kept (`GET /usage` totals a month) |
 | Supply chain graph (companies, identifiers, documents, relationships, evidence, rejected, jobs, runs, themes; [the schema](supply-chain-graph.md)) | `supply_chain.sqlite` | every relationship keeps the evidence it came from; ended links are kept |
+| Supply chain pipeline switches (run, paused, monthly budget) | `pipeline_settings.json` next to the database | until changed |
 | Boards of directors (each seat with its document, page and quote; Wikidata IDs) and whether you accepted ASX's terms | `directors.sqlite` (US index members from the bundled `seed/directors.json`; ASX boards only when you ask) | until a newer document is read |
 | Index members (S&P 500, Nasdaq 100, Dow, ASX 20 / 50 / 200) with weights, market cap, P/E, 1-year change, sectors and industries | `indices.sqlite` (a fresh install starts from the bundled `seed/indices.json`) | members weekly per index, market data daily; the last good copy stays if a download fails |
 | Daily closes for the risk analysis (holdings, indexes, exchange rate pairs against the account's currency) | `risk_prices.sqlite` | about 3 years, updated once a day per symbol |

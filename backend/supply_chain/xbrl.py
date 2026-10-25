@@ -275,4 +275,8 @@ async def xbrl_job(job, conn):
         raise Permanent(str(exc)) from exc
     linked = sum(1 for r in outcome["results"] if r["status"] == "linked")
     rejected = len(outcome["results"]) - linked
-    return {"notes": outcome.get("note") or f"{linked} linked, {rejected} unresolved, {len(outcome['skipped'])} left out"}
+    if outcome.get("note"):
+        return {"notes": outcome["note"]}
+    if not outcome["results"] and not outcome["skipped"]:
+        return {"notes": "no customer figures tagged"}
+    return {"notes": f"{linked} linked, {rejected} unresolved, {len(outcome['skipped'])} left out"}

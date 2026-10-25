@@ -25,6 +25,7 @@ import Risk from './pages/Risk.jsx'
 import { riskSubtitle } from './lib/riskFormat.js'
 import Watchlist from './pages/Watchlist.jsx'
 import { useWatchlists } from './lib/watchlists.js'
+import PipelineSheet from './components/PipelineSheet.jsx'
 import SettingsSheet from './components/SettingsSheet.jsx'
 import { onOpenSettingsMenu } from './desktop/appMenu.js'
 import { toggleList } from './hooks/useResizableWidth.js'
@@ -75,6 +76,9 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const openSettings = useCallback(() => setSettingsOpen(true), [])
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
+  // The supply chain pipeline sheet (#122), opened from Settings; Done closes it
+  const [pipelineOpen, setPipelineOpen] = useState(false)
+  const closePipeline = useCallback(() => setPipelineOpen(false), [])
   // The IBKR username and mode last signed in with, for the account card (Mac app only)
   const [savedAccount, setSavedAccount] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
@@ -375,9 +379,22 @@ function App() {
                 onTextSizeChange={setTextSize}
                 login={login}
                 connected={connected}
+                onOpenPipeline={() => {
+                  closeSettings()
+                  setPipelineOpen(true)
+                }}
                 onSignedOut={() => {
                   closeSettings()
                   refreshLogin()
+                }}
+              />
+            )}
+            {pipelineOpen && (
+              <PipelineSheet
+                onClose={closePipeline}
+                onOpenSettings={() => {
+                  closePipeline()
+                  openSettings()
                 }}
               />
             )}
