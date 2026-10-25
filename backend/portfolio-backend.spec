@@ -17,6 +17,8 @@ for package in ("curl_cffi", "certifi"):
 datas += [("seed/indices.json", "seed")]
 # Boards of the US index members, read from their proxy statements (directors.py, #113)
 datas += [("seed/directors.json", "seed")]
+# Companies each supply chain theme starts with (supply_chain/themes.py, #121)
+datas += [("seed/themes.json", "seed")]
 # Build-time settings such as the SEC contact email (write_app_config.py; gitignored)
 datas += [("app_config.json", ".")]
 
