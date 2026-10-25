@@ -140,6 +140,32 @@ Benchmarks: a revenue share fills `supplier_revenue_share` (the filer supplies t
 
 The scout queues an `xbrl` job (priority 55) for every new 10-K that has XBRL data. 10-Qs (quarterly shares) and 20-Fs (IFRS tags) are not read yet.
 
+## Cutting filings into chunks (#123)
+
+Nothing here uses AI. `supply_chain/chunker.py` turns a downloaded filing into pieces the Reader (#124) sends to Claude, in three steps:
+
+1. **Text.** The HTML (or plain text) becomes a list of cleaned paragraphs, numbered from 1. Tables stay readable as rows (`Beta Corp | 48%`), with EDGAR's separate `$` and `)` cells joined back to their numbers. The hidden XBRL header, scripts, page numbers and "Table of Contents" lines are dropped. The same file always gives the same numbers, so a paragraph number in a locator keeps pointing at the same text.
+2. **Sections.** A *section finder* keeps the passages that name business relationships and drops the rest (cover pages, exhibit lists, signatures). The SEC finder keeps:
+
+   | Form | Kept |
+   |---|---|
+   | 10-K | Item 1 Business, Item 1A Risk Factors, Item 7 MD&A (only the paragraphs that mention customers, suppliers, vendors, distributors, foundries, sole source and similar, plus the paragraph either side), and the notes to the financial statements about revenue, segments, concentration, customers, suppliers, related parties, commitments and accounting policies (found under Item 8 or under Item 15, where many companies put the F-pages). A statements item with no recognisable notes is kept whole. |
+   | 10-Q | Part I Item 1 (notes, as above), Part I Item 2 (MD&A passages), Part II Item 1A |
+   | 20-F | Items 3, 4, 5 (passages), 17 / 18 (notes) |
+   | 8-K | Item 1.01 (material agreement) and 1.02 (termination), plus attached exhibit 10.x agreements in full. An 8-K about something else (results, a director leaving) gives no chunks. |
+   | 6-K, or a filing whose Items can't be found | The whole text, as the section "Full text". |
+
+   Items are found by their headings. A table of contents lists the same headings, so of all the places an Item appears, the one with the most text under it is the real one, and a page header repeating "Item 1A (continued)" doesn't cut the section in two. Prose that merely mentions "Item 7 of this report" is not a heading.
+3. **Chunks.** Each section is cut into chunks under `MAX_CHUNK_TOKENS` (80,000) at paragraph boundaries. A paragraph that is too big on its own is cut at line breaks (a long table between rows), then sentence ends, then spaces, and only a single word longer than the limit is cut anywhere. The next chunk starts with the end of the previous one (up to `OVERLAP_TOKENS`, 1,000, whole paragraphs only), so a relationship split across a boundary appears whole in one of them; `Chunk.overlap` says how many leading paragraphs are repeats. A chunk never spans two sections.
+
+Why 80,000: `claude-haiku-5-5` costs 5 times more for a prompt over 100,000 tokens (`usage_store.PRICES`, `long_from`), and the Reader's instructions and answer need room. There is no tokenizer to call, so `estimate_tokens` is deliberately high: a word costs one token per 3 letters, digits one per 3 digits, every symbol one. Ordinary prose comes out about 1.5 times the real count, so most chunks are smaller than the limit; numbers and punctuation (tables) are where a plain letters-per-token rule would undercount.
+
+Each `Chunk` has the file name (`document`), the `section`, the `text`, the estimated `tokens`, `first_paragraph` / `last_paragraph` and a `locator` such as `Item 1A. Risk Factors, paragraphs 7-10`, which is what evidence points at. The Reader's quote can be found again by loading the same file and reading those paragraphs.
+
+**Other sources.** A finder is a function `(paragraphs, form) -> list[Section] | None` registered with `@chunker.finder("source")`: `None` means "can't tell" (the whole text is used), `[]` means "I read the structure and nothing matters". MOPS, EDINET, DART and ASX PDFs (#128 to #131) bring their own loader for the paragraphs and their own finder, then call `chunk_paragraphs(paragraphs, source, form, document)`.
+
+`chunk_filing(folder, form, primary_document)` chunks a whole download folder. The scout downloads only the main document so far, so exhibit 10.x files are chunked only once something downloads them.
+
 ## Running it and watching it (#122)
 
 Settings > Supply chain pipeline has the **Run pipeline** switch (off by default: it uses the user's Anthropic key when it reads reports with Claude), a **monthly budget** in US dollars (default US$10) and a status line with **Open pipeline…**, which opens the pipeline sheet. The switches are kept in `pipeline_settings.json` next to the database (`supply_chain/control.py`); until someone chooses, "run" follows `PIPELINE` in `.env`.
@@ -194,6 +220,7 @@ queued -> running -> done
 | #118 | SEC scout (done; `supply_chain/scout.py`: watches theme companies for 10-K, 10-Q, 8-K and queues downloads) | `themes`, `documents`, `jobs` |
 | #120 | XBRL customer concentration (done; `supply_chain/xbrl.py`) | `relationships`, `evidence`, placeholder companies |
 | #122 | pipeline status sheet (done; Settings group + `PipelineSheet.jsx`, `supply_chain/status.py`, `control.py`, `routers/pipeline.py`) | counts of `jobs`, `runs`, `documents` |
-| M11 | chunker, reader, verifier, orchestrator, merge | `evidence`, `rejected`, `runs.cost_usd`, `relationships.confidence` |
+| #123 | document chunker (done; `supply_chain/chunker.py`) | `documents.local_path` in, chunks out |
+| M11 | reader, verifier, orchestrator, merge | `evidence`, `rejected`, `runs.cost_usd`, `relationships.confidence` |
 | M12 | graph API and explorer | indexes on both ends of `relationships`; chains of up to three layers by a recursive query |
 | M13 | server, export, sync | plain SQL (Postgres), `updated_at`, `ended` instead of deletes |
