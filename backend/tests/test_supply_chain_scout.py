@@ -74,6 +74,12 @@ class Scout(unittest.TestCase):
         self.assertEqual(self.scan()["new"], 1)
         self.assertEqual([r["key"] for r in self.open_jobs()], ["b/main.htm"])
 
+    def test_foreign_filers_20f_and_6k_are_watched(self):
+        self.filings = [filing("f-1", "20-F", "2026-04-15"), filing("k-1", "6-K", "2026-10-10"), filing("k-0", "6-K", "2026-06-01")]
+        self.assertEqual(self.scan()["new"], 2)  # the old 6-K is a press release from months ago
+        self.assertEqual([(r["key"], r["priority"]) for r in self.open_jobs()], [("f-1/main.htm", 60), ("k-1/main.htm", 30)])
+        self.assertEqual(set(self.listed[0][1]), {"10-K", "20-F", "10-Q", "8-K", "6-K"})
+
     def test_filing_without_document_is_ignored(self):
         self.filings = [filing("a", "10-K", "2026-02-20", doc=None)]
         self.assertEqual(self.scan(), {"cik": 1045810, "found": 0, "new": 0})
