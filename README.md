@@ -210,6 +210,7 @@ cp .env.example .env
 | Variable | Description |
 |---|---|
 | `SEC_CONTACT_EMAIL` | Needed for US boards of directors: SEC requires a contact email in every EDGAR request. The Mac app's build bundles it (`backend/write_app_config.py`; CI reads the `SEC_CONTACT_EMAIL` repository secret), so anyone with the app can read it |
+| `PIPELINE`, `PIPELINE_WORKERS` | Optional: `1` starts the supply chain pipeline's background workers with the app (off by default: they download filings and spend AI budget); the number of workers (default 2) |
 | `INDEX_LOADER` | Optional: `0` turns off the background refresh of index members and their market data (on by default; the endpoints still answer from whatever is stored) |
 | `ANTHROPIC_API_KEY` | Your Claude API key (needed for AI summaries; only used by the backend) |
 | `AI_MODEL` | Claude model for summaries, `claude-haiku-4-5` by default |

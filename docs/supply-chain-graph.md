@@ -125,11 +125,34 @@ erDiagram
   so an edited old migration is noticed. The database is `supply_chain.sqlite` (in `data/`, or Application Support
   in the Mac app).
 
+## Job queue and workers (#116)
+
+Pipeline work is a **job** (`supply_chain/jobs.py`): a kind (`scout`, `download`, `read` ...) and a key (what it is
+about). At most one open job exists per kind and key, so queueing the same work twice does nothing (except that the
+more urgent priority wins). Workers (`supply_chain/worker.py`) claim jobs atomically, highest priority first, and
+run the handler registered for the kind (`@handler("scout")`).
+
+```
+queued -> running -> done
+                  -> queued again after a back-off (30 s, 2 min, 8 min ... up to 6 h) on an error
+                  -> dead   when out of attempts (3 by default)
+                  -> failed on a permanent error (the input is wrong)
+```
+
+- Every attempt writes a `runs` row (outcome, model, tokens, `cost_usd`), so a daily budget is one sum.
+- **Survives restarts.** The queue is in the database. At start the runner takes back every job a previous
+  process left running; on an orderly stop (the app quitting) the job in hand goes back without costing an
+  attempt; after a crash the lost attempt counts, so a job that kills its worker every time ends up dead.
+- Several workers can run side by side (`PIPELINE_WORKERS`, default 2). Only one runner process should use a
+  database. A worker only claims kinds it has a handler for.
+- **Off by default**: `PIPELINE=1` in `.env` starts the workers with the app, because they download filings and
+  spend AI budget.
+
 ## What comes next
 
 | Issue | Piece | Uses |
 |---|---|---|
-| #116 | job queue and workers | `jobs`, `runs` |
+| #116 | job queue and workers (done) | `jobs`, `runs` |
 | #117 | SEC client (shared with the boards job) | `documents` (hash, status) |
 | #121 | AI hardware seed (about 50 companies) | `companies`, `identifiers`, `themes` |
 | #119 | resolver (OpenFIGI) | `identifiers` |

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import config  # first: loads .env before other modules read settings
 import constituents
 import directors
+from supply_chain import worker as pipeline
 import lots
 from ib_core import NOT_CONNECTED, ib, keep_connected
 from routers import app as app_routes, directors as directors_routes, flex, indices, positions, risk, summaries, trading
@@ -29,11 +30,14 @@ async def lifespan(app: FastAPI):
     except Exception as exc:  # a damaged seed: boards are read on demand instead
         print(f"Directors: couldn't load the seed: {exc.__class__.__name__}")
     directors_task = asyncio.create_task(directors.keep_checked())
+    # The supply chain pipeline's workers: only while PIPELINE=1 (they download filings and spend AI budget)
+    pipeline_task = asyncio.create_task(pipeline.keep_running())
     yield
     task.cancel()
     lots_task.cancel()
     indices_task.cancel()
     directors_task.cancel()
+    pipeline_task.cancel()
     ib.disconnect()
 
 app = FastAPI(lifespan=lifespan)
