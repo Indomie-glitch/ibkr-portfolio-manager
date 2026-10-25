@@ -44,6 +44,14 @@ def index_loader_enabled():
     return os.getenv("INDEX_LOADER", "").strip().lower() not in ("0", "false", "no", "off")
 
 
+def person_data_enabled():
+    """Whether the weekly check for new people's Wikipedia and Wikidata facts runs (#280). On by default;
+    PERSON_DATA=0 in .env (or "person_data": false from the app) turns it off."""
+    if IN_APP:
+        return SETTINGS.get("person_data") is not False
+    return os.getenv("PERSON_DATA", "").strip().lower() not in ("0", "false", "no", "off")
+
+
 def pipeline_enabled():
     """Whether the supply chain pipeline's workers run in the background (#116). Off by default: they spend AI budget
     and download filings. PIPELINE=1 in .env (or "pipeline": true from the app) turns them on."""
