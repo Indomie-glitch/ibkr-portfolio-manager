@@ -214,8 +214,72 @@ CREATE TABLE name_resolutions (
 CREATE INDEX name_resolutions_company ON name_resolutions (company_id);
 """
 
+READER = """
+-- One row per chunk the Reader (#124) sent to Claude, so a job retried after a failure doesn't read (and pay for) the
+-- same chunk twice. Chunks are identified by the chunker's version and number within the document.
+CREATE TABLE chunk_reads (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL REFERENCES documents (id),
+    chunker_version INTEGER NOT NULL,
+    chunk_number INTEGER NOT NULL,
+    locator TEXT NOT NULL,
+    text_hash TEXT NOT NULL,           -- SHA-256 of the chunk text
+    run_id INTEGER REFERENCES runs (id),
+    model TEXT,
+    input_tokens INTEGER,
+    output_tokens INTEGER,
+    cost_usd REAL,
+    found INTEGER NOT NULL,            -- relationships the model returned for the chunk
+    read_at TEXT NOT NULL,
+    UNIQUE (document_id, chunker_version, chunk_number)
+);
+
+-- What the Reader found: a claim and its quote, waiting for the Verifier (#125). Never a relationship by itself.
+-- Direction as in relationships (the supplier sells to the customer); a partnership is stored with the filer as
+-- supplier, but has no direction.
+CREATE TABLE candidates (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL REFERENCES documents (id),
+    chunk_read_id INTEGER NOT NULL REFERENCES chunk_reads (id),
+    run_id INTEGER REFERENCES runs (id),
+    kind TEXT NOT NULL CHECK (kind IN ('supplies', 'partnership')),
+    counterparty_role TEXT NOT NULL CHECK (counterparty_role IN ('supplier', 'customer', 'partner')),
+    supplier_name TEXT NOT NULL,       -- as written (the filer: its own name)
+    customer_name TEXT NOT NULL,
+    supplier_is_filer INTEGER NOT NULL CHECK (supplier_is_filer IN (0, 1)),
+    customer_is_filer INTEGER NOT NULL CHECK (customer_is_filer IN (0, 1)),
+    supplier_unnamed INTEGER NOT NULL DEFAULT 0 CHECK (supplier_unnamed IN (0, 1)),   -- "Customer A": the name is the label
+    customer_unnamed INTEGER NOT NULL DEFAULT 0 CHECK (customer_unnamed IN (0, 1)),
+    supplier_id INTEGER REFERENCES companies (id),   -- NULL only for an unnamed counterparty
+    customer_id INTEGER REFERENCES companies (id),
+    resolved_by TEXT,                  -- how the counterparty's name was matched (resolver method)
+    what TEXT,
+    supplier_revenue_share REAL CHECK (supplier_revenue_share IS NULL OR (supplier_revenue_share >= 0 AND supplier_revenue_share <= 100)),
+    customer_supply_share REAL CHECK (customer_supply_share IS NULL OR (customer_supply_share >= 0 AND customer_supply_share <= 100)),
+    customer_share_scope TEXT,
+    share_as_written TEXT,             -- "48% of total revenue", "substantially all"
+    share_dropped TEXT,                -- why a share the model gave was removed: "supplier_revenue_share: digits_not_in_quote"
+    period_as_written TEXT,
+    stated_on TEXT,                    -- date
+    ended INTEGER NOT NULL DEFAULT 0 CHECK (ended IN (0, 1)),
+    quote TEXT NOT NULL CHECK (length(trim(quote)) > 0),
+    locator TEXT NOT NULL,             -- the paragraph holding the quote: "Item 1A. Risk Factors, paragraph 41 [chunker v1]"
+    context TEXT NOT NULL,             -- that paragraph and its neighbours: all the Verifier sees besides the claim
+    candidate_hash TEXT NOT NULL,      -- names + kind + quote: what the overlap between chunks finds twice is kept once
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'supported', 'partly_supported', 'not_supported', 'linked')),
+    verdict TEXT,                      -- JSON from the Verifier
+    verified_run_id INTEGER REFERENCES runs (id),
+    relationship_id INTEGER REFERENCES relationships (id),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (document_id, candidate_hash)
+);
+CREATE INDEX candidates_pending ON candidates (status, document_id);
+"""
+
 # (version, name, sql). Add new migrations at the end.
 MIGRATIONS = [
     (1, "initial graph schema (#115)", INITIAL),
     (2, "company name resolutions (#119)", NAME_RESOLUTIONS),
+    (3, "chunk reads and Reader candidates (#124)", READER),
 ]
