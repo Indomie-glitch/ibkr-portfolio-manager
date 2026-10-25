@@ -23,10 +23,10 @@ export const PIPELINE_EXPLAINERS = {
   },
   attention: {
     title: 'Needs attention',
-    what: 'Filings the pipeline could not fetch or read. Most are temporary (SEC was busy) and are retried by themselves after a wait; a few stop for good, for example a filing that no longer exists.',
+    what: 'Filings the pipeline could not fetch or read, and links Claude could not check. Most are temporary (SEC was busy) and are retried by themselves after a wait; a few stop for good, for example a filing that no longer exists, or a link Claude declined to check twice.',
     yours: (p) =>
       p.attention.total
-        ? `${plural(p.attention.retrying, 'item')} waiting to retry, ${plural(p.attention.stuck, 'item')} stopped. You can retry stopped ones from a company or from the log.`
+        ? `${plural(p.attention.retrying, 'item')} waiting to retry, ${plural(p.attention.stuck, 'item')} stopped${p.attention.unchecked ? `, ${plural(p.attention.unchecked, 'link')} unchecked` : ''}. You can retry stopped ones from a company or from the log.`
         : 'Nothing is stuck right now.',
     consider: 'Retrying a stopped item gives it a fresh set of attempts.',
   },

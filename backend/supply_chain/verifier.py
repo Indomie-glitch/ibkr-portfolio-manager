@@ -16,12 +16,14 @@ An unnamed counterparty ("Customer A") becomes a placeholder company the way xbr
 period), so the merge (#127) can later upgrade it. Job kind "verify" (key = document id), queued when a read finds candidates.
 """
 import json
+from datetime import datetime, timedelta, timezone
 
 import anthropic
 
 import config
 import usage_store
 from supply_chain import chunker, graph, jobs, xbrl
+from supply_chain.jobs import _iso
 from supply_chain.db import now
 from supply_chain.worker import Permanent, handler
 
@@ -31,6 +33,8 @@ MAX_TOKENS = 16000
 TIMEOUT_S = 300
 BATCH_ITEMS = 10
 BATCH_TOKENS = 20_000
+MAX_VERIFY_ATTEMPTS = 2  # a candidate still unchecked after a check is tried once more ...
+RETRY_AFTER = timedelta(days=3)  # ... this long after, then left for Needs attention (never in a paid loop)
 VERIFY_PRIORITY = 46  # above reads (40-45): each document is verified before the next is read, so links appear steadily
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 TIER = 2
@@ -256,10 +260,38 @@ def apply(conn, candidate, verdict, model, run_id=None):
 
 # ---------- Verifying a document ----------
 
-async def verify_document(conn, document_id, client=None, run_id=None):
-    """Checks every pending candidate of a document. Returns {candidates, linked, rejected, declined, unanswered, models,
-    input_tokens, output_tokens, cost_usd}."""
-    pending = conn.execute("SELECT * FROM candidates WHERE document_id = ? AND status = 'pending' ORDER BY id", (document_id,)).fetchall()
+# Pending candidates the Verifier may check now: not given up on, and not waiting after an unanswered check
+DUE = "status = 'pending' AND verify_attempts < ? AND (verify_after IS NULL OR verify_after <= ?)"
+
+
+def _now(now=None):
+    return now or datetime.now(timezone.utc)
+
+
+def unchecked_count(conn):
+    """Candidates the Verifier gave up on (Needs attention)."""
+    return conn.execute("SELECT COUNT(*) FROM candidates WHERE status = 'pending' AND verify_attempts >= ?", (MAX_VERIFY_ATTEMPTS,)).fetchone()[0]
+
+
+def retry_unchecked(conn, company_id):
+    """Gives the company's unchecked candidates fresh attempts and queues their documents. Returns how many candidates."""
+    rows = conn.execute(
+        """SELECT c.id, c.document_id FROM candidates c JOIN documents d ON d.id = c.document_id
+           WHERE d.company_id = ? AND c.status = 'pending' AND c.verify_attempts >= ?""", (company_id, MAX_VERIFY_ATTEMPTS)).fetchall()
+    for row in rows:
+        conn.execute("UPDATE candidates SET verify_attempts = 0, verify_after = NULL, updated_at = ? WHERE id = ?", (now(), row["id"]))
+    for document_id in {row["document_id"] for row in rows}:
+        queue_verify(conn, document_id, company_id)
+    return len(rows)
+
+
+async def verify_document(conn, document_id, client=None, run_id=None, now_at=None):
+    """Checks every due pending candidate of a document. One still unchecked afterwards (the whole fallback chain declined,
+    or the answer skipped it twice) counts an attempt and waits RETRY_AFTER. Returns {candidates, linked, rejected,
+    declined, unanswered, models, input_tokens, output_tokens, cost_usd}."""
+    moment = _now(now_at)
+    pending = conn.execute(f"SELECT * FROM candidates WHERE document_id = ? AND {DUE} ORDER BY id",
+                           (document_id, MAX_VERIFY_ATTEMPTS, _iso(moment))).fetchall()
     totals = {"candidates": len(pending), "linked": 0, "rejected": 0, "declined": 0, "unanswered": 0, "models": [],
               "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
     if not pending:
@@ -292,23 +324,33 @@ async def verify_document(conn, document_id, client=None, run_id=None):
     for candidate in missed:  # an item the answer skipped is asked about on its own, once
         if await run_batch([candidate]):
             totals["unanswered"] += 1
+    conn.execute(
+        f"""UPDATE candidates SET verify_attempts = verify_attempts + 1, verify_after = ?, updated_at = ?
+            WHERE status = 'pending' AND id IN ({", ".join("?" * len(pending))})""",
+        (_iso(moment + RETRY_AFTER), now(), *(c["id"] for c in pending)))
     return totals
 
 
-def queue_verify(conn, document_id, company_id=None):
-    """Queues the check of a document's pending candidates (once while one is open)."""
-    if not conn.execute("SELECT 1 FROM candidates WHERE document_id = ? AND status = 'pending' LIMIT 1", (document_id,)).fetchone():
+def queue_verify(conn, document_id, company_id=None, now_at=None):
+    """Queues the check of a document's due candidates (once while one is open)."""
+    if not conn.execute(f"SELECT 1 FROM candidates WHERE document_id = ? AND {DUE} LIMIT 1",
+                        (document_id, MAX_VERIFY_ATTEMPTS, _iso(_now(now_at)))).fetchone():
         return False
     _, created = jobs.enqueue(conn, "verify", str(document_id), priority=VERIFY_PRIORITY, company_id=company_id, document_id=document_id)
     return created
 
 
-def queue_unverified(conn):
-    """Queues checks for documents with pending candidates and no open verify job. Returns how many."""
+def queue_unverified(conn, now_at=None):
+    """Queues checks for documents with due candidates and no open verify job. A document whose verify job failed for good
+    (the API refusing the request, say) waits RETRY_AFTER too, so an error can't turn into an hourly loop. Returns how many."""
+    moment = _now(now_at)
     rows = conn.execute(
-        """SELECT DISTINCT c.document_id, d.company_id FROM candidates c JOIN documents d ON d.id = c.document_id WHERE c.status = 'pending'
-           AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.kind = 'verify' AND j.key = CAST(c.document_id AS TEXT) AND j.status IN ('queued', 'running'))""").fetchall()
-    return sum(queue_verify(conn, row["document_id"], row["company_id"]) for row in rows)
+        """SELECT DISTINCT c.document_id, d.company_id FROM candidates c JOIN documents d ON d.id = c.document_id
+            WHERE c.status = 'pending' AND c.verify_attempts < ? AND (c.verify_after IS NULL OR c.verify_after <= ?)
+            AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.kind = 'verify' AND j.key = CAST(c.document_id AS TEXT)
+                            AND (j.status IN ('queued', 'running') OR (j.status IN ('failed', 'dead') AND j.updated_at > ?)))""",
+        (MAX_VERIFY_ATTEMPTS, _iso(moment), _iso(moment - RETRY_AFTER))).fetchall()
+    return sum(queue_verify(conn, row["document_id"], row["company_id"], moment) for row in rows)
 
 
 @handler("verify")

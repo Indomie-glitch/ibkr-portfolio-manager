@@ -170,7 +170,7 @@ class Overview(Base):
         overview = status.overview(self.conn, NOW)
         self.assertEqual(overview["watched"], 2)
         self.assertEqual(overview["coverage"], {"read": 1, "total": 2, "not_on_edgar": 0})
-        self.assertEqual(overview["attention"], {"stuck": 1, "retrying": 1, "total": 2})
+        self.assertEqual(overview["attention"], {"stuck": 1, "retrying": 1, "unchecked": 0, "total": 2})
         self.assertEqual((overview["cost"]["month"], overview["cost"]["percent"], overview["cost"]["budget_left"]), (0.5, 25, 1.5))
         self.assertEqual(overview["themes"], ["AI hardware"])
         self.assertTrue(overview["started"])

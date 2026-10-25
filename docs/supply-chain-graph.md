@@ -228,6 +228,8 @@ An unnamed counterparty becomes a placeholder company exactly as the XBRL import
 
 **The job.** Kind `verify`, key = the document id, queued when a read finishes with pending candidates (and hourly for any left without one), at priority 46: above reads (40-45), so each document is checked before the next is read and links appear steadily in the log, whose LINK lines now end "· verified" (a partnership shows as `A ↔ B`). An item the answer skipped is asked about alone, once; an answer cut off at the output limit is asked again in halves.
 
+**Never a paid loop.** A candidate still unchecked after a verify job (the whole fallback chain declined, or the answer skipped it twice) counts an attempt (`candidates.verify_attempts`, migration 5) and waits 3 days (`verify_after`). It is tried once more after that, then given up on: it stays `pending` and is counted as *unchecked* under Needs attention in the pipeline sheet. A company's Retry gives its unchecked candidates fresh attempts. The hourly scheduler only queues documents with candidates that are due, and waits the same 3 days after a verify job that failed for good, so an API error can't turn into an hourly retry either.
+
 ## Running it and watching it (#122)
 
 Settings > Supply chain pipeline has the **Run pipeline** switch (off by default: it uses the user's Anthropic key when it reads reports with Claude), a **monthly budget** in US dollars (default US$10) and a status line with **Open pipeline…**, which opens the pipeline sheet. The switches are kept in `pipeline_settings.json` next to the database (`supply_chain/control.py`); until someone chooses, "run" follows `PIPELINE` in `.env`.

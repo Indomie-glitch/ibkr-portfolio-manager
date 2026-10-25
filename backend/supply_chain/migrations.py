@@ -285,10 +285,18 @@ ALTER TABLE evidence ADD COLUMN verified_by TEXT;
 ALTER TABLE evidence ADD COLUMN states_ended INTEGER NOT NULL DEFAULT 0 CHECK (states_ended IN (0, 1));
 """
 
+VERIFY_ATTEMPTS = """
+-- A candidate the Verifier couldn't check (the fallback declined too, or the answer skipped it twice) is tried once more
+-- after a wait, then left for the pipeline sheet's Needs attention, so the scheduler never pays for it in a loop.
+ALTER TABLE candidates ADD COLUMN verify_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE candidates ADD COLUMN verify_after TEXT;   -- not checked again before this time
+"""
+
 # (version, name, sql). Add new migrations at the end.
 MIGRATIONS = [
     (1, "initial graph schema (#115)", INITIAL),
     (2, "company name resolutions (#119)", NAME_RESOLUTIONS),
     (3, "chunk reads and Reader candidates (#124)", READER),
     (4, "verified_by and states_ended on evidence (#125)", VERIFIED_EVIDENCE),
+    (5, "verify attempts on candidates (#125)", VERIFY_ATTEMPTS),
 ]

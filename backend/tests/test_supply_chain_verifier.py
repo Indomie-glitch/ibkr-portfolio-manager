@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import datetime, timedelta, timezone
 import tempfile
 import unittest
 from pathlib import Path
@@ -361,6 +362,66 @@ class JobTests(VerifierTestCase):
         lines = [e["text"] for e in status.log_events(self.conn, kind="links")]
         self.assertIn("Gamma Foundry Ltd. → ACME · verified", lines)
         self.assertIn("ACME ↔ Beta Corp · verified", lines)
+
+
+class AttemptTests(VerifierTestCase):
+    """A candidate left unchecked is tried once more after RETRY_AFTER, then left for Needs attention: never a paid loop."""
+    def setUp(self):
+        super().setUp()
+        self.candidate_id = self.add_candidate()
+        self.start = datetime(2026, 10, 27, 9, 0, tzinfo=timezone.utc)
+
+    def refuse(self, at):
+        client = FakeClient(lambda m, r: response(stop="refusal"))
+        run(verifier.verify_document(self.conn, self.document, client=client, now_at=at))
+        return client
+
+    def test_a_declined_candidate_waits_then_is_tried_once_more_then_given_up(self):
+        self.refuse(self.start)
+        row = self.candidate(self.candidate_id)
+        self.assertEqual((row["status"], row["verify_attempts"]), ("pending", 1))
+        self.assertEqual(row["verify_after"], "2026-10-30T09:00:00Z")
+        # every hourly pass before the wait is over queues nothing
+        for hours in (1, 2, 24, 71):
+            self.assertEqual(verifier.queue_unverified(self.conn, self.start + timedelta(hours=hours)), 0)
+        self.assertEqual(verifier.queue_unverified(self.conn, self.start + timedelta(days=3, minutes=1)), 1)
+        self.conn.execute("UPDATE jobs SET status = 'done' WHERE kind = 'verify'")
+        self.refuse(self.start + timedelta(days=3, minutes=2))
+        self.assertEqual(self.candidate(self.candidate_id)["verify_attempts"], 2)
+        for days in (4, 7, 30, 365):
+            self.assertEqual(verifier.queue_unverified(self.conn, self.start + timedelta(days=days)), 0)
+        self.assertEqual(verifier.unchecked_count(self.conn), 1)
+
+    def test_a_document_run_early_skips_candidates_still_waiting(self):
+        self.refuse(self.start)
+        client = FakeClient(all_supported)
+        totals = run(verifier.verify_document(self.conn, self.document, client=client, now_at=self.start + timedelta(hours=1)))
+        self.assertEqual((totals["candidates"], len(client.calls)), (0, 0))
+
+    def test_a_skipped_item_counts_an_attempt_too(self):
+        client = FakeClient(lambda m, r: response([]))
+        totals = run(verifier.verify_document(self.conn, self.document, client=client, now_at=self.start))
+        self.assertEqual((totals["unanswered"], len(client.calls)), (1, 2))
+        self.assertEqual(self.candidate(self.candidate_id)["verify_attempts"], 1)
+
+    def test_linked_candidates_are_not_counted(self):
+        run(verifier.verify_document(self.conn, self.document, client=FakeClient(all_supported), now_at=self.start))
+        self.assertEqual(self.candidate(self.candidate_id)["verify_attempts"], 0)
+
+    def test_given_up_candidates_need_attention_and_retry_gives_fresh_attempts(self):
+        self.conn.execute("UPDATE candidates SET verify_attempts = 2, verify_after = '2026-01-01T00:00:00Z'")
+        attention = status.overview(self.conn)["attention"]
+        self.assertEqual((attention["unchecked"], attention["total"]), (1, 1))
+        self.assertEqual(status.retry(self.conn, company_id=self.acme), 1)
+        row = self.candidate(self.candidate_id)
+        self.assertEqual((row["verify_attempts"], row["verify_after"]), (0, None))
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM jobs WHERE kind = 'verify' AND status = 'queued'").fetchone()[0], 1)
+
+    def test_a_verify_job_that_failed_for_good_isnt_requeued_every_hour(self):
+        job_id, _ = jobs.enqueue(self.conn, "verify", str(self.document), now=self.start)
+        self.conn.execute("UPDATE jobs SET status = 'dead', updated_at = ? WHERE id = ?", ("2026-10-27T09:00:00Z", job_id))
+        self.assertEqual(verifier.queue_unverified(self.conn, self.start + timedelta(hours=1)), 0)
+        self.assertEqual(verifier.queue_unverified(self.conn, self.start + timedelta(days=3, hours=1)), 1)
 
 
 if __name__ == "__main__":
