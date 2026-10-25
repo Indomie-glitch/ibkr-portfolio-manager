@@ -99,7 +99,9 @@ erDiagram
         text extractor
         real supplier_revenue_share
         real customer_supply_share
-        text verification }
+        text verification
+        text verified_by "model that checked it"
+        int states_ended }
     rejected { int id PK
         int document_id FK
         text quote
@@ -208,6 +210,24 @@ A share outside 0-100, or whose digits aren't in the quote, doesn't reject the c
 
 **The job.** Kind `read`, key = the document id, queued when a download finishes: 10-Ks and 20-Fs at priority 45, 8-Ks with Item 1.01 or 1.02 at 40 (below downloads and XBRL, since reading costs money). 10-Qs and 6-Ks aren't read (#324). Filings downloaded before the Reader existed are queued by the hourly scheduler. Each chunk read is a `chunk_reads` row (tokens, cost, how many relationships it gave), saved with its candidates in one transaction, so a job retried after a failure (the name lookup down, a timeout) only pays for the chunks it hadn't read. An answer cut off at the output limit is read again as two halves; a refusal counts as nothing found. Every call is logged in `usage.sqlite` as feature `supply_chain_reader`, and the job returns the model, tokens and cost for its `runs` row, so it counts against the monthly budget. A 10-K costs about a cent. When every chunk is read, the document is `processed`.
 
+## Checking what the Reader found (#125)
+
+`supply_chain/verifier.py` is an independent second check of every pending candidate before it enters the graph. The Verifier sees only the claim, written by the code from the candidate's stored fields ("Gamma Foundry Ltd. (supplier) sells to Acme Semiconductor Inc. (customer).", what is supplied, the shares, the period, whether it ended), and the candidate's context paragraph. It never sees the Reader's prompt, reasoning or wording beyond the claim. One call (`config.VERIFIER_MODEL`, claude-sonnet-5-5, effort medium, structured output) checks up to 10 candidates of one document (about 20,000 tokens at most), each a numbered item to be judged only against its own context. Per item it answers a verdict, the fields the context doesn't support (supplier, customer, direction, kind, what, either share, scope, period, ended) and a short reason.
+
+| Verdict | What happens |
+|---|---|
+| supported | `graph.add_relationship` writes the link and its evidence: tier 2, extractor `reader`, verification `verified`, `verified_by` the model that answered, the candidate's locator and `stated_on`, `states_ended` when the passage says it ended. A link that already exists (from XBRL, or another filing) gets the evidence added instead. The candidate becomes `linked`. |
+| partly_supported | If the supplier, customer, direction or kind is unsupported, the link itself is, so it goes to `rejected` (`partly_supported_link`). Otherwise it is written with only the supported fields; the evidence's `share_note` lists what was left out. |
+| not_supported | `rejected` with the reason, `rejected_by` `verifier`. |
+
+An unnamed counterparty becomes a placeholder company exactly as the XBRL import makes them: one per filer, label and period ("Customer A (unnamed customer of Acme Semiconductor Inc., year to 2026-01-25)"), so XBRL and the Reader share it and the merge (#127) can later upgrade it. A candidate whose share the Reader dropped is still checked for the link itself (the claim then has no share). Ending a link from `states_ended`, and its tier and share rules across evidence, are the merge's job (#127).
+
+**Confidence.** `relationships.confidence` is `NOT NULL DEFAULT 0`, and no rule for it exists yet beyond the XBRL import's own constant (0.9 for its tier 1 facts). Verified tier 2 links are left at the default, **0 = not scored**, until the merge (#127) computes confidence from all of a link's evidence.
+
+**Refusals.** Requests carry Anthropic's server-side fallback (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`): a declined check is answered by the fallback model (Claude Sonnet 5 for claude-sonnet-5-5). The model that actually answered is the one recorded: `evidence.verified_by`, the candidate's stored verdict, `runs.model`, and each attempt in `usage.sqlite` (feature `supply_chain_verifier`) priced at its own model's rate from `usage.iterations`. If the whole chain declines, the candidates stay `pending`.
+
+**The job.** Kind `verify`, key = the document id, queued when a read finishes with pending candidates (and hourly for any left without one), at priority 46: above reads (40-45), so each document is checked before the next is read and links appear steadily in the log, whose LINK lines now end "· verified" (a partnership shows as `A ↔ B`). An item the answer skipped is asked about alone, once; an answer cut off at the output limit is asked again in halves.
+
 ## Running it and watching it (#122)
 
 Settings > Supply chain pipeline has the **Run pipeline** switch (off by default: it uses the user's Anthropic key when it reads reports with Claude), a **monthly budget** in US dollars (default US$10) and a status line with **Open pipeline…**, which opens the pipeline sheet. The switches are kept in `pipeline_settings.json` next to the database (`supply_chain/control.py`); until someone chooses, "run" follows `PIPELINE` in `.env`.
@@ -264,6 +284,7 @@ queued -> running -> done
 | #122 | pipeline status sheet (done; Settings group + `PipelineSheet.jsx`, `supply_chain/status.py`, `control.py`, `routers/pipeline.py`) | counts of `jobs`, `runs`, `documents` |
 | #123 | document chunker (done; `supply_chain/chunker.py`) | `documents.local_path` in, chunks out |
 | #124 | Reader (done; `supply_chain/reader.py`: chunks to candidates with Claude) | `chunk_reads`, `candidates`, `rejected` |
-| M11 | verifier (#125), orchestrator, merge (#127) | `evidence`, `rejected`, `runs.cost_usd`, `relationships.confidence` |
+| #125 | Verifier (done; `supply_chain/verifier.py`: candidates to verified tier 2 links) | `relationships`, `evidence`, `rejected`, placeholder companies |
+| M11 | orchestrator, merge (#127) | `evidence`, `rejected`, `runs.cost_usd`, `relationships.confidence` |
 | M12 | graph API and explorer | indexes on both ends of `relationships`; chains of up to three layers by a recursive query |
 | M13 | server, export, sync | plain SQL (Postgres), `updated_at`, `ended` instead of deletes |
