@@ -33,6 +33,13 @@ ALIASES = {  # short names filings use -> the full name's key
     "taiwan semiconductor": "taiwan semiconductor manufacturing",
     "hon hai": "hon hai precision industry",
     "hynix": "sk hynix",
+    "amd": "advanced micro devices",
+    "amazon": "amazon com",
+    "micron": "micron technology",
+    "marvell": "marvell technology",
+    "meta": "meta platforms",
+    "dell": "dell technologies",
+    "supermicro": "super micro computer",
     "asml": "asml holding",
 }
 EXCHANGE_MARKETS = {  # OpenFIGI exchange codes -> the market names the store uses
@@ -111,17 +118,40 @@ def one_company(hits):
     return max(caps) / min(caps) <= SAME_COMPANY_CAP_RATIO
 
 
+COMMON_TYPES = ("Common Stock", "Ordinary Shares", "REIT", "Preferred Stock")
+DEPOSITARY_TYPES = ("ADR", "Depositary Receipt", "GDR")
+
+
 def figi_groups(key, rows):
-    """OpenFIGI listings whose name is this name, grouped by share class: {share class figi: [rows]}."""
-    groups = {}
+    """OpenFIGI equity listings whose name is this name, grouped by share class: {share class figi: [rows]}.
+    The company's own shares decide how many companies there are; depositary receipts (ADRs) of the same name are the
+    same company and only add their listings. Only when there are no own shares do the receipts stand in."""
+    own, receipts = {}, {}
     for row in rows:
-        if row.get("securityType2") not in (None, "Common Stock", "ADR", "Depositary Receipt", "Ordinary Shares", "Preferred Stock") and \
-                row.get("securityType") not in ("Common Stock", "ADR", "GDR"):
-            continue
         if name_key(row.get("name")) != key:
             continue
-        groups.setdefault(row.get("shareClassFIGI") or row.get("compositeFIGI") or row["figi"], []).append(row)
-    return groups
+        kind = row.get("securityType2") or row.get("securityType")
+        group = row.get("shareClassFIGI") or row.get("compositeFIGI") or row["figi"]
+        if kind in COMMON_TYPES:
+            own.setdefault(group, []).append(row)
+        elif kind in DEPOSITARY_TYPES:
+            receipts.setdefault(group, []).append(row)
+    if not own:
+        return receipts
+    merged = dict(own)
+    if len(own) == 1 and receipts:
+        merged[next(iter(own))] = next(iter(own.values())) + [r for rows_ in receipts.values() for r in rows_]
+    return merged
+
+
+async def search_figi(search, name, key):
+    """The OpenFIGI answer for a name; when the full name finds nothing with that name, the name without its legal ending
+    is tried too (OpenFIGI finds nothing for "Wistron Corporation", and only warrants for "Lenovo Group Limited", but the
+    companies themselves for "wistron" and "lenovo group")."""
+    rows = await search(name)
+    if not any(name_key(row.get("name")) == key for row in rows) and key != re.sub(r"[^a-z0-9]+", " ", name.lower()).strip():
+        rows = await search(key)
+    return rows
 
 
 # ---------- Writing the answer ----------
@@ -139,9 +169,10 @@ def _save(conn, name, key, outcome):
     return outcome
 
 
-def _company_for(conn, tickers, canonical_name, method):
-    """The company that owns one of these (ticker, market) pairs, else a new one; all the tickers are attached to it."""
+def _company_for(conn, tickers, canonical_name, method, figi=None):
+    """The company that owns one of these (ticker, market) pairs or this share class, else a new one; all the tickers are attached to it."""
     company_id = next((c for c in (graph.find_company(conn, "ticker", t, m) for t, m in tickers) if c), None)
+    company_id = company_id or (graph.find_company(conn, "share_class_figi", figi) if figi else None)
     if company_id is None:
         company_id = graph.add_company(conn, canonical_name)
     for ticker, market in tickers:
@@ -203,25 +234,22 @@ async def resolve(conn, name, index_companies=None, search=None, retry_skipped_d
 
     # 3. OpenFIGI
     try:
-        rows = await search(name)
+        rows = await search_figi(search, name, key)
     except openfigi.OpenFigiUnavailable as exc:
         return result("unavailable", reason="openfigi_unavailable", detail=str(exc))
     groups = figi_groups(key, rows)
     if len(groups) == 1:
         listings = next(iter(groups.values()))
-        tickers = sorted({(r["ticker"], EXCHANGE_MARKETS.get(r.get("exchCode"), r.get("exchCode") or "")) for r in listings if r.get("ticker")})
-        us = [t for t in tickers if t[1] == "US"]
-        tickers = us or tickers
-        if tickers:
-            outcome = _matched(conn, name, key, tickers, listings[0]["name"].title() if listings[0]["name"].isupper() else listings[0]["name"],
-                               "openfigi", f"OpenFIGI: {', '.join(f'{t} ({m})' for t, m in tickers)}")
-            if outcome["status"] == "matched":
-                figi = next(iter(groups))
-                try:
-                    graph.add_identifier(conn, outcome["company_id"], "share_class_figi", figi, source="openfigi")
-                except graph.IdentifierConflict:
-                    pass
-            return outcome
+        tickers = sorted({(r["ticker"], EXCHANGE_MARKETS[r["exchCode"]]) for r in listings if r.get("ticker") and r.get("exchCode") in EXCHANGE_MARKETS})
+        canonical = listings[0]["name"].title() if listings[0]["name"].isupper() else listings[0]["name"]
+        outcome = _matched(conn, name, key, tickers, canonical, "openfigi",
+                           f"OpenFIGI: {', '.join(f'{t} ({m})' for t, m in tickers) or 'no listing on a known exchange'}", figi=next(iter(groups)))
+        if outcome["status"] == "matched":
+            try:
+                graph.add_identifier(conn, outcome["company_id"], "share_class_figi", next(iter(groups)), source="openfigi")
+            except graph.IdentifierConflict:
+                pass
+        return outcome
     if len(groups) > 1:
         return _save(conn, name, key, result("skipped", reason="ambiguous", detail=f"OpenFIGI lists {len(groups)} different companies with this name"))
 
@@ -232,9 +260,9 @@ async def resolve(conn, name, index_companies=None, search=None, retry_skipped_d
     return _save(conn, name, key, result("skipped", reason="no_match", detail="not a known company, an index member or an OpenFIGI equity"))
 
 
-def _matched(conn, name, key, tickers, canonical_name, method, detail):
+def _matched(conn, name, key, tickers, canonical_name, method, detail, figi=None):
     try:
-        company_id = _company_for(conn, tickers, canonical_name, method)
+        company_id = _company_for(conn, tickers, canonical_name, method, figi)
         _remember_alias(conn, company_id, key, method)
     except graph.IdentifierConflict:
         return _save(conn, name, key, result("skipped", reason="conflict", detail="the name already belongs to another company"))
