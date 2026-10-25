@@ -18,7 +18,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 import sec_client
-from supply_chain import db, graph, jobs, reader, sec, verifier
+from supply_chain import db, graph, jobs, merge, reader, sec, verifier
 from supply_chain.worker import Permanent, handler
 
 FORMS = {"10-K": 60, "20-F": 60, "10-Q": 50, "8-K": 30, "6-K": 30}  # form -> download priority (higher runs first)
@@ -151,6 +151,7 @@ async def keep_scheduling(path=None):
                 reads = reader.queue_unread(conn)  # filings downloaded before the Reader existed
                 if reads:
                     print(f"Reader: queued {reads} downloaded filing{'' if reads == 1 else 's'}")
+                merge.schedule(conn)  # once a day: stale links, placeholder upgrades, confidence (#127)
                 checks = verifier.queue_unverified(conn)  # candidates whose check was never queued
                 if checks:
                     print(f"Verifier: queued {checks} document{'' if checks == 1 else 's'}")

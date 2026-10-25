@@ -96,9 +96,9 @@ def company_rows(conn, now=None):
                SELECT MAX(filed_at) FROM documents WHERE company_id = d.company_id AND source = 'sec') AND d.source = 'sec'
            GROUP BY d.company_id""")}
     links = {r["company_id"]: r for r in conn.execute(
-        """SELECT cid AS company_id, COUNT(*) AS total, SUM(first_seen >= ?) AS week FROM (
-               SELECT supplier_id AS cid, first_seen FROM relationships WHERE status != 'ended'
-               UNION ALL SELECT customer_id, first_seen FROM relationships WHERE status != 'ended') GROUP BY cid""", (week_ago,))}
+        """SELECT cid AS company_id, COUNT(*) AS total, SUM(created_at >= ?) AS week FROM (
+               SELECT supplier_id AS cid, created_at FROM relationships WHERE status != 'ended' AND merged_into IS NULL
+               UNION ALL SELECT customer_id, created_at FROM relationships WHERE status != 'ended' AND merged_into IS NULL) GROUP BY cid""", (week_ago,))}
     costs = {r["company_id"]: r["cost"] for r in conn.execute(
         """SELECT j.company_id, SUM(r.cost_usd) AS cost FROM runs r JOIN jobs j ON j.id = r.job_id
            WHERE j.company_id IS NOT NULL AND r.started_at >= ? GROUP BY j.company_id""", (month,))}
@@ -159,7 +159,8 @@ def overview(conn, now=None):
     read = sum(1 for r in rows if r["status"] == "up to date" and r["latest_filing"])
     week_ago = _iso(now - WEEK)
     link_total, link_week, link_ended = conn.execute(
-        """SELECT SUM(status != 'ended'), SUM(status != 'ended' AND first_seen >= ?), SUM(status = 'ended') FROM relationships""", (week_ago,)).fetchone()
+        """SELECT SUM(status != 'ended'), SUM(status != 'ended' AND created_at >= ?), SUM(status = 'ended') FROM relationships
+           WHERE merged_into IS NULL""", (week_ago,)).fetchone()  # found this week (first_seen is the statement's date)
     stuck = conn.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('failed', 'dead')").fetchone()[0]
     unchecked = verifier.unchecked_count(conn)  # links Claude couldn't check (verifier.MAX_VERIFY_ATTEMPTS)
     retrying = conn.execute("SELECT COUNT(*) FROM jobs WHERE status = 'queued' AND attempts > 0 AND last_error IS NOT NULL").fetchone()[0]
@@ -234,7 +235,7 @@ def log_events(conn, now=None, kind="all", limit=LOG_LIMIT):
                       s.id AS supplier_id, s.name AS supplier, c.id AS customer_id, c.name AS customer, r.tier, r.kind,
                       e.verification
                FROM relationships r JOIN companies s ON s.id = r.supplier_id JOIN companies c ON c.id = r.customer_id
-               JOIN evidence e ON e.id = r.primary_evidence_id
+               JOIN evidence e ON e.id = r.primary_evidence_id WHERE r.merged_into IS NULL
                ORDER BY r.created_at DESC, r.id DESC LIMIT ?""", (LINK_LIMIT,)).fetchall()
         for row in rows:
             supplier = ticker_of(conn, row["supplier_id"]) or short_name(row["supplier"])
