@@ -277,9 +277,18 @@ CREATE TABLE candidates (
 CREATE INDEX candidates_pending ON candidates (status, document_id);
 """
 
+VERIFIED_EVIDENCE = """
+-- Who checked a piece of evidence (#125): the model that actually answered the Verifier (a refusal fallback can answer in
+-- place of config.VERIFIER_MODEL). NULL for evidence nobody checked (XBRL facts are structured data).
+ALTER TABLE evidence ADD COLUMN verified_by TEXT;
+-- The statement says the relationship has ended or will end; the merge (#127) ends the link from the newest one.
+ALTER TABLE evidence ADD COLUMN states_ended INTEGER NOT NULL DEFAULT 0 CHECK (states_ended IN (0, 1));
+"""
+
 # (version, name, sql). Add new migrations at the end.
 MIGRATIONS = [
     (1, "initial graph schema (#115)", INITIAL),
     (2, "company name resolutions (#119)", NAME_RESOLUTIONS),
     (3, "chunk reads and Reader candidates (#124)", READER),
+    (4, "verified_by and states_ended on evidence (#125)", VERIFIED_EVIDENCE),
 ]

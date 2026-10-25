@@ -13,7 +13,7 @@ from supply_chain.db import now, transaction
 IDENTIFIER_SCHEMES = ("ticker", "isin", "figi", "share_class_figi", "cik", "lei", "wikidata", "mops", "edinet", "dart", "asx", "name")
 RELATIONSHIP_KINDS = ("supplies", "partnership")
 EVIDENCE_FIELDS = ("locator", "supplier_revenue_share", "customer_supply_share", "customer_share_scope", "share_note", "stated_on",
-                   "verification", "run_id")
+                   "verification", "verified_by", "states_ended", "run_id")
 
 
 class IdentifierConflict(Exception):
