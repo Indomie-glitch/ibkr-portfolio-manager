@@ -82,9 +82,11 @@ def result(status, company_id=None, method=None, reason=None, detail=None, cache
 # ---------- Where names are looked up ----------
 
 def store_candidates(conn, key):
-    """Companies in the graph with this name: by a stored name alias or by the company's own name."""
-    found = {row["company_id"] for row in conn.execute("SELECT company_id FROM identifiers WHERE scheme = 'name' AND value = ?", (key,))}
-    for row in conn.execute("SELECT id, name FROM companies WHERE is_placeholder = 0"):
+    """Companies in the graph with this name: by a stored name alias or by the company's own name. A merged company (#127)
+    counts as the one it was merged into."""
+    found = {graph.current_company(conn, row["company_id"])
+             for row in conn.execute("SELECT company_id FROM identifiers WHERE scheme = 'name' AND value = ?", (key,))}
+    for row in conn.execute("SELECT id, name FROM companies WHERE is_placeholder = 0 AND merged_into IS NULL"):
         if name_key(row["name"]) == key:
             found.add(row["id"])
     return sorted(found)
@@ -211,7 +213,8 @@ def _decided(conn, key, retry_after_days):
         return None
     if row["status"] == "skipped" and row["updated_at"] < _iso_days_ago(retry_after_days):
         return None
-    return result(row["status"], row["company_id"], row["method"], row["reason"], row["detail"], cached=True)
+    company_id = graph.current_company(conn, row["company_id"]) if row["company_id"] is not None else None
+    return result(row["status"], company_id, row["method"], row["reason"], row["detail"], cached=True)
 
 
 def _iso_days_ago(days):
