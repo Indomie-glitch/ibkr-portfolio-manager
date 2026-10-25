@@ -105,6 +105,14 @@ def flex_token():
     return os.getenv("IB_FLEX_TOKEN") or None
 
 
+def openfigi_api_key():
+    """Optional OpenFIGI key (OPENFIGI_API_KEY in .env; in the Mac app, memory only): without one OpenFIGI allows 25
+    searches a minute, with one 250. A secret, so never logged (secrets_guard)."""
+    if IN_APP:
+        return SECRETS.get("openfigi_api_key")
+    return os.getenv("OPENFIGI_API_KEY") or None
+
+
 def flex_query_id():
     """The ID of the Activity Flex Query that lists open lots and trades (not a secret)."""
     if IN_APP:
