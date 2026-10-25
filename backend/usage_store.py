@@ -12,7 +12,7 @@ from config import DATA_DIR
 
 DB_PATH = DATA_DIR / "usage.sqlite"
 
-FEATURES = ("stock_summary", "portfolio_summary", "news_sentiment")
+FEATURES = ("stock_summary", "portfolio_summary", "news_sentiment", "directors", "supply_chain_reader")
 
 # US$ per million tokens (input, output), for the models config.AI_MODELS offers. Claude Haiku 5.5
 # costs more when a prompt is over 100K tokens; the app's prompts are far smaller, but it's priced anyway.
@@ -42,7 +42,7 @@ def _connect():
         CREATE TABLE IF NOT EXISTS ai_usage (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at TEXT NOT NULL,    -- local ISO time with offset; its first 7 characters are the month
-            feature TEXT NOT NULL,       -- stock_summary / portfolio_summary / news_sentiment
+            feature TEXT NOT NULL,       -- one of FEATURES
             model TEXT NOT NULL,
             con_id INTEGER,              -- the stock, for stock summaries and news sentiment
             input_tokens INTEGER NOT NULL,
