@@ -80,7 +80,7 @@ Interactive Brokers is a powerful broker, but its native interface is dense and 
 * [x] **Milestone 7: Desktop app and sharing:** Mac app (Tauri) with a bundled backend, Gateway setup and sign-in, IBKR password never stored, optional encrypted API key, DMG
 * [x] **Milestone 8: Risk analysis:** a Risk page with 10 headline figures and 12 panels (concentration, exposure, correlation, volatility and beta, currency effect, hidden factors, stress tests, Value at Risk, attribution, example mixes, bankruptcy risk, liquidity), each explained in plain words with your own numbers, and the main findings in the AI portfolio summary ([the maths](docs/risk-maths.md))
 * [ ] **Milestone 9: Company connections:** index members, the indexes a stock belongs to, competitors, executives, boards of directors and the Connections section on the stock detail are done; the full map page is next
-* [ ] **Milestone 10:** Supply chain graph foundation
+* [ ] **Milestone 10:** Supply chain graph foundation (the database schema is done: companies, identifiers, documents, relationships and the evidence behind each one; see [docs/supply-chain-graph.md](docs/supply-chain-graph.md))
 * [ ] **Milestone 11:** Extraction agents
 * [ ] **Milestone 12:** Supply chain explorer
 * [ ] **Milestone 13:** Analyst agent and shared graph
@@ -390,7 +390,7 @@ ibkr-portfolio-manager/
 ├── backend/          FastAPI app (main.py), IB Gateway connection, REST API
 ├── frontend/         React app (Vite)
 │   └── src-tauri/    Mac app shell (Tauri, Rust)
-├── docs/             Architecture diagrams, setup guides and specs
+├── docs/             Architecture diagrams, setup guides, specs and the supply chain graph design
 │   └── screenshots/  Screenshots used in this README
 ├── scripts/          screenshots.mjs: retakes the README screenshots with headless Chrome
 ├── .env.example      Template for environment variables
