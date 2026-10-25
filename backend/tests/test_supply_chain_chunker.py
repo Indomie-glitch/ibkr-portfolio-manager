@@ -22,14 +22,21 @@ class EstimateTests(unittest.TestCase):
     def test_limit_leaves_room_below_the_long_prompt_price(self):
         self.assertLessEqual(chunker.MAX_CHUNK_TOKENS, usage_store.PRICES["claude-haiku-5-5"]["long_from"] * 0.85)
 
-    def test_errs_high_for_prose(self):
-        text = "The company sells integrated circuits to manufacturers of consumer electronics. " * 50
-        self.assertGreater(chunker.estimate_tokens(text), len(text.split()) * 1.3)
+    # Real counts from messages.count_tokens (claude-haiku-5-5) on 2026-10-26, wrapper tokens taken off
+    MEASURED = [("1234567890 " * 200, 999), ("1,234,567 " * 200, 1199), ("$(1,234) " * 200, 1200), ("12.5% " * 200, 999),
+                ("Total revenue | $1,234 | $5,678 | 12%\n" * 100, 2199), ("a\n" * 300, 599),
+                ("semiconductor manufacturing customers depend " * 100, 1400), ("the of and to in a is that for it " * 100, 1000),
+                ("TOTAL NET REVENUE " * 100, 1200), ("December 31, 2025 " * 100, 799)]
 
-    def test_numbers_and_symbols_cost_more_than_letters(self):
-        table = "1,234,567 | (89.5)% | $ 4,321\n" * 20
-        self.assertGreater(chunker.estimate_tokens(table), len(table) / 3 * 1.5)  # a plain "3 letters a token" rule would undercount
-        self.assertEqual(chunker.estimate_tokens("1,234,567"), 5)  # three digit groups and two commas
+    def test_never_below_measured_counts_and_not_far_above(self):
+        for text, real in self.MEASURED:
+            with self.subTest(text[:20]):
+                self.assertGreaterEqual(chunker.estimate_tokens(text), real)
+                self.assertLessEqual(chunker.estimate_tokens(text), real * 1.35)
+
+    def test_a_character_is_never_more_than_a_token(self):
+        for text in ("x" * 50, "\n\n\n", "1" * 7, "ABCDEFG", " $ % ( ) ", "a b c"):
+            self.assertLessEqual(chunker.estimate_tokens(text), len(text))
 
 
 class TextTests(unittest.TestCase):
@@ -103,7 +110,7 @@ class TenKTests(unittest.TestCase):
             self.assertEqual(chunk.locator, chunker.locator_for(chunk.section, chunk.first_paragraph, chunk.last_paragraph))
             self.assertEqual(chunk.document, "tenk.htm")
             self.assertTrue(paragraphs[chunk.first_paragraph - 1] in chunk.text and paragraphs[chunk.last_paragraph - 1] in chunk.text)
-        self.assertEqual(self.chunks[0].locator, "Item 1. Business, paragraphs 3-6")
+        self.assertEqual(self.chunks[0].locator, "Item 1. Business, paragraphs 3-6 [chunker v1]")
         self.assertEqual([c.tokens > 0 for c in self.chunks], [True] * len(self.chunks))
 
 
@@ -170,6 +177,85 @@ class FallbackTests(unittest.TestCase):
     def test_prose_mentioning_an_item_is_not_a_heading(self):
         paragraphs = ["Item 7 of this report discusses our results in detail for readers who want more about the year."] * 3
         self.assertEqual(chunker._headings(paragraphs, "10-K"), [])
+
+
+def tenk(*notes, item8=("Item 8. Financial Statements and Supplementary Data",)):
+    """A minimal 10-K: Items 1 and 1A with some text, then Item 8 and the given note paragraphs."""
+    body = "We sell chips to device makers around the world and buy wafers from a foundry in Taiwan. " * 3
+    return ["Item 1. Business", body, "Item 1A. Risk Factors", body, *item8, *notes, "Item 9. Changes in Accountants", "None."]
+
+
+def notes_section(paragraphs, form="10-K"):
+    found = [s for s in chunker.sec_sections(paragraphs, form) if ", notes: " in s.name]
+    return found[0] if found else None
+
+
+class NoteStyleTests(unittest.TestCase):
+    """Note headings as real filings write them (seen in chunk_report.py runs)."""
+    TEXT = "Text of the note that says what the company does and how much it sells to whom in the year."
+
+    def assert_notes(self, headings, expected_titles, form="10-K"):
+        notes = [p for h in headings for p in (h, self.TEXT)]
+        section = notes_section(tenk(*notes), form)
+        self.assertIsNotNone(section)
+        self.assertEqual(section.name.split(", notes: ")[1], "; ".join(expected_titles))
+
+    def test_numbered_without_a_space(self):  # Cisco, GlobalFoundries
+        self.assertEqual(notes_section(tenk("1.Basis of Presentation", self.TEXT, "2.Revenue", self.TEXT, "3.Leases", self.TEXT)).name,
+                         "Item 8. Financial Statements, notes: Revenue")
+
+    def test_in_brackets_and_capitals(self):  # Vertiv
+        self.assert_notes(["(1) DESCRIPTION OF BUSINESS", "(2) REVENUE", "(3) DEBT", "(4) SEGMENT INFORMATION"], ["REVENUE", "SEGMENT INFORMATION"])
+
+    def test_with_a_dash(self):  # Arm
+        self.assert_notes(["1 - Description of Business", "2 - Revenue", "3 - Leases"], ["Revenue"])
+
+    def test_lettered(self):  # Teradyne
+        self.assert_notes(["A. THE COMPANY", "B. ACCOUNTING POLICIES", "C. REVENUE", "D. SEGMENT INFORMATION"], ["REVENUE", "SEGMENT INFORMATION"])
+
+    def test_number_on_its_own_line(self):  # Oracle
+        section = notes_section(tenk("1.", "ORGANIZATION", self.TEXT, "2.", "DEFERRED REVENUES", self.TEXT, "3.", "LEASES", self.TEXT))
+        self.assertEqual(section.name, "Item 8. Financial Statements, notes: DEFERRED REVENUES")
+
+    def test_a_list_inside_a_note_does_not_break_the_numbering(self):  # CoreWeave
+        paragraphs = tenk("1. Overview and Summary of Significant Accounting Policies", self.TEXT,
+                          "1.Identification of the contract", "2.Identification of the performance obligations", "3.Determination of the price",
+                          self.TEXT * 5, "2. Revenue", self.TEXT, "3. Leases", self.TEXT, "4. Geographic Information", self.TEXT)
+        section = notes_section(paragraphs)
+        self.assertEqual(section.name, "Item 8. Financial Statements, notes: Overview and Summary of Significant Accounting Policies; Revenue; "
+                                       "Geographic Information")
+        self.assertIn("1.Identification of the contract", [paragraphs[i] for i in section.paragraphs])  # stays in note 1
+
+    def test_footnotes_called_note_do_not_beat_the_numbered_notes(self):  # TSMC
+        paragraphs = tenk("1. GENERAL", self.TEXT, "2. NET REVENUE", self.TEXT, "3. LEASES", self.TEXT, "4. OPERATING SEGMENTS", self.TEXT,
+                          "Note 1:Including notes and accounts receivable", "Note 2:Including cash and cash equivalents")
+        self.assertEqual(notes_section(paragraphs).name, "Item 8. Financial Statements, notes: NET REVENUE; OPERATING SEGMENTS")
+
+    def test_stock_repurchases_are_not_purchase_obligations(self):  # KLA
+        self.assert_notes(["Note 1 - Basis", "Note 2 - Stock Repurchase Program", "Note 3 - Purchase Obligations"], ["Purchase Obligations"])
+
+    def test_20f_notes_under_item_8_financial_information(self):  # Arm: Item 18 only points to Item 8
+        body = "We license our designs to chip makers and earn royalties on every chip they ship. " * 3
+        paragraphs = ["Item 3. Key Information", body, "Item 8. Financial Information", "Notes to Consolidated Financial Statements",
+                      "1 - Description of Business", self.TEXT, "2 - Revenue", self.TEXT, "3 - Leases", self.TEXT,
+                      "Item 9. The Offer and Listing", "Not applicable.", "Item 18. Financial Statements", "See Item 8."]
+        self.assertEqual(notes_section(paragraphs, "20-F").name, "Item 18. Financial Statements, notes: Revenue")
+
+    def test_20f_items_17_and_18_give_one_section(self):
+        paragraphs = ["Item 3. Key Information", "x" * 300, "Item 17. Financial Statements", "Not applicable.", "Item 18. Financial Statements",
+                      "1. GENERAL", self.TEXT, "2. NET REVENUE", self.TEXT, "3. LEASES", self.TEXT]
+        names = [s.name for s in chunker.sec_sections(paragraphs, "20-F")]
+        self.assertEqual(sum(", notes: " in n for n in names), 1)
+
+
+class LineJoinTests(unittest.TestCase):
+    def test_a_report_laid_out_line_by_line_is_joined_into_sentences(self):  # ASML
+        html = "<html><body><div>Our customers include the largest chip</div><div>makers in the world, and we</div><div>depend on them.</div><div>Next paragraph.</div></body></html>"
+        self.assertEqual(chunker.paragraphs_from(html), ["Our customers include the largest chip makers in the world, and we depend on them.", "Next paragraph."])
+
+    def test_headings_and_list_items_are_not_joined(self):
+        html = "<html><body><div>22. NET REVENUE</div><div>a.Disaggregation of revenue</div><div>Revenue Recognition</div><div>products ship.</div></body></html>"
+        self.assertEqual(chunker.paragraphs_from(html)[:2], ["22. NET REVENUE", "a.Disaggregation of revenue"])
 
 
 class SplitTests(unittest.TestCase):
@@ -240,7 +326,7 @@ class FinderTests(unittest.TestCase):
             del chunker.FINDERS["test-source"]
         self.assertEqual(len(chunks), 1)
         self.assertEqual((chunks[0].document, chunks[0].section, chunks[0].text), ("report.pdf", "Business overview", "B: we sell to Beta\n\nB: and to Delta"))
-        self.assertEqual(chunks[0].locator, "Business overview, paragraphs 2-4")
+        self.assertEqual(chunks[0].locator, "Business overview, paragraphs 2-4 [chunker v1]")
 
     def test_a_finder_returning_none_means_whole_text_and_empty_means_nothing(self):
         chunker.finder("none-source")(lambda paragraphs, form: None)

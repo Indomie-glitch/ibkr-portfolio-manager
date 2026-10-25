@@ -14,35 +14,48 @@ Three steps, each usable on its own:
    one (up to OVERLAP_TOKENS), so a relationship that straddles a boundary shows up whole in one of them.
 
 Why 80,000: claude-haiku-5-5 costs 5 times more for a prompt over 100,000 tokens (usage_store.PRICES long_from), and the
-Reader's instructions and the answer need room too. estimate_tokens() has no tokenizer to call, so it is deliberately high.
+Reader's instructions and the answer need room too. estimate_tokens() has no tokenizer to call, so it is deliberately high\n(by 7 to 24% on real chunks).
 """
 import math
 import re
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from bs4 import BeautifulSoup, Comment
+from bs4 import BeautifulSoup, Comment, XMLParsedAsHTMLWarning
+
+# The cleaning and section rules that number the paragraphs. Every locator carries it ("[chunker v1]"), so a locator can
+# be traced to the rules that made it. Bump it whenever text cleaning or section finding changes what a file gives.
+CHUNKER_VERSION = 1
 
 MAX_CHUNK_TOKENS = 80_000
 OVERLAP_TOKENS = 1_000
 MIN_SECTION_CHARS = 100  # an "Item" shorter than this is a table of contents line or a cross-reference
 
+SEPARATOR_TOKENS = 2  # the blank line ("\n\n") between paragraphs in a chunk
 PARAGRAPH_BREAK = "\x1d"
 ROW_BREAK = "\x1e"
 
 
 # ---------- Token estimate ----------
 
-_PIECES = re.compile(r"[^\W\d_]+|\d+|[^\s\w]|_")
+_PIECES = re.compile(r"[^\W\d_]+|\d+|\n|[ \t]+(?=[^\s\w]|\d)|[^\s\w]|_")
 
 
 def estimate_tokens(text):
-    """A cheap estimate that errs high: a word costs one token per 3 letters, a run of digits one per 3 digits and every
-    symbol one. Numbers and punctuation are where a letters-per-token rule undercounts ("1,234,567" is five tokens), and
-    tables are full of them. Ordinary prose comes out around 1.5 times the real count."""
+    """A cheap estimate that errs high, fitted to claude-haiku-5-5's own counts (messages.count_tokens) of real filing
+    chunks, prose and tables (scripts/token_calibration.py): a word costs one token per 3 letters, a word in capitals one
+    per 1.33 ("REVENUE" is about 5), a run of digits one per 3 digits, and every symbol, line break and space before a
+    number or symbol one. Real chunks come out 7 to 24% above the true count. A character never costs more than a token."""
     total = 0
     for piece in _PIECES.findall(text):
-        total += math.ceil(len(piece) / 3) if piece[0].isalnum() else 1
+        first = piece[0]
+        if first.isalpha():
+            total += math.ceil(len(piece) * 0.75) if len(piece) > 1 and piece.isupper() else math.ceil(len(piece) / 3)
+        elif first.isdigit():
+            total += math.ceil(len(piece) / 3)
+        else:
+            total += 1
     return total
 
 
@@ -75,7 +88,7 @@ class Chunk:
 
 def locator_for(section, first, last):
     where = f"paragraph {first}" if first == last else f"paragraphs {first}-{last}"
-    return f"{section}, {where}"
+    return f"{section}, {where} [chunker v{CHUNKER_VERSION}]"
 
 
 # ---------- Text ----------
@@ -86,6 +99,8 @@ _BLOCK_TAGS = ["p", "div", "li", "ul", "ol", "dl", "dt", "dd", "h1", "h2", "h3",
 _PREFIX_CELLS = {"$", "(", "€", "£", "¥", "$(", "($"}
 _SUFFIX_CELLS = {")", "%", ")%", "%)"}
 _JUNK = re.compile(r"^(table of contents|index|back to (top|contents)|\(?continued\)?)$|^[-–—\s]*(page\s*)?[fF]?-?\s*\d{1,3}[-–—\s]*$", re.I)
+_LIST_MARK = re.compile(r"^[a-z]{1,4}[.)]")  # "a." / "iv)" start an item of their own
+_ENDS_SENTENCE = re.compile(r"[.!?:;][\"”’)]*$")
 _SPACES = re.compile(r"[ \t\r\f\v  -​ ⁠﻿]+")
 
 
@@ -126,7 +141,9 @@ def _table_rows(table):
 
 
 def html_paragraphs(html):
-    soup = BeautifulSoup(html, "lxml")
+    with warnings.catch_warnings():  # inline XBRL filings are XHTML; the HTML parser reads them fine
+        warnings.simplefilter("ignore", XMLParsedAsHTMLWarning)
+        soup = BeautifulSoup(html, "lxml")
     for tag in soup(["script", "style", "head", "title", "ix:header"]):  # ix:header is the hidden XBRL block
         tag.decompose()
     for node in soup.find_all(string=lambda s: isinstance(s, Comment)):
@@ -168,7 +185,14 @@ def _finish(blocks):
         rows = [row for row in rows if row]
         if not rows or (len(rows) == 1 and _JUNK.match(rows[0])):
             continue
-        paragraphs.append("\n".join(rows))
+        text = "\n".join(rows)
+        # A report laid out line by line (ASML's 20-F) breaks sentences across blocks: a block starting in lower case
+        # after one that didn't end a sentence continues it, so chunks never cut a sentence in two
+        if (paragraphs and len(rows) == 1 and "\n" not in paragraphs[-1] and text[0].islower()
+                and not _ENDS_SENTENCE.search(paragraphs[-1]) and not paragraphs[-1].isupper() and not _LIST_MARK.match(text)):
+            paragraphs[-1] = f"{paragraphs[-1]} {text}"
+        else:
+            paragraphs.append(text)
     return paragraphs
 
 
@@ -218,20 +242,28 @@ SEC_ITEMS = {
     "8-K": {"1.01": ("Item 1.01 Entry into a Material Definitive Agreement", WHOLE),
             "1.02": ("Item 1.02 Termination of a Material Definitive Agreement", WHOLE)},
 }
-# Items whose body may hold the notes to the financial statements (10-Ks often put the F-pages under Item 15)
-STATEMENT_ITEMS = {"10-K": {"8", "15"}, "10-Q": {("I", "1")}, "20-F": {"17", "18"}}
+# Items whose body may hold the notes to the financial statements (10-Ks often put the F-pages under Item 15; some
+# 20-Fs put them under Item 8 Financial Information, with Item 18 only pointing there)
+STATEMENT_ITEMS = {"10-K": {"8", "15"}, "10-Q": {("I", "1")}, "20-F": {"8", "17", "18"}}
 
 ITEM_RE = re.compile(r"^(?:PART\s+(?P<part>IV|I{1,3})\s*[,.\-–—:|]?\s*)?ITEM\s*(?P<item>\d{1,2}(?:\.\d{1,2})?[A-C]?)\s*[.:\-–—|]*\s*(?P<title>.*)$", re.I | re.S)
 PART_RE = re.compile(r"^PART\s+(IV|I{1,3})\b.{0,60}$", re.I)
 NOTE_RE = re.compile(r"^NOTE\s+(?P<number>\d{1,2}[A-Z]?)\s*[.:\-–—]*\s*(?P<title>[A-Z][^\n]{0,110})$", re.I)
-NUMBERED_RE = re.compile(r"^(?P<number>\d{1,2})\.\s+(?P<title>[A-Z][^.\n]{2,90})$")
+# The other ways notes are numbered: "3. Revenue" / "3.Revenue", "(3) REVENUE", "3 - Revenue", "C. REVENUE" (letters: capitals only, so
+# "J. Smith" isn't a note)
+NOTE_STYLES = [re.compile(r"^(?P<number>\d{1,2})\.\s*(?P<title>[A-Z][^\n]{2,90})$"),
+               re.compile(r"^\((?P<number>\d{1,2})\)\s*(?P<title>[A-Z][^\n]{2,90})$"),
+               re.compile(r"^(?P<number>\d{1,2})\s*[-–—]\s*(?P<title>[A-Z][^\n]{2,90})$"),
+               re.compile(r"^(?P<number>[A-Z]{1,2})\.\s*(?P<title>[A-Z][A-Z0-9 ,&'’()/\-]{2,90})$")]
+LONE_NUMBER_RE = re.compile(r"^(?:NOTE\s+)?(?:\d{1,2}[.:]?|\(\d{1,2}\)|[A-Z]\.)$", re.I)
+NOTES_HEADING_RE = re.compile(r"^NOTES TO (?:THE )?(?:CONDENSED )?(?:CONSOLIDATED )?(?:FINANCIAL STATEMENTS|ACCOUNTS)$", re.I)
 END_OF_NOTES_RE = re.compile(r"^(SIGNATURES?|EXHIBIT INDEX|INDEX TO EXHIBITS|EXHIBITS?)$", re.I)
 
 RELATION_RE = re.compile(
     r"\b(customers?|suppliers?|vendors?|distributors?|resellers?|foundr(?:y|ies)|contract manufactur\w*|sole[- ]source|single[- ]source|"
     r"supply (?:agreements?|arrangements?)|purchase (?:commitments?|obligations?|agreements?)|strategic partners?|OEMs?|licensees?|licensors?)\b", re.I)
 NOTE_TITLE_RE = re.compile(
-    r"revenue|segment|concentration|customer|supplier|vendor|related[- ]part|commitment|purchase|geograph|significant accounting policies|"
+    r"revenue|segment|concentration|customer|supplier|vendor|related[- ]part|commitment|purchase obligation|geograph|significant accounting policies|"
     r"summary of accounting|collaborat|licens|major", re.I)
 
 
@@ -302,31 +334,87 @@ def _passages(paragraphs, start, end):
 
 
 def _note_blocks(paragraphs, start, stops):
-    """[(title, [paragraph indexes])] for the notes after `start`. Headings are "Note 3 - Revenue"; failing that, numbered
-    titles ("3. Revenue"). A note ends at the next note, a heading in `stops` or the signatures / exhibit list."""
+    """[(title, [paragraph indexes])] for the notes after `start`, with headings "Note 3 - Revenue" or one of NOTE_STYLES.
+    A note ends at the next note, a heading in `stops` or the signatures / exhibit list."""
     def candidates(regex):
         out = []
         for i in range(start, len(paragraphs)):
             text = paragraphs[i]
+            if LONE_NUMBER_RE.match(text) and i + 1 < len(paragraphs):  # "1." on its own line, the title on the next
+                text = f"{text} {paragraphs[i + 1]}"
             m = regex.match(text) if len(text) <= 150 and "\n" not in text else None
             if m and not text.rstrip().endswith((".", ",", ";")):
                 out.append((i, m.group("number").upper(), m.group("title").strip()))
         return out
 
-    heads = candidates(NOTE_RE)
-    if len({number for _, number, _ in heads}) < 2:
-        heads = candidates(NUMBERED_RE)
-        if len({number for _, number, _ in heads}) < 3:
-            return []
+    # The longest run numbered 1, 2, 3 ... (or A, B, C) in document order, of the style the filing uses: a list inside a
+    # note ("1.Identification of the contract") or a contents list doesn't continue the notes' numbering. Between runs of
+    # one length, the one with fewer headings followed straight away by another heading wins (list items and contents
+    # lines follow each other; a note starts with its text), then the later one.
+    chains = [_numbered_run(heads) for heads in (candidates(style) for style in [NOTE_RE, *NOTE_STYLES])]
+    heads = max(chains, key=len)
+    if len(heads) < (2 if heads is chains[0] else 3):
+        return []
     boundaries = sorted({i for i, _, _ in heads} | {i for i in stops if i >= start}
                         | {i for i in range(start, len(paragraphs)) if END_OF_NOTES_RE.match(paragraphs[i])})
-    best = {}
-    for i, number, title in heads:
-        limit = next((b for b in boundaries if b > i), len(paragraphs))
-        size = sum(len(p) for p in paragraphs[i + 1:limit])
-        if number not in best or size > best[number][0]:  # the same number twice: a contents list and the note; the longer wins
-            best[number] = (size, title, i, limit)
-    return [(title, list(range(i, limit))) for _, title, i, limit in sorted(best.values(), key=lambda b: b[2])]
+    return [(title, list(range(i, next((b for b in boundaries if b > i), len(paragraphs))))) for i, _, title in heads]
+
+
+def _ordinal(number):
+    if number.isdigit():
+        return int(number)
+    if number.isalpha():
+        return sum((ord(ch) - 64) * 26 ** k for k, ch in enumerate(reversed(number)))
+    return None  # "2A": not part of a run
+
+
+def _numbered_run(heads):
+    """The longest subsequence of heads whose numbers go up by one each time; of equal ones, the one with the fewest
+    headings followed by another heading, then the latest in the document."""
+    positions = {i for i, _, _ in heads}
+    best = []  # per head: (length, -crowded headings, sum of positions, previous index)
+    for i, (index, number, _) in enumerate(heads):
+        o = _ordinal(number)
+        crowded = index + 1 in positions
+        here = (1, -crowded, index, None) if o is not None else None
+        for j in range(i):
+            if best[j] and _ordinal(heads[j][1]) == (o or 0) - 1:
+                option = (best[j][0] + 1, best[j][1] - crowded, best[j][2] + index, j)
+                if here is None or option[:3] > here[:3]:
+                    here = option
+        best.append(here)
+    ends = [i for i in range(len(heads)) if best[i]]
+    if not ends:
+        return []
+    k, run = max(ends, key=lambda i: best[i][:3]), []
+    while k is not None:
+        run.append(heads[k])
+        k = best[k][3]
+    return run[::-1]
+
+
+def _statements(paragraphs, headings, best, form, spec):
+    """The notes worth reading, as one section. They are looked for from the first statements Item (Item 8 or 15 of a
+    10-K, 17 or 18 of a 20-F) or, when its heading isn't found, from the "Notes to consolidated financial statements" line."""
+    allowed = STATEMENT_ITEMS.get(form, set())
+    keys = [key for key, (_, how) in spec.items() if how == STATEMENTS]
+    found = [key for key in keys if key in best]
+    starts = [best[key][0] for key in allowed if key in best]
+    region = min(starts) if starts else next((i for i, p in enumerate(paragraphs) if NOTES_HEADING_RE.match(p)), None)
+    if region is None:
+        return None
+    name = spec[found[0] if found else keys[0]][0]
+    stops = [h.index for h in headings if h.key not in allowed]
+    notes = _note_blocks(paragraphs, region, stops)
+    blocks = [b for b in notes if NOTE_TITLE_RE.search(b[0])]
+    if blocks:
+        label = f"{name}, notes: {'; '.join(title for title, _ in blocks)}"
+        return Section(label if len(label) <= 400 else label[:397] + "...", [i for _, idx in blocks for i in idx])
+    if not notes and found:  # no notes to pick from: keep what is there
+        start, end = best[found[0]]
+        if sum(len(p) for p in paragraphs[start + 1:end]) >= MIN_SECTION_CHARS:
+            return Section(name, list(range(start, end)))
+    return None
 
 
 @finder("sec")
@@ -340,27 +428,21 @@ def sec_sections(paragraphs, form):
     runs = _runs(headings, len(paragraphs))
     best = {key: _biggest(r, paragraphs) for key, r in runs.items()}
 
-    sections = []
+    sections, statements_done = [], False
     for key, (name, how) in spec.items():
+        if how == STATEMENTS:
+            if not statements_done:  # 20-F Items 17 and 18 share one set of notes
+                statements_done = True
+                section = _statements(paragraphs, headings, best, form, spec)
+                if section:
+                    sections.append(section)
+            continue
         if key not in best:
             continue
         start, end = best[key]
-        body = sum(len(p) for p in paragraphs[start + 1:end])
-        if how == STATEMENTS:
-            allowed = STATEMENT_ITEMS.get(form, set())
-            region = min([best[k][0] for k in allowed if k in best] or [start])
-            stops = [h.index for h in headings if h.key not in allowed]
-            notes = _note_blocks(paragraphs, region, stops)
-            blocks = [b for b in notes if NOTE_TITLE_RE.search(b[0])]
-            if blocks:
-                titles = "; ".join(title for title, _ in blocks)
-                label = f"{name}, notes: {titles}"
-                sections.append(Section(label if len(label) <= 200 else label[:197] + "...", [i for _, idx in blocks for i in idx]))
-            elif not notes and body >= MIN_SECTION_CHARS:
-                sections.append(Section(name, list(range(start, end))))  # no notes to pick from: keep what is there
-        elif body < MIN_SECTION_CHARS:
+        if sum(len(p) for p in paragraphs[start + 1:end]) < MIN_SECTION_CHARS:
             continue
-        elif how == PASSAGES:
+        if how == PASSAGES:
             kept = _passages(paragraphs, start, end)
             if kept:
                 sections.append(Section(name, kept))
@@ -427,8 +509,8 @@ def split_text(text, limit, level=0):
 def _units(paragraphs, indexes, limit):
     units = []
     for i in indexes:
-        for part in split_text(paragraphs[i], limit - 1):
-            units.append(_Unit(i + 1, part, estimate_tokens(part) + 1))
+        for part in split_text(paragraphs[i], limit - SEPARATOR_TOKENS):
+            units.append(_Unit(i + 1, part, estimate_tokens(part) + SEPARATOR_TOKENS))
     return units
 
 
