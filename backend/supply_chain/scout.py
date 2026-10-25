@@ -1,4 +1,4 @@
-"""SEC Scout (#118): watches the theme companies for new 10-K, 10-Q and 8-K filings and queues them.
+"""SEC Scout (#118): watches the theme companies for new 10-K, 10-Q and 8-K filings (20-F and 6-K for foreign companies) and queues them.
 
 Two kinds of job, run by the worker (worker.py):
 - "scout" (key = company id): looks the company up on EDGAR (CIK from a stored identifier, else SEC's ticker list for US
@@ -9,8 +9,9 @@ schedule() queues a scout job for every theme company not scouted within SCOUT_E
 every hour while the pipeline runs. Asking again is safe: documents are unique per accession number + file, and the queue
 holds one open job per kind and key.
 
-Only forms 10-K, 10-Q and 8-K are watched, so foreign filers (20-F, 6-K) produce nothing yet. 8-Ks are mostly earnings
-press releases, so they only go back 60 days on the first look; annual reports go back 13 months.
+Forms watched: 10-K, 10-Q, 8-K, and for foreign private issuers (TSMC, ASML ...) the 20-F annual report and 6-K
+reports. 8-Ks and 6-Ks are mostly press releases, so they only go back 60 days on the first look; annual reports go back
+13 months. Companies with no US ticker (so no EDGAR number) produce nothing.
 """
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -19,8 +20,8 @@ import sec_client
 from supply_chain import db, graph, jobs, sec
 from supply_chain.worker import Permanent, handler
 
-FORMS = {"10-K": 60, "10-Q": 50, "8-K": 30}  # form -> download priority (higher runs first)
-LOOKBACK_DAYS = {"10-K": 400, "10-Q": 200, "8-K": 60}
+FORMS = {"10-K": 60, "20-F": 60, "10-Q": 50, "8-K": 30, "6-K": 30}  # form -> download priority (higher runs first)
+LOOKBACK_DAYS = {"10-K": 400, "20-F": 400, "10-Q": 200, "8-K": 60, "6-K": 60}
 SCOUT_EVERY_S = 12 * 3600
 SCHEDULE_EVERY_S = 3600
 SCOUT_PRIORITY = 70
