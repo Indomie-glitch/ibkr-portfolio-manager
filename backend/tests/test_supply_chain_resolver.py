@@ -145,7 +145,7 @@ class Resolving(unittest.TestCase):
         self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0], 0)
 
     def test_a_shorter_name_is_not_matched_either(self):
-        self.assertEqual(self.resolve("Micron")["reason"], "no_match")
+        self.assertEqual(self.resolve("Micro")["reason"], "no_match")
         self.assertEqual(self.resolve("Alpha")["reason"], "no_match")
 
     def test_unnamed_never_reaches_a_lookup(self):
@@ -185,6 +185,37 @@ class Resolving(unittest.TestCase):
         self.figi_rows["Advantest Corp"] = [figi("ADVANTEST CORP", "6857", "JT", "BBG-ADV")]
         outcome = self.resolve("Advantest Corp")
         self.assertEqual(graph.find_company(self.conn, "ticker", "6857", "JP"), outcome["company_id"])
+
+    def test_depositary_receipt_of_the_same_company_does_not_make_it_ambiguous(self):
+        self.figi_rows["Kioxia Holdings"] = [
+            figi("KIOXIA HOLDINGS CORP", "285A", "JT", "BBG-K1"), figi("KIOXIA HOLDINGS CORP", "285AUSD", "XW", "BBG-K1"),
+            figi("KIOXIA HOLDINGS CORP", "KXIA", "US", "BBG-K2", sec_type="ADR")]
+        outcome = self.resolve("Kioxia Holdings")
+        self.assertEqual(outcome["status"], "matched")
+        self.assertEqual(graph.find_company(self.conn, "ticker", "KXIA", "US"), outcome["company_id"])
+        self.assertIsNone(graph.find_company(self.conn, "ticker", "285AUSD", "XW"))
+
+    def test_two_own_share_classes_of_one_name_stay_ambiguous_even_with_receipts(self):
+        self.figi_rows["Orion Corp"] = [figi("ORION CORP", "ORN", "US", "BBG-A"), figi("ORION CORP", "ORI", "LN", "BBG-B"),
+                                        figi("ORION CORP", "ORX", "US", "BBG-C", sec_type="ADR")]
+        self.assertEqual(self.resolve("Orion Corp")["reason"], "ambiguous")
+
+    def test_empty_answer_is_retried_without_the_legal_ending(self):
+        self.figi_rows["Wistron"] = [figi("WISTRON CORP", "3231", "TT", "BBG-W")]
+        outcome = self.resolve("Wistron Corporation")
+        self.assertEqual(self.calls, ["Wistron Corporation", "wistron"])
+        self.assertEqual(graph.find_company(self.conn, "ticker", "3231", "TW"), outcome["company_id"])
+
+    def test_listing_only_on_unknown_exchanges_still_matches_by_share_class(self):
+        self.figi_rows["Zork Ltd"] = [figi("ZORK LTD", "ZRK", "ZZ", "BBG-ZORK")]
+        first = self.resolve("Zork Ltd")
+        self.assertEqual(first["status"], "matched")
+        self.assertEqual(graph.find_company(self.conn, "share_class_figi", "BBG-ZORK"), first["company_id"])
+
+    def test_short_brand_names(self):
+        for short, ticker in (("AMD", "AMD"), ("Amazon", "AMZN"), ("Micron", "MU"), ("Marvell", "MRVL")):
+            themes.seed_themes(self.conn, [{"slug": "t" + ticker, "name": "T", "companies": [{"name": {"AMD": "Advanced Micro Devices, Inc.", "AMZN": "Amazon.com, Inc.", "MU": "Micron Technology, Inc.", "MRVL": "Marvell Technology, Inc."}[ticker], "ticker": ticker, "market": "US"}]}])
+            self.assertEqual(self.resolve(short)["company_id"], graph.find_company(self.conn, "ticker", ticker, "US"), short)
 
     def test_openfigi_down_is_not_a_decision(self):
         self.figi_rows["Zed Inc"] = openfigi.OpenFigiUnavailable("busy")
