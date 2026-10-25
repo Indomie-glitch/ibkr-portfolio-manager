@@ -74,6 +74,17 @@ class Scout(unittest.TestCase):
         self.assertEqual(self.scan()["new"], 1)
         self.assertEqual([r["key"] for r in self.open_jobs()], ["b/main.htm"])
 
+    def test_a_10k_registered_before_xbrl_reading_existed_gets_its_xbrl_job(self):
+        f = {**filing("0001-26-1", "10-K", "2026-02-20"), "xbrl": True}
+        self.filings = [f]
+        sec.register_filing(self.conn, self.nvda, 1045810, f)
+        self.conn.execute("UPDATE documents SET status = 'downloaded'")  # fetched in an earlier scan
+        self.assertEqual(self.scan()["new"], 0)
+        self.assertEqual([r["key"] for r in self.open_jobs("xbrl")], ["0001-26-1"])
+        self.assertEqual(self.open_jobs("download"), [])
+        self.scan()
+        self.assertEqual(len(self.open_jobs("xbrl")), 1)  # once per filing
+
     def test_foreign_filers_20f_and_6k_are_watched(self):
         self.filings = [filing("f-1", "20-F", "2026-04-15"), filing("k-1", "6-K", "2026-10-10"), filing("k-0", "6-K", "2026-06-01")]
         self.assertEqual(self.scan()["new"], 2)  # the old 6-K is a press release from months ago

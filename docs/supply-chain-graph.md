@@ -140,6 +140,14 @@ Benchmarks: a revenue share fills `supplier_revenue_share` (the filer supplies t
 
 The scout queues an `xbrl` job (priority 55) for every new 10-K that has XBRL data. 10-Qs (quarterly shares) and 20-Fs (IFRS tags) are not read yet.
 
+## Running it and watching it (#122)
+
+Settings > Supply chain pipeline has the **Run pipeline** switch (off by default: it uses the user's Anthropic key when it reads reports with Claude), a **monthly budget** in US dollars (default US$10) and a status line with **Open pipeline…**, which opens the pipeline sheet. The switches are kept in `pipeline_settings.json` next to the database (`supply_chain/control.py`); until someone chooses, "run" follows `PIPELINE` in `.env`.
+
+The supervisor in `worker.keep_running` checks every 5 seconds: workers run while the pipeline is on, not paused and this month's spending (the sum of `runs.cost_usd` since the 1st, UTC) is under the budget. When that stops being true the workers stop (the job in hand goes back in the queue, no attempt counted) and they start again by themselves, e.g. next month. It also loads the watch list from `seed/themes.json` at start.
+
+The sheet (`GET /pipeline`, `/pipeline/companies`, `/pipeline/log`, built by `supply_chain/status.py`) shows only what the tables say: Coverage (watched companies whose latest filing is downloaded), Links (active relationships, new in 7 days, ended), Needs attention (jobs failed for good, plus ones waiting to retry) and Cost (month against budget). A company is *failed* if one of its jobs failed for good, *reading* while a job runs, *waiting* while jobs are queued (or not yet looked at), *up to date* when everything is done, and *not on EDGAR* when SEC has no filings for it. The log is built from runs (RUN, DONE, FAIL, SCOUT) and relationships (LINK). Retry requeues failed jobs (`POST /pipeline/retry`); Run now looks at every watched company again and resumes a pause.
+
 ## Matching names to companies (#119)
 
 Filings name companies in their own words ("TSMC", "Micron Technology, Inc.", "Customer A"). `resolver.resolve(conn, name)` maps a name to a company, and says how:
@@ -185,7 +193,7 @@ queued -> running -> done
 | #119 | name resolver (done; `supply_chain/resolver.py` + `openfigi.py`) | `identifiers` |
 | #118 | SEC scout (done; `supply_chain/scout.py`: watches theme companies for 10-K, 10-Q, 8-K and queues downloads) | `themes`, `documents`, `jobs` |
 | #120 | XBRL customer concentration (done; `supply_chain/xbrl.py`) | `relationships`, `evidence`, placeholder companies |
-| #122 | pipeline status page (design first) | counts of `jobs`, `runs`, `documents` |
+| #122 | pipeline status sheet (done; Settings group + `PipelineSheet.jsx`, `supply_chain/status.py`, `control.py`, `routers/pipeline.py`) | counts of `jobs`, `runs`, `documents` |
 | M11 | chunker, reader, verifier, orchestrator, merge | `evidence`, `rejected`, `runs.cost_usd`, `relationships.confidence` |
 | M12 | graph API and explorer | indexes on both ends of `relationships`; chains of up to three layers by a recursive query |
 | M13 | server, export, sync | plain SQL (Postgres), `updated_at`, `ended` instead of deletes |

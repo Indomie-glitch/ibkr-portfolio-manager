@@ -74,17 +74,17 @@ async def scan(conn, company_id, today=None):
         existing = conn.execute("SELECT id, status FROM documents WHERE source = ? AND external_id = ?", (sec.SOURCE, key)).fetchone()
         if existing:
             document_id = existing["id"]
-            # seen before: only picked up again if its download job was never queued (the app stopped in between)
-            if existing["status"] != "discovered" or conn.execute("SELECT 1 FROM jobs WHERE kind = 'download' AND key = ?", (key,)).fetchone():
-                continue
         else:
             document_id = sec.register_filing(conn, company_id, cik, filing)
             new += 1
-        jobs.enqueue(conn, "download", key,
-                     {"document_id": document_id, "cik": cik, "accession": filing["accession"], "filename": filing["primary_document"],
-                      "form": filing["form"]},
-                     priority=FORMS[filing["form"]], company_id=company_id, document_id=document_id)
-        if filing["form"] == "10-K" and filing.get("xbrl"):
+        # A filing seen before is only downloaded again if its download job was never queued (the app stopped in between)
+        if not existing or (existing["status"] == "discovered" and not conn.execute("SELECT 1 FROM jobs WHERE kind = 'download' AND key = ?", (key,)).fetchone()):
+            jobs.enqueue(conn, "download", key,
+                         {"document_id": document_id, "cik": cik, "accession": filing["accession"], "filename": filing["primary_document"],
+                          "form": filing["form"]},
+                         priority=FORMS[filing["form"]], company_id=company_id, document_id=document_id)
+        # The customer figures of a 10-K with XBRL data, once per filing (also for ones registered before this existed)
+        if filing["form"] == "10-K" and filing.get("xbrl") and not conn.execute("SELECT 1 FROM jobs WHERE kind = 'xbrl' AND key = ?", (filing["accession"],)).fetchone():
             jobs.enqueue(conn, "xbrl", filing["accession"], {"cik": cik, "filing": filing}, priority=XBRL_PRIORITY,
                          company_id=company_id, document_id=document_id)
     return {"cik": cik, "found": found, "new": new}

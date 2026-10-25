@@ -43,7 +43,7 @@ function RiskExplainer({ id, text, style, onMouseEnter, onMouseLeave, popoverRef
         <p className="risk-explainer-label">Things to consider</p>
         <p className="risk-explainer-body">{text.consider}</p>
       </div>
-      <p className="risk-explainer-footer">General information about your holdings, not financial advice.</p>
+      <p className="risk-explainer-footer">{text.footer ?? 'General information about your holdings, not financial advice.'}</p>
     </div>
   )
 }

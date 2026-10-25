@@ -286,6 +286,13 @@ class FromEdgar(unittest.TestCase):
         document = self.conn.execute("SELECT * FROM documents WHERE id = ?", (out["document_id"],)).fetchone()
         self.assertEqual((document["kind"], document["company_id"]), ("10-K", self.nvda))
 
+    def test_job_note_when_nothing_is_tagged(self):
+        async def none(*a, **k):
+            return {"document_id": 1, "rows": [], "skipped": [], "results": []}
+        with mock.patch.object(xbrl, "import_filing", none):
+            note = run(xbrl.xbrl_job({"company_id": 1, "payload": {"cik": 1, "filing": {}}}, self.conn))
+        self.assertEqual(note, {"notes": "no customer figures tagged"})
+
     def test_filing_without_xbrl(self):
         with self.fake_edgar(["old.htm"]):
             out = run(xbrl.import_filing(self.conn, self.nvda, 1045810, self.filing))

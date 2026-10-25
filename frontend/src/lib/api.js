@@ -266,6 +266,40 @@ export function changeBorrowing(change) {
   return postJson('/trading/borrowing', change)
 }
 
+// ---------- Supply chain pipeline (#122) ----------
+
+// Status, tiles and costs (plus the switches under "settings")
+export function fetchPipeline() {
+  return getJson('/pipeline')
+}
+
+export function fetchPipelineCompanies() {
+  return getJson('/pipeline/companies')
+}
+
+export function fetchPipelineFilings(companyId) {
+  return getJson(`/pipeline/companies/${companyId}/filings`)
+}
+
+// kind: all | links | failed
+export function fetchPipelineLog(kind) {
+  return getJson(`/pipeline/log?kind=${kind}`)
+}
+
+// { enabled?, paused?, budget_usd? }
+export function savePipelineSettings(change) {
+  return postJson('/pipeline/settings', change)
+}
+
+export function runPipelineNow() {
+  return postJson('/pipeline/run-now', {})
+}
+
+// { job_id } or { company_id }
+export function retryPipeline(which) {
+  return postJson('/pipeline/retry', which)
+}
+
 // ---------- Connections (#114): indexes, competitors, executives, board ----------
 
 // Reading a board downloads the annual report or proxy and asks Claude: up to a minute or so

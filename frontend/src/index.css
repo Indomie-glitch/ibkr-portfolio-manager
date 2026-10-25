@@ -69,6 +69,8 @@
   --warning-border: rgba(255, 149, 0, 0.35);
   /* Risk page (Figma Risk / V5A light 111:1958) */
   --mono: 'SF Mono', ui-monospace, Menlo, monospace;
+  --pipeline-log: #ececf0;
+  --pipeline-sheet: rgba(255, 255, 255, 0.86);
   --risk-surface: #f5f5f7;
   --risk-border: rgba(0, 0, 0, 0.09);
   --risk-key: #ebebef;
@@ -125,6 +127,8 @@
   --sheet-highlight: rgba(255, 255, 255, 0.12);
   color-scheme: dark;
   /* Risk page (Figma Risk / V5A dark 106:598) */
+  --pipeline-log: #161618;
+  --pipeline-sheet: rgba(43, 43, 46, 0.92);
   --risk-surface: #262628;
   --risk-border: rgba(255, 255, 255, 0.09);
   --risk-key: #2c2c2e;
@@ -2190,6 +2194,11 @@ button.ai-source:hover {
 
 .settings-field.key {
   width: 200px;
+}
+
+.settings-field.budget {
+  width: 64px;
+  font-variant-numeric: tabular-nums;
 }
 
 .settings-field:focus {
@@ -6144,4 +6153,514 @@ button.ai-source:hover {
 
 .con-zoom button:not(:disabled):hover {
   color: var(--text);
+}
+
+
+/* ---------- Pipeline sheet (#122, Figma Pipeline / V1C, node 157:1496) ---------- */
+
+.pipeline-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 1240px;
+  max-width: 100%;
+  max-height: 100%;
+  border: 1px solid var(--sheet-border);
+  border-radius: 26px;
+  background: var(--pipeline-sheet);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+}
+
+.pipeline-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--risk-border);
+}
+
+.pipeline-title-stack h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pipeline-title-stack p {
+  margin: 1px 0 0;
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.pipeline-button {
+  padding: 6px 13px;
+  border: 1px solid var(--risk-border);
+  border-radius: 7px;
+  background: var(--risk-key);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pipeline-button.primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.pipeline-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pipeline-button:focus-visible,
+.pipeline-company:focus-visible,
+.pipeline-more:focus-visible,
+.pipeline-log:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.pipeline-status-pill,
+.pipeline-pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.pipeline-status-pill {
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 11px;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.pipeline-pill {
+  padding: 2px 6px;
+}
+
+.pipeline-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pipeline-status-pill.ok,
+.pipeline-pill.reading {
+  background: rgba(48, 209, 88, 0.14);
+  color: var(--gain);
+}
+
+.pipeline-status-pill.warn {
+  background: rgba(255, 159, 10, 0.14);
+  color: var(--risk-amber);
+}
+
+.pipeline-status-pill.off,
+.pipeline-pill.up-to-date,
+.pipeline-pill.not-on-EDGAR {
+  background: rgba(152, 152, 157, 0.14);
+  color: var(--text-2);
+}
+
+.pipeline-pill.failed {
+  background: rgba(255, 69, 58, 0.14);
+  color: var(--loss);
+}
+
+.pipeline-pill.waiting {
+  background: rgba(10, 132, 255, 0.14);
+  color: var(--accent);
+}
+
+.pipeline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 16px 28px 28px;
+  overflow-y: auto;
+}
+
+.pipeline-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pipeline-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 740fr) minmax(0, 432fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.pipeline-companies,
+.pipeline-log-panel {
+  gap: 8px;
+}
+
+.pipeline-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.pipeline-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.pipeline-head {
+  min-height: 16px;
+  color: var(--risk-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+.pipeline-company {
+  width: 100%;
+  cursor: pointer;
+}
+
+.pipeline-company:hover,
+.pipeline-company.open {
+  background: var(--risk-key);
+}
+
+.pipeline-symbol {
+  flex: 0 0 48px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.pipeline-name {
+  flex: 0 0 118px;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pipeline-filing-col {
+  flex: 0 0 104px;
+  font-size: 11px;
+}
+
+.pipeline-read {
+  flex: 0 0 58px;
+  color: var(--risk-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.pipeline-num,
+.pipeline-week,
+.pipeline-cost {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pipeline-num {
+  flex-basis: 44px;
+  font-size: 12px;
+}
+
+.pipeline-num.strong {
+  font-weight: 500;
+}
+
+.pipeline-week {
+  flex-basis: 40px;
+  font-size: 11px;
+}
+
+.pipeline-week.gain {
+  color: var(--gain);
+}
+
+.pipeline-week.faint {
+  color: var(--risk-faint);
+}
+
+.pipeline-status-col {
+  flex: 0 0 80px;
+}
+
+.pipeline-cost {
+  flex-basis: 52px;
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.pipeline-head .pipeline-num,
+.pipeline-head .pipeline-week,
+.pipeline-head .pipeline-cost {
+  font-family: inherit;
+}
+
+.pipeline-more {
+  align-self: flex-start;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pipeline-footnote {
+  font-size: 10.5px;
+}
+
+.pipeline-filings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 6px 6px 64px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--risk-key);
+  font-size: 11px;
+}
+
+.pipeline-filings .risk-panel-note {
+  font-size: 11px;
+}
+
+.pipeline-filing {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pipeline-filing-label {
+  flex: 0 0 104px;
+  font-weight: 500;
+}
+
+.pipeline-filing-date {
+  flex: 0 0 80px;
+  color: var(--text-2);
+  font-family: var(--mono);
+}
+
+.pipeline-filing-state {
+  flex: 0 0 64px;
+  color: var(--text-2);
+}
+
+.pipeline-filing-state.failed {
+  color: var(--loss);
+}
+
+.pipeline-filing-link {
+  margin-left: auto;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.pipeline-filing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.pipeline-filing-actions:empty {
+  display: none;
+}
+
+.pipeline-log {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  height: 245px;
+  padding: 10px 12px;
+  overflow-y: auto;
+  border-radius: 7px;
+  background: var(--pipeline-log);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.pipeline-log-line {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.pipeline-log-time {
+  flex-shrink: 0;
+  color: var(--risk-faint);
+}
+
+.pipeline-log-tag {
+  flex: 0 0 34px;
+  font-weight: 700;
+}
+
+.pipeline-log-tag.run {
+  color: var(--gain);
+}
+
+.pipeline-log-tag.link {
+  color: var(--risk-amber);
+}
+
+.pipeline-log-tag.done {
+  color: var(--text-2);
+}
+
+.pipeline-log-tag.fail {
+  color: var(--loss);
+}
+
+.pipeline-log-tag.scout {
+  color: var(--accent);
+}
+
+.pipeline-log-text {
+  min-width: 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.pipeline-log-empty {
+  margin: 0;
+  color: var(--risk-faint);
+}
+
+.pipeline-log-retry {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pipeline-costs {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-top: 8px;
+}
+
+.pipeline-costs p {
+  margin: 0;
+}
+
+.pipeline-cost-label {
+  color: var(--risk-faint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+}
+
+.pipeline-cost-value {
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.pipeline-cost-value.amber {
+  color: var(--risk-amber);
+}
+
+.pipeline-cost-value.gain {
+  color: var(--gain);
+}
+
+.pipeline-cost-value.loss {
+  color: var(--loss);
+}
+
+.pipeline-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 620px;
+  margin: 18px auto 10px;
+  padding: 22px 26px;
+  border: 1px solid var(--risk-border);
+  border-radius: 14px;
+  background: var(--risk-surface);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pipeline-empty h3,
+.pipeline-empty h4,
+.pipeline-empty p,
+.pipeline-empty ol {
+  margin: 0;
+}
+
+.pipeline-empty h3 {
+  font-size: 17px;
+}
+
+.pipeline-empty h4 {
+  padding-top: 4px;
+  font-size: 13px;
+}
+
+.pipeline-empty ol {
+  padding-left: 20px;
+  color: var(--text-2);
+}
+
+.pipeline-empty p {
+  color: var(--text-2);
+}
+
+.pipeline-empty-warn {
+  color: var(--risk-amber) !important;
+}
+
+.pipeline-empty .pipeline-button {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+/* Narrow windows: the log goes under the companies */
+@media (max-width: 1100px) {
+  .pipeline-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pipeline-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
