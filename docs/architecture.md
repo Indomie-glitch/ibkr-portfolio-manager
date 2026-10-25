@@ -150,6 +150,7 @@ flowchart TB
         comp["competitors.py<br/>same industry, widen,<br/>rank in US dollars (pure)"]
         dirs["directors.py<br/>boards read by Claude,<br/>checked against the document<br/>(SQLite); seed/directors.json (US)"]
         dsrc["directors_sources.py<br/>EDGAR proxy, ASX annual report,<br/>board pages only, Wikidata"]
+        secc["sec_client.py<br/>the one EDGAR client: User-Agent,<br/>rate limit, retries, filing lists,<br/>download + SHA-256"]
         scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers<br/>(supply_chain.sqlite; no endpoints yet)"]
         ppl["people.py<br/>same person across companies<br/>(Wikidata ID, or name + the<br/>document naming the company)"]
     end
@@ -179,6 +180,8 @@ flowchart TB
     r_dir --> dirs & ib_core & web
     r_dir -.->|reuses Yahoo info| r_pos
     dirs --> dsrc & ppl & usage & cons
+    dsrc --> secc
+    scg --> secc
     r_idx -.->|reuses Yahoo info| r_pos
     cons --> yahoo & names
 
