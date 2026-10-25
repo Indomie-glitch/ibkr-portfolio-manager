@@ -361,19 +361,35 @@ async def fetch_facts(qids):
     with _connect() as conn:
         have = {r[0] for r in conn.execute("SELECT wikidata_id FROM facts")}
     need = [q for q in dict.fromkeys(qids) if q not in have]
+    done = 0
     for i in range(0, len(need), 40):
         batch = need[i:i + 40]
-        entities = await wm.get_entities(batch)
-        labels = await wm.get_labels(set().union(*(label_ids(e) for e in entities.values())) if entities else set())
-        boards = await wm.board_memberships(list(entities))
-        files = {q: (wm.claim_values(e, wm.IMAGE) or [None])[0] for q, e in entities.items()}
-        photos = await wm.photo_info([f for f in files.values() if f])
-        with _connect() as conn:
+        try:
+            entities = await wm.get_entities(batch)
+            labels = await wm.get_labels(set().union(*(label_ids(e) for e in entities.values())) if entities else set())
+            boards = await wm.board_memberships(list(entities))
+            files = {q: (wm.claim_values(e, wm.IMAGE) or [None])[0] for q, e in entities.items()}
+            photos = await wm.photo_info([f for f in files.values() if f])
+            rows = {}
             for qid, entity in entities.items():
                 title = wm.wikipedia_title(entity)
                 summary = await wm.wikipedia_summary(title) if title else None
-                save_facts(conn, qid, facts_from(entity, labels, photos.get(files[qid]) if files[qid] else None, summary, boards.get(qid)))
-    return len(need)
+                rows[qid] = facts_from(entity, labels, photos.get(files[qid]) if files[qid] else None, summary, boards.get(qid))
+        except Exception as exc:  # this batch is tried again on the next run; the others carry on
+            print(f"  facts for {len(batch)} people failed: {mask_secrets(exc)}", flush=True)
+            continue
+        with _connect() as conn:
+            for qid, row in rows.items():
+                save_facts(conn, qid, row)
+        done += len(rows)
+    return done
+
+
+def matched_without_facts():
+    """Wikidata items of matched people whose facts haven't been fetched (a batch that failed, or a run that stopped)."""
+    with _connect() as conn:
+        return [r[0] for r in conn.execute("""SELECT DISTINCT p.wikidata_id FROM persons p LEFT JOIN facts f ON f.wikidata_id = p.wikidata_id
+                                              WHERE p.status = 'matched' AND f.wikidata_id IS NULL""")]
 
 
 async def run(todo, report=print):
@@ -395,7 +411,7 @@ async def run(todo, report=print):
         if result["status"] == "matched":
             matched.append(result["wikidata_id"])
         report(n, len(todo), p, result)
-    return await fetch_facts(matched)
+    return await fetch_facts(matched + matched_without_facts())
 
 
 async def collect_executives(companies, report=print):

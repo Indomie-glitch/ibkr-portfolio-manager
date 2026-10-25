@@ -21,6 +21,8 @@ WIKIPEDIA_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 SPARQL = "https://query.wikidata.org/sparql"
 API_PAUSE_S = 0.25
 SPARQL_PAUSE_S = 2.5
+# After a failed request (the network dropping for a moment, Wikimedia asking for patience) wait, then try again
+RETRY_WAITS_S = (5, 20, 60)
 
 # Wikidata properties used
 HUMAN, BIRTH, IMAGE = "Q5", "P569", "P18"
@@ -42,12 +44,18 @@ def user_agent():
 
 async def _fetch(kind, url, accept="application/json"):
     pause = SPARQL_PAUSE_S if kind == "sparql" else API_PAUSE_S
-    async with _locks[kind]:
-        wait = pause - (time.monotonic() - _last[kind])
-        if wait > 0:
-            await asyncio.sleep(wait)
-        _last[kind] = time.monotonic()
-    return json.loads(await sources.get(url, {"User-Agent": user_agent(), "Accept": accept}))
+    for attempt in range(len(RETRY_WAITS_S) + 1):
+        async with _locks[kind]:
+            wait = pause - (time.monotonic() - _last[kind])
+            if wait > 0:
+                await asyncio.sleep(wait)
+            _last[kind] = time.monotonic()
+        try:
+            return json.loads(await sources.get(url, {"User-Agent": user_agent(), "Accept": accept}))
+        except sources.SourceUnavailable:
+            if attempt == len(RETRY_WAITS_S):
+                raise
+            await asyncio.sleep(RETRY_WAITS_S[attempt])
 
 
 def _api(base, params):

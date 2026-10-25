@@ -383,6 +383,46 @@ class JobTests(StoreCase):
         self.assertEqual({p["match_key"] for p in pdata.collect_people()}, {"matt comyn", "no year"})
 
 
+class RetryTests(unittest.TestCase):
+    def test_a_dropped_request_is_tried_again(self):
+        calls = []
+
+        async def flaky(url, headers=None):
+            calls.append(url)
+            if len(calls) < 3:
+                raise wm.sources.SourceUnavailable("network")
+            return '{"ok": true}'
+        with mock.patch.object(wm.sources, "get", flaky), mock.patch.object(wm, "RETRY_WAITS_S", (0, 0, 0)), mock.patch.object(wm, "API_PAUSE_S", 0):
+            self.assertEqual(run(wm._fetch("api", "https://example.test/")), {"ok": True})
+        self.assertEqual(len(calls), 3)
+
+    def test_it_gives_up_after_the_last_wait(self):
+        async def down(url, headers=None):
+            raise wm.sources.SourceUnavailable("network")
+        with mock.patch.object(wm.sources, "get", down), mock.patch.object(wm, "RETRY_WAITS_S", (0, 0)), mock.patch.object(wm, "API_PAUSE_S", 0):
+            with self.assertRaises(wm.sources.SourceUnavailable):
+                run(wm._fetch("api", "https://example.test/"))
+
+
+class FactsRecoveryTests(JobTests):
+    # (inherits JobTests' fake Wikimedia helpers; its own tests run again here, which is harmless)
+    def test_a_failed_batch_is_skipped_and_picked_up_by_the_next_run(self):
+        fake = FakeWikimedia({"Q1": person("Q1", description="CEO of Apple Inc.", enwiki="Tim Cook")}, {"tim cook": ["Q1"]})
+        self.patched(fake)
+
+        async def down(ids, props=""):
+            raise wm.sources.SourceUnavailable("network")
+        run(pdata.run([self.one()], report=lambda *a: None))
+        with pdata._connect() as conn:
+            conn.execute("DELETE FROM facts")  # as if the facts step had failed
+        self.assertEqual(pdata.matched_without_facts(), ["Q1"])
+        with mock.patch.object(wm, "get_entities", down):
+            self.assertEqual(run(pdata.fetch_facts(["Q1"])), 0)  # the outage: logged, not raised
+        self.assertEqual(pdata.matched_without_facts(), ["Q1"])
+        self.assertEqual(run(pdata.fetch_facts(pdata.matched_without_facts())), 1)  # the next run
+        self.assertEqual(pdata.matched_without_facts(), [])
+
+
 class BundledSeedTests(unittest.TestCase):
     def test_the_bundled_seed_is_well_formed(self):
         if not pdata.SEED_PATH.exists():
