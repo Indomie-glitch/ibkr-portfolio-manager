@@ -80,6 +80,7 @@ class Chunk:
     last_paragraph: int
     overlap: int = 0
     number: int = 0  # position in the list chunk_filing / chunk_paragraphs returned
+    numbers: list = field(default_factory=list)  # the paragraph number of each piece of `text` (pieces split by "\n\n")
     locator: str = field(init=False)
 
     def __post_init__(self):
@@ -539,7 +540,8 @@ def _section_chunks(paragraphs, section, document, max_tokens, overlap_tokens):
     chunks = []
     for units, repeated in pack(_units(paragraphs, section.paragraphs, max_tokens), max_tokens, overlap_tokens):
         text = "\n\n".join(u.text for u in units)
-        chunks.append(Chunk(document, section.name, text, estimate_tokens(text), units[0].number, units[-1].number, repeated))
+        chunks.append(Chunk(document, section.name, text, estimate_tokens(text), units[0].number, units[-1].number, repeated,
+                            numbers=[u.number for u in units]))
     return chunks
 
 

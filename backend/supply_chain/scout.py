@@ -3,7 +3,8 @@
 Two kinds of job, run by the worker (worker.py):
 - "scout" (key = company id): looks the company up on EDGAR (CIK from a stored identifier, else SEC's ticker list for US
   tickers, then stored), lists its recent filings, registers each new one as a document and queues a "download" job.
-- "download" (key = the document's external id): fetches the filing's main document and records its hash.
+- "download" (key = the document's external id): fetches the filing's main document, records its hash and queues the
+  Reader (reader.py, #124) for the forms worth reading.
 
 schedule() queues a scout job for every theme company not scouted within SCOUT_EVERY_S; keep_scheduling() calls it
 every hour while the pipeline runs. Asking again is safe: documents are unique per accession number + file, and the queue
@@ -17,7 +18,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 import sec_client
-from supply_chain import db, graph, jobs, sec
+from supply_chain import db, graph, jobs, reader, sec
 from supply_chain.worker import Permanent, handler
 
 FORMS = {"10-K": 60, "20-F": 60, "10-Q": 50, "8-K": 30, "6-K": 30}  # form -> download priority (higher runs first)
@@ -81,7 +82,7 @@ async def scan(conn, company_id, today=None):
         if not existing or (existing["status"] == "discovered" and not conn.execute("SELECT 1 FROM jobs WHERE kind = 'download' AND key = ?", (key,)).fetchone()):
             jobs.enqueue(conn, "download", key,
                          {"document_id": document_id, "cik": cik, "accession": filing["accession"], "filename": filing["primary_document"],
-                          "form": filing["form"]},
+                          "form": filing["form"], "items": filing.get("items") or []},
                          priority=FORMS[filing["form"]], company_id=company_id, document_id=document_id)
         # The customer figures of a 10-K with XBRL data, once per filing (also for ones registered before this existed)
         if filing["form"] == "10-K" and filing.get("xbrl") and not conn.execute("SELECT 1 FROM jobs WHERE kind = 'xbrl' AND key = ?", (filing["accession"],)).fetchone():
@@ -114,6 +115,8 @@ async def download_job(job, conn):
     except sec_client.SecNotFound as exc:
         conn.execute("UPDATE documents SET status = 'failed' WHERE id = ?", (p["document_id"],))
         raise Permanent(str(exc)) from exc
+    # Jobs queued before #124 have no items: an 8-K among them is read only if the chunker finds Item 1.01 / 1.02
+    reader.queue_read(conn, p["document_id"], p.get("form"), p.get("items") if "items" in p else None, job.get("company_id"))
     return {"notes": f"{p.get('form', '')} {digest[:12]}"}
 
 
@@ -145,6 +148,9 @@ async def keep_scheduling(path=None):
                 queued = schedule(conn)
                 if queued:
                     print(f"SEC scout: queued {queued} compan{'y' if queued == 1 else 'ies'}")
+                reads = reader.queue_unread(conn)  # filings downloaded before the Reader existed
+                if reads:
+                    print(f"Reader: queued {reads} downloaded filing{'' if reads == 1 else 's'}")
             except Exception as exc:  # a failed pass is tried again next hour
                 print(f"SEC scout scheduling failed: {exc.__class__.__name__}")
             await asyncio.sleep(SCHEDULE_EVERY_S)

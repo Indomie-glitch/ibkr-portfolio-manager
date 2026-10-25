@@ -104,6 +104,10 @@ def sec_contact_email():
 # fills a fixed answer shape from a document, and the seed covers hundreds of companies
 DIRECTORS_MODEL = "claude-haiku-5-5"
 
+# The supply chain Reader (#124) reads filings chunk by chunk with the cheapest current model, whatever the summaries
+# use: a fixed answer shape from a passage, for every filing of every watched company. The Verifier checks its claims.
+READER_MODEL = "claude-haiku-5-5"
+
 
 def flex_token():
     """The IBKR Flex Web Service token (a secret: memory only in the Mac app, IB_FLEX_TOKEN in .env in

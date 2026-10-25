@@ -8,6 +8,8 @@ later piece follows.
 ## Conventions
 
 - **Direction.** A relationship is *supplier → customer*: the supplier sells to the customer.
+- **Partnerships have no direction.** A `partnership` (joint venture, co-development, licensing) is stored with the
+  filer as `supplier_id`, but that is only for storage: A-B and B-A are the same link, and the merge (#127) treats them so.
 - **Two dependencies, both optional.** Each is a percentage from 0 to 100 and NULL when no document says.
   - `supplier_revenue_share`: how much of the **supplier's** revenue comes from this customer
     ("Customer A was 23% of NVIDIA's revenue"). It shows how much the supplier depends on the customer.
@@ -47,6 +49,9 @@ The database refuses a relationship without evidence; it isn't left to the code 
 erDiagram
     companies ||--o{ identifiers : "has"
     companies ||--o{ documents : "files"
+    documents ||--o{ chunk_reads : "read in"
+    chunk_reads ||--o{ candidates : "found"
+    candidates }o--o| relationships : "becomes"
     companies ||--o{ relationships : "supplies (supplier_id)"
     companies ||--o{ relationships : "buys (customer_id)"
     relationships ||--|{ evidence : "backed by"
@@ -112,6 +117,20 @@ erDiagram
         real cost_usd }
     themes { int id PK
         text slug }
+    chunk_reads { int id PK
+        int document_id FK
+        int chunker_version
+        int chunk_number
+        real cost_usd }
+    candidates { int id PK
+        int document_id FK
+        int supplier_id FK
+        int customer_id FK
+        text quote
+        text locator
+        text context
+        text share_dropped
+        text status "pending ... linked" }
     theme_companies { int theme_id FK
         int company_id FK
         text segment }
@@ -170,6 +189,25 @@ Each `Chunk` has the file name (`document`), the `section`, the `text`, the esti
 
 **Checking it on real filings.** `backend/scripts/chunk_report.py` (development only) prints, for every filing in `data/filings`, the sections, chunk count and estimated tokens, and flags a 10-K or 20-F without risk factors or customer / concentration / segment / geographic notes, and a 10-K read as Full text; `--fetch` first downloads a sample of AI hardware filings (27 annual reports, 3 10-Qs, 8-Ks with Item 1.01). On 38 filings (26 Oct 2026) two are flagged and are read whole: Intel's 10-K has no Item headings at all (topic headings and a cross-reference index), and ASML's 20-F is its integrated annual report without Item headings. `backend/scripts/token_calibration.py` compares the estimate with `messages.count_tokens` for the most prose-heavy and table-heavy chunks (needs `ANTHROPIC_API_KEY`; counting is free).
 
+## Reading filings (#124)
+
+`supply_chain/reader.py` sends each chunk of a filing to Claude (`config.READER_MODEL`, claude-haiku-5-5, effort medium, structured output) and asks for every supplier, customer and partner relationship the passage states: both names as written, which one supplies the other, the counterparty's role, what is supplied, a quote copied word for word, the shares only when the passage gives a number, the period, and whether it has ended. The prompt says to use only what the passage states (never the model's own knowledge), that a relationship without a quote doesn't count, that a table row copied as written (`Beta Corp | 48%`) is a quote, and to leave out groups ("our customers include hyperscalers"). Unnamed counterparties ("Customer A") are kept with their label when the passage gives a specific fact about them.
+
+**Readers never write relationships.** What they find goes into `candidates` (status `pending`) for the Verifier (#125), with the quote, a locator for the paragraph holding it (`Item 1. Business, paragraph 5 [chunker v1]`) and that paragraph with its neighbours as `context`, which is all the Verifier will see. What fails a check in code goes to `rejected` (`rejected_by` `rule`):
+
+| Check | Fails as |
+|---|---|
+| The quote is in the chunk, comparing after normalising whitespace and quote characters only | `quote_not_found` |
+| Exactly one side is the filer | `not_about_filer` |
+| The counterparty's role agrees with the direction | `direction_mismatch` |
+| The counterparty is one company, not a group ("our customers", "top ten customers") | `generic_counterparty` |
+| A named counterparty appears in the chunk | `name_not_in_text` |
+| The name resolver (#119) matches it to a company, and not to the filer | `unresolved_company`, `same_company` |
+
+A share outside 0-100, or whose digits aren't in the quote, doesn't reject the candidate: only the number is dropped, and `share_dropped` says why (`supplier_revenue_share: digits_not_in_quote`), so the Verifier still checks the link. Words such as "substantially all" are kept in `share_as_written`. An unnamed counterparty is not looked up; its placeholder company is made when the Verifier links it. The same relationship found twice in a document (the overlap between chunks) is saved once.
+
+**The job.** Kind `read`, key = the document id, queued when a download finishes: 10-Ks and 20-Fs at priority 45, 8-Ks with Item 1.01 or 1.02 at 40 (below downloads and XBRL, since reading costs money). 10-Qs and 6-Ks aren't read (#324). Filings downloaded before the Reader existed are queued by the hourly scheduler. Each chunk read is a `chunk_reads` row (tokens, cost, how many relationships it gave), saved with its candidates in one transaction, so a job retried after a failure (the name lookup down, a timeout) only pays for the chunks it hadn't read. An answer cut off at the output limit is read again as two halves; a refusal counts as nothing found. Every call is logged in `usage.sqlite` as feature `supply_chain_reader`, and the job returns the model, tokens and cost for its `runs` row, so it counts against the monthly budget. A 10-K costs about a cent. When every chunk is read, the document is `processed`.
+
 ## Running it and watching it (#122)
 
 Settings > Supply chain pipeline has the **Run pipeline** switch (off by default: it uses the user's Anthropic key when it reads reports with Claude), a **monthly budget** in US dollars (default US$10) and a status line with **Open pipeline…**, which opens the pipeline sheet. The switches are kept in `pipeline_settings.json` next to the database (`supply_chain/control.py`); until someone chooses, "run" follows `PIPELINE` in `.env`.
@@ -225,6 +263,7 @@ queued -> running -> done
 | #120 | XBRL customer concentration (done; `supply_chain/xbrl.py`) | `relationships`, `evidence`, placeholder companies |
 | #122 | pipeline status sheet (done; Settings group + `PipelineSheet.jsx`, `supply_chain/status.py`, `control.py`, `routers/pipeline.py`) | counts of `jobs`, `runs`, `documents` |
 | #123 | document chunker (done; `supply_chain/chunker.py`) | `documents.local_path` in, chunks out |
-| M11 | reader, verifier, orchestrator, merge | `evidence`, `rejected`, `runs.cost_usd`, `relationships.confidence` |
+| #124 | Reader (done; `supply_chain/reader.py`: chunks to candidates with Claude) | `chunk_reads`, `candidates`, `rejected` |
+| M11 | verifier (#125), orchestrator, merge (#127) | `evidence`, `rejected`, `runs.cost_usd`, `relationships.confidence` |
 | M12 | graph API and explorer | indexes on both ends of `relationships`; chains of up to three layers by a recursive query |
 | M13 | server, export, sync | plain SQL (Postgres), `updated_at`, `ended` instead of deletes |

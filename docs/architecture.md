@@ -35,7 +35,7 @@ flowchart LR
     sec[("SEC EDGAR<br/>US proxy statements")]
     asx[("ASX announcements<br/>annual reports<br/>(personal use)")]
     wikidata[("Wikidata + Wikipedia<br/>people's IDs, articles,<br/>photos (Commons)")]
-    claude[("Anthropic API<br/>Claude writes the<br/>AI summaries, judges news<br/>sentiment, reads boards")]
+    claude[("Anthropic API<br/>Claude writes the<br/>AI summaries, judges news<br/>sentiment, reads boards<br/>and filings")]
     gh[("GitHub Releases<br/>new app versions")]
 
     user -->|clicks, types| app
@@ -47,7 +47,7 @@ flowchart LR
     app -->|"proxy statements<br/>(contact email)"| sec
     app -->|"annual reports, on request<br/>(after you accept ASX's terms)"| asx
     app -->|"who is who, summaries,<br/>photos (no key)"| wikidata
-    app -->|"facts sheet, headlines or board pages in,<br/>summary, sentiment or directors out (API key)"| claude
+    app -->|"facts sheet, headlines, board pages or filing chunks in,<br/>summary, sentiment, directors or relationships out (API key)"| claude
     app -->|"check for update,<br/>download signed update"| gh
 ```
 
@@ -152,7 +152,7 @@ flowchart TB
         dsrc["directors_sources.py<br/>EDGAR proxy, ASX annual report,<br/>board pages only, Wikidata"]
         pdat["person_data.py + wikimedia.py<br/>Wikipedia + Wikidata facts about<br/>executives and directors (SQLite);<br/>seed/persons.json, weekly"]
         secc["sec_client.py<br/>the one EDGAR client: User-Agent,<br/>rate limit, retries, filing lists,<br/>download + SHA-256"]
-        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration,<br/>document chunker (filings -> chunks),<br/>pipeline switches + status<br/>(supply_chain.sqlite; GET/POST /pipeline)"]
+        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration,<br/>document chunker (filings -> chunks),<br/>Reader (chunks -> candidates, Claude),<br/>pipeline switches + status<br/>(supply_chain.sqlite; GET/POST /pipeline)"]
         ppl["people.py<br/>same person across companies<br/>(Wikidata ID, or name + the<br/>document naming the company)"]
     end
 
@@ -202,6 +202,8 @@ flowchart TB
     ai -->|anthropic SDK| AN[["Anthropic API"]]
     dirs -->|anthropic SDK| AN
     senti -->|anthropic SDK| AN
+    scg -->|anthropic SDK| AN
+    scg --> usage
     senti --> usage
 ```
 
@@ -466,7 +468,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | News sentiment per article | `news_sentiment.sqlite` | 90 days |
 | Claude API usage: tokens and estimated cost per call | `usage.sqlite` | kept (`GET /usage` totals a month) |
 | People facts: Wikipedia link, summary, photo and licence, birth year, education, positions and boards, and how each match was made (`person_data.sqlite`; the bundled `seed/persons.json`) | `person_data.sqlite` | new people weekly; skipped people retried after 30 days |
-| Supply chain graph (companies, identifiers, documents, relationships, evidence, rejected, jobs, runs, themes; [the schema](supply-chain-graph.md)) | `supply_chain.sqlite` | every relationship keeps the evidence it came from; ended links are kept |
+| Supply chain graph (companies, identifiers, documents, relationships, evidence, rejected, jobs, runs, themes, chunk_reads, Reader candidates; [the schema](supply-chain-graph.md)) | `supply_chain.sqlite` | every relationship keeps the evidence it came from; ended links are kept |
 | Supply chain pipeline switches (run, paused, monthly budget) | `pipeline_settings.json` next to the database | until changed |
 | Boards of directors (each seat with its document, page and quote; Wikidata IDs) and whether you accepted ASX's terms | `directors.sqlite` (US index members from the bundled `seed/directors.json`; ASX boards only when you ask) | until a newer document is read |
 | Index members (S&P 500, Nasdaq 100, Dow, ASX 20 / 50 / 200) with weights, market cap, P/E, 1-year change, sectors and industries | `indices.sqlite` (a fresh install starts from the bundled `seed/indices.json`) | members weekly per index, market data daily; the last good copy stays if a download fails |
