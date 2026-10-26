@@ -315,6 +315,12 @@ CREATE TABLE merge_decisions (
 CREATE INDEX merge_decisions_pair ON merge_decisions (placeholder_relationship_id, relationship_id);
 """
 
+HOLDINGS = """
+-- The orchestrator (#126) marks the companies the user holds (from IB when connected), so their jobs run first. Kept in
+-- the database so the order is right at start-up, before IB has connected.
+ALTER TABLE companies ADD COLUMN held INTEGER NOT NULL DEFAULT 0 CHECK (held IN (0, 1));
+"""
+
 # (version, name, sql). Add new migrations at the end.
 MIGRATIONS = [
     (1, "initial graph schema (#115)", INITIAL),
@@ -323,4 +329,5 @@ MIGRATIONS = [
     (4, "verified_by and states_ended on evidence (#125)", VERIFIED_EVIDENCE),
     (5, "verify attempts on candidates (#125)", VERIFY_ATTEMPTS),
     (6, "relationship merge: last_confirmed, merged_into, copied evidence, decisions (#127)", MERGE),
+    (7, "companies the user holds (#126)", HOLDINGS),
 ]
