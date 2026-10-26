@@ -70,19 +70,24 @@ def enqueue(conn, kind, key, payload=None, priority=100, run_after=None, company
         return row["id"], False
 
 
+HELD_BOOST = 1000  # added to the priority of a job about a company the user holds: above every kind's own priority
+
+
 def claim(conn, worker, kinds=None, now=None):
     """The next job to run, marked running for this worker, with a new runs row; None when nothing is due.
     Returns the job (payload decoded) plus run_id. kinds limits it to the kinds this worker can handle."""
     moment = _now(now)
     stamp = _iso(moment)
-    where, params = "status = 'queued' AND run_after <= ?", [stamp]
+    where, params = "j.status = 'queued' AND j.run_after <= ?", [stamp]
     if kinds is not None:
         if not kinds:
             return None
-        where += f" AND kind IN ({', '.join('?' * len(kinds))})"
+        where += f" AND j.kind IN ({', '.join('?' * len(kinds))})"
         params += list(kinds)
     with transaction(conn):
-        row = conn.execute(f"SELECT * FROM jobs WHERE {where} ORDER BY priority DESC, run_after, id LIMIT 1", params).fetchone()
+        # companies the user holds come first (orchestrator.py), then by the priority set when the job was queued
+        row = conn.execute(f"""SELECT j.* FROM jobs j LEFT JOIN companies c ON c.id = j.company_id WHERE {where}
+                               ORDER BY j.priority + COALESCE(c.held, 0) * {HELD_BOOST} DESC, j.run_after, j.id LIMIT 1""", params).fetchone()
         if row is None:
             return None
         conn.execute("UPDATE jobs SET status = 'running', attempts = attempts + 1, locked_by = ?, locked_at = ?, updated_at = ? WHERE id = ?",
@@ -104,8 +109,21 @@ def finish(conn, job, notes=None, model=None, input_tokens=None, output_tokens=N
     with transaction(conn):
         conn.execute("UPDATE jobs SET status = 'done', locked_by = NULL, locked_at = NULL, last_error = NULL, finished_at = ?, updated_at = ? WHERE id = ?",
                      (stamp, stamp, job["id"]))
-        conn.execute("""UPDATE runs SET outcome = 'ok', finished_at = ?, model = ?, input_tokens = ?, output_tokens = ?, cost_usd = ?, notes = ? WHERE id = ?""",
+        # what add_usage already recorded call by call wins: the run's cost is never counted twice
+        conn.execute("""UPDATE runs SET outcome = 'ok', finished_at = ?, model = COALESCE(model, ?), input_tokens = COALESCE(input_tokens, ?),
+                        output_tokens = COALESCE(output_tokens, ?), cost_usd = COALESCE(cost_usd, ?), notes = ? WHERE id = ?""",
                      (stamp, model, input_tokens, output_tokens, cost_usd, json.dumps(notes) if notes is not None else None, job["run_id"]))
+
+
+def add_usage(conn, run_id, model, input_tokens, output_tokens, cost_usd):
+    """Adds one Claude call's tokens and cost to the run as soon as it is made, so money spent by a job that then fails (or
+    whose worker dies) is still in the run, and the budget (spent_since) sees it at once."""
+    if run_id is None:
+        return
+    conn.execute("""UPDATE runs SET input_tokens = COALESCE(input_tokens, 0) + ?, output_tokens = COALESCE(output_tokens, 0) + ?,
+                    cost_usd = COALESCE(cost_usd, 0) + ?,
+                    model = CASE WHEN model IS NULL THEN ? WHEN instr(model, ?) > 0 THEN model ELSE model || ', ' || ? END WHERE id = ?""",
+                 (input_tokens or 0, output_tokens or 0, cost_usd or 0, model, model, model, run_id))
 
 
 def fail(conn, job, error, permanent=False, now=None, jitter=True):

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   budgetText,
   companyKeys,
+  costSub,
   costSummary,
   filterCompanies,
   isEmptyState,
@@ -12,6 +13,7 @@ import {
   statusPill,
   tiles,
   usd,
+  runNowNote,
   weekChange,
 } from './pipelineFormat.js'
 
@@ -20,10 +22,10 @@ const pipeline = (over = {}) => ({
   enabled: true,
   started: true,
   workers: 2,
-  coverage: { read: 46, total: 52, not_on_edgar: 0 },
+  coverage: { read: 46, total: 52, not_on_edgar: 0, waiting_for_asx: 0 },
   links: { total: 3912, week: 214, ended: 18 },
-  attention: { stuck: 0, retrying: 3, unchecked: 0, total: 3 },
-  cost: { month: 4.12, week: 1.86, per_filing: 0.03, budget: 10, budget_left: 5.88, percent: 41 },
+  attention: { stuck: 0, retrying: 3, unchecked: 0, oversized: 0, total: 3 },
+  cost: { month: 4.12, week: 1.86, per_filing: 0.03, budget: 10, budget_left: 5.88, percent: 41, today: 0.12, today_cap: 0.33, run_now_extra: 0, waiting_for_tomorrow: 0, by_stage: { read: 1.5, verify: 2.6 } },
   companies: { all: 52, reading: 2, waiting: 29, failed: 3, up_to_date: 18, not_on_edgar: 0 },
   ...over,
 })
@@ -84,7 +86,7 @@ describe('tiles', () => {
     expect(coverage.value).toBe('46 / 52')
     expect(links).toMatchObject({ value: '3,912', sub: '+214 this week, 18 ended' })
     expect(attention).toMatchObject({ value: '3', tone: 'loss', sub: '3 retrying' })
-    expect(cost).toMatchObject({ value: 'US$4.12', sub: '41% of your US$10.00 budget' })
+    expect(cost).toMatchObject({ value: 'US$4.12', sub: "US$0.12 of today's US$0.33 · 41% of your US$10.00 budget" })
   })
   it('says so when nothing needs attention, and when companies are not on EDGAR', () => {
     const t = tiles(pipeline({ attention: { stuck: 0, retrying: 0, total: 0 }, coverage: { read: 40, total: 59, not_on_edgar: 7 } }))
@@ -95,6 +97,20 @@ describe('tiles', () => {
   it('lists stopped ones too', () => {
     expect(tiles(pipeline({ attention: { stuck: 2, retrying: 1, total: 3 } }))[2].sub).toBe('1 retrying, 2 stopped')
     expect(tiles(pipeline({ attention: { stuck: 0, retrying: 0, unchecked: 2, total: 2 } }))[2].sub).toBe('2 unchecked')
+    expect(tiles(pipeline({ attention: { stuck: 0, retrying: 0, unchecked: 0, oversized: 1, total: 1 } }))[2].sub).toBe('1 need a bigger budget')
+  })
+  it('says what the pace is doing: Run now, and work put off until tomorrow', () => {
+    const base = { month: 4.12, budget: 10, percent: 41, today: 0.5, today_cap: 0.66, run_now_extra: 0.33, waiting_for_tomorrow: 2 }
+    expect(costSub(base)).toBe("US$0.50 of today's US$0.66 · 41% of your US$10.00 budget · Run now added US$0.33 · 2 waiting for tomorrow")
+    expect(costSub({ ...base, run_now_extra: 0, waiting_for_tomorrow: 0 })).toBe("US$0.50 of today's US$0.66 · 41% of your US$10.00 budget")
+  })
+  it('mentions companies waiting for an ASX source', () => {
+    const t = tiles(pipeline({ coverage: { read: 10, total: 20, not_on_edgar: 0, waiting_for_asx: 6 } }))
+    expect(t[0].sub).toContain('6 waiting for an ASX source')
+  })
+  it('says what Run now added', () => {
+    expect(runNowNote(0.333)).toBe("Run now added US$0.33 to today's allowance.")
+    expect(runNowNote(0)).toContain('added nothing')
   })
 })
 
@@ -107,6 +123,7 @@ describe('companies', () => {
   })
   it('counts the keys', () => {
     expect(companyKeys(pipeline().companies).map((k) => `${k.label} ${k.count}`)).toEqual(['ALL 52', 'RUNNING 2', 'WAITING 29', 'FAILED 3', 'UP TO DATE 18'])
+    expect(companyKeys({ ...pipeline().companies, waiting_for_ASX_source: 6 }).at(-1)).toEqual({ id: 'waiting for ASX source', label: 'ASX', count: 6 })
   })
 })
 

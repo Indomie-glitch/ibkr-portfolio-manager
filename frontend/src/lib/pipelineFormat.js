@@ -66,8 +66,9 @@ export function statusPill(pipeline) {
 export function tiles(pipeline) {
   const { coverage, links, attention, cost } = pipeline
   const edgar = coverage.not_on_edgar ? ` · ${coverage.not_on_edgar} not on EDGAR` : ''
+  const asx = coverage.waiting_for_asx ? ` · ${coverage.waiting_for_asx} waiting for an ASX source` : ''
   return [
-    { id: 'coverage', label: 'COVERAGE', value: `${coverage.read} / ${coverage.total}`, sub: `Watched companies with their latest filing read${edgar}` },
+    { id: 'coverage', label: 'COVERAGE', value: `${coverage.read} / ${coverage.total}`, sub: `Watched companies with their latest filing read${edgar}${asx}` },
     {
       id: 'links',
       label: 'LINKS',
@@ -81,22 +82,39 @@ export function tiles(pipeline) {
       tone: attention.total ? 'loss' : undefined,
       sub: attention.total
         ? [attention.retrying && `${attention.retrying} retrying`, attention.stuck && `${attention.stuck} stopped`,
-            attention.unchecked && `${attention.unchecked} unchecked`].filter(Boolean).join(', ')
+            attention.unchecked && `${attention.unchecked} unchecked`, attention.oversized && `${attention.oversized} need a bigger budget`]
+            .filter(Boolean).join(', ')
         : 'Nothing needs attention',
     },
-    { id: 'cost', label: 'COST · MONTH', value: usd(cost.month), tone: 'amber', sub: `${cost.percent}% of your ${usd(cost.budget)} budget` },
+    { id: 'cost', label: 'COST · MONTH', value: usd(cost.month), tone: 'amber', sub: costSub(cost) },
   ]
+}
+
+// "US$0.12 of today's US$0.33 · 23% of your US$10.00 budget" (+ "· Run now added US$0.33", "· 2 waiting for tomorrow")
+export function costSub(cost) {
+  const parts = [`${usd(cost.today)} of today's ${usd(cost.today_cap)}`, `${cost.percent}% of your ${usd(cost.budget)} budget`]
+  if (cost.run_now_extra) parts.push(`Run now added ${usd(cost.run_now_extra)}`)
+  if (cost.waiting_for_tomorrow) parts.push(`${cost.waiting_for_tomorrow} waiting for tomorrow`)
+  return parts.join(' · ')
+}
+
+// What pressing Run now says: "Run now added US$0.33 to today's allowance." / when the month has nothing more to give
+export function runNowNote(added) {
+  return added > 0 ? `Run now added ${usd(added)} to today's allowance.` : "Run now added nothing: this month's budget is already fully available today."
 }
 
 // The filter keys over the companies, with their counts: [{ id, label, count }]
 export function companyKeys(counts) {
-  return [
+  const keys = [
     { id: 'all', label: 'ALL', count: counts.all },
     { id: 'reading', label: 'RUNNING', count: counts.reading },
     { id: 'waiting', label: 'WAITING', count: counts.waiting },
     { id: 'failed', label: 'FAILED', count: counts.failed },
     { id: 'up to date', label: 'UP TO DATE', count: counts.up_to_date },
   ]
+  // only when there are some: companies listed only on the ASX, which wait for an ASX source
+  if (counts.waiting_for_ASX_source) keys.push({ id: 'waiting for ASX source', label: 'ASX', count: counts.waiting_for_ASX_source })
+  return keys
 }
 
 export function filterCompanies(companies, key) {

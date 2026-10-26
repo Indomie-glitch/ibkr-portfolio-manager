@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchPipeline, fetchPipelineCompanies, runPipelineNow, savePipelineSettings } from '../lib/api.js'
-import { isEmptyState, statusPill, tiles } from '../lib/pipelineFormat.js'
+import { isEmptyState, runNowNote, statusPill, tiles } from '../lib/pipelineFormat.js'
 import { pipelineExplainer } from '../lib/pipelineExplainers.js'
 import { usePolled } from '../hooks/usePolled.js'
 import CompaniesPanel from './pipeline/CompaniesPanel.jsx'
@@ -45,6 +45,7 @@ export default function PipelineSheet({ onClose, onOpenSettings }) {
   const { data: companies, reload: reloadCompanies } = usePolled(fetchPipelineCompanies, 'companies', 6000)
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState(null)
+  const [added, setAdded] = useState(null)
 
   useEffect(() => {
     const previous = document.activeElement
@@ -66,7 +67,8 @@ export default function PipelineSheet({ onClose, onOpenSettings }) {
     setBusy(true)
     setProblem(null)
     try {
-      await work()
+      const result = await work()
+      if (result && typeof result.added_usd === 'number') setAdded(runNowNote(result.added_usd))
       changed()
     } catch (err) {
       setProblem(err.message)
@@ -113,6 +115,11 @@ export default function PipelineSheet({ onClose, onOpenSettings }) {
           {problem && (
             <p className="error-text" role="alert">
               {problem}
+            </p>
+          )}
+          {added && (
+            <p className="risk-panel-note" role="status">
+              {added}
             </p>
           )}
           {!pipeline && !error && <p className="risk-panel-note">Loading…</p>}

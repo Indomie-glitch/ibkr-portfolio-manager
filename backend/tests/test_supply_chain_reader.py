@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import usage_store
+from tests.pipeline_isolation import isolate
 from supply_chain import graph, integrity, jobs, reader, scout
 from supply_chain.db import open_graph
 from supply_chain.worker import Permanent
@@ -70,6 +71,7 @@ class ReaderTestCase(unittest.TestCase):
         usage_patch = mock.patch.object(usage_store, "DB_PATH", root / "usage.sqlite")
         usage_patch.start()
         self.addCleanup(usage_patch.stop)
+        isolate(self, root)
         self.acme = graph.add_company(self.conn, "Acme Semiconductor Inc.")
         graph.add_identifier(self.conn, self.acme, "ticker", "ACME", "US")
         self.beta = graph.add_company(self.conn, "Beta Corp")

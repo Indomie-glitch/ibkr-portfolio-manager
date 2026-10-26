@@ -11,7 +11,7 @@ A watched company is one in a theme (theme_companies). Its status:
 import json
 from datetime import datetime, timedelta, timezone
 
-from supply_chain import control, jobs, verifier
+from supply_chain import control, jobs, orchestrator, verifier
 
 WEEK = timedelta(days=7)
 LOG_LIMIT = 150
@@ -73,7 +73,17 @@ def filing_label(row):
 
 
 def watched_ids(conn):
-    return [r["company_id"] for r in conn.execute("SELECT DISTINCT company_id FROM theme_companies ORDER BY company_id")]
+    """The theme companies and the ones the user holds (orchestrator.py)."""
+    return [r["id"] for r in conn.execute(
+        """SELECT id FROM companies WHERE merged_into IS NULL
+             AND (held = 1 OR EXISTS (SELECT 1 FROM theme_companies tc WHERE tc.company_id = companies.id)) ORDER BY id""")]
+
+
+def asx_only_ids(conn):
+    """Companies listed only on the ASX: nothing reads them until there is an ASX source (#131)."""
+    return {r["company_id"] for r in conn.execute(
+        """SELECT DISTINCT company_id FROM identifiers WHERE scheme = 'ticker' AND market = 'ASX'
+           AND company_id NOT IN (SELECT company_id FROM identifiers WHERE scheme = 'ticker' AND market = 'US')""")}
 
 
 def theme_names(conn):
@@ -103,6 +113,8 @@ def company_rows(conn, now=None):
         """SELECT j.company_id, SUM(r.cost_usd) AS cost FROM runs r JOIN jobs j ON j.id = r.job_id
            WHERE j.company_id IS NOT NULL AND r.started_at >= ? GROUP BY j.company_id""", (month,))}
     names = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM companies")}
+    asx_only = asx_only_ids(conn)
+    held = {r["id"] for r in conn.execute("SELECT id FROM companies WHERE held = 1")}
     scouted_empty = {r["company_id"] for r in conn.execute(
         """SELECT j.company_id FROM jobs j JOIN runs r ON r.job_id = j.id WHERE j.kind = 'scout' AND j.status = 'done' AND r.notes LIKE '%no SEC listing%'""")}
     document_count = {r["company_id"]: r["n"] for r in conn.execute(
@@ -116,10 +128,14 @@ def company_rows(conn, now=None):
         finished = [j["finished_at"] for j in company_jobs if j["finished_at"]]
         if statuses & {"failed", "dead"}:
             status = "failed"
+        elif company_id in asx_only and not document_count.get(company_id):
+            status = "waiting for ASX source"
         elif "running" in statuses:
             status = "reading"
         elif "queued" in statuses or not company_jobs:
             status = "waiting"
+        elif company_id in asx_only:
+            status = "waiting for ASX source"
         elif company_id in scouted_empty and not document_count.get(company_id):
             status = "not on EDGAR"
         else:
@@ -131,7 +147,7 @@ def company_rows(conn, now=None):
             "latest_filing": filing_label(doc) if doc else None, "latest_filed": doc["filed_at"] if doc else None,
             "read_at": max(finished) if finished else None,
             "links": link["total"] if link else 0, "links_week": int(link["week"] or 0) if link else 0,
-            "status": status, "retrying": retrying, "cost_usd": round(costs.get(company_id) or 0, 4),
+            "status": status, "retrying": retrying, "cost_usd": round(costs.get(company_id) or 0, 4), "held": company_id in held,
             "filings": document_count.get(company_id, 0),
         })
     rows.sort(key=lambda r: (r["read_at"] or ""), reverse=True)
@@ -155,7 +171,8 @@ def overview(conn, now=None):
     now = _now(now)
     settings = control.load_settings()
     rows = company_rows(conn, now)
-    counts = {key: sum(1 for r in rows if r["status"] == key) for key in ("reading", "waiting", "failed", "up to date", "not on EDGAR")}
+    counts = {key: sum(1 for r in rows if r["status"] == key)
+              for key in ("reading", "waiting", "failed", "up to date", "not on EDGAR", "waiting for ASX source")}
     read = sum(1 for r in rows if r["status"] == "up to date" and r["latest_filing"])
     week_ago = _iso(now - WEEK)
     link_total, link_week, link_ended = conn.execute(
@@ -163,6 +180,14 @@ def overview(conn, now=None):
            WHERE merged_into IS NULL""", (week_ago,)).fetchone()  # found this week (first_seen is the statement's date)
     stuck = conn.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('failed', 'dead')").fetchone()[0]
     unchecked = verifier.unchecked_count(conn)  # links Claude couldn't check (verifier.MAX_VERIFY_ATTEMPTS)
+    # work put off by the daily pace (orchestrator.py), and jobs no month's budget could ever take: they need a bigger budget
+    waiting = conn.execute("SELECT COUNT(*) FROM jobs WHERE status = 'queued' AND last_error LIKE 'waiting for %'").fetchone()[0]
+    oversized = conn.execute("SELECT COUNT(*) FROM jobs WHERE status = 'queued' AND last_error LIKE 'too big for the budget%'").fetchone()[0]
+    pace = orchestrator.pace(conn, now, settings)
+    stages = {kind: round(cost or 0, 4) for kind, cost in conn.execute(
+        """SELECT j.kind, SUM(r.cost_usd) FROM runs r JOIN jobs j ON j.id = r.job_id WHERE r.started_at >= ? AND j.kind IN ('read', 'verify')
+           GROUP BY j.kind""", (_iso(control.month_start(now)),))}
+    stages = {"read": stages.get("read", 0.0), "verify": stages.get("verify", 0.0)}
     retrying = conn.execute("SELECT COUNT(*) FROM jobs WHERE status = 'queued' AND attempts > 0 AND last_error IS NOT NULL").fetchone()[0]
     month = control.spent_this_month(conn, now)
     week = jobs.spent_since(conn, now - WEEK)
@@ -174,11 +199,14 @@ def overview(conn, now=None):
         "status": control.status_word(conn, settings, now),
         "enabled": settings["enabled"], "paused": settings["paused"], "workers": control.active_workers,
         "themes": theme_names(conn), "watched": len(rows),
-        "coverage": {"read": read, "total": len(rows), "not_on_edgar": counts["not on EDGAR"]},
+        "coverage": {"read": read, "total": len(rows), "not_on_edgar": counts["not on EDGAR"], "waiting_for_asx": counts["waiting for ASX source"]},
         "links": {"total": link_total or 0, "week": link_week or 0, "ended": link_ended or 0},
-        "attention": {"stuck": stuck, "retrying": retrying, "unchecked": unchecked, "total": stuck + retrying + unchecked},
+        "attention": {"stuck": stuck, "retrying": retrying, "unchecked": unchecked, "oversized": oversized,
+                      "total": stuck + retrying + unchecked + oversized},
         "cost": {"month": round(month, 4), "week": round(week, 4), "per_filing": round(per_filing, 4) if per_filing else None,
-                 "budget": budget, "budget_left": round(max(budget - month, 0), 4), "percent": round(100 * month / budget) if budget else 0},
+                 "budget": budget, "budget_left": round(max(budget - month, 0), 4), "percent": round(100 * month / budget) if budget else 0,
+                 "today": round(pace["spent_today"], 4), "today_cap": round(pace["cap"] + pace["extra"], 4), "run_now_extra": round(pace["extra"], 4),
+                 "waiting_for_tomorrow": waiting, "by_stage": stages},
         "companies": {"all": len(rows), **{key.replace(" ", "_"): value for key, value in counts.items()}},
         "jobs": job_counts,
         "started": bool(conn.execute("SELECT 1 FROM jobs LIMIT 1").fetchone()),
@@ -268,10 +296,13 @@ def retry(conn, job_id=None, company_id=None):
 
 
 def run_now(conn, now=None):
-    """Looks at every watched company again now, not waiting for the twelve hours between checks, and resumes a pause."""
+    """Looks at every watched company again now, not waiting for the twelve hours between checks, resumes a pause, and adds
+    one more day's cap to today's allowance (orchestrator.add_run_now; the monthly budget stays the limit).
+    Returns {queued, added_usd}."""
+    added = orchestrator.add_run_now(conn, now)
     queued = 0
     for company_id in watched_ids(conn):
         _, created = jobs.enqueue(conn, "scout", str(company_id), priority=70, company_id=company_id, now=now)
         queued += 1 if created else 0
     control.save_settings(paused=False)
-    return queued
+    return {"queued": queued, "added_usd": added}

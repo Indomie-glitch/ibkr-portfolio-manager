@@ -22,7 +22,7 @@ import anthropic
 
 import config
 import usage_store
-from supply_chain import chunker, graph, jobs, xbrl
+from supply_chain import chunker, graph, jobs, orchestrator, xbrl
 from supply_chain.jobs import _iso
 from supply_chain.db import now
 from supply_chain.worker import Permanent, handler
@@ -143,10 +143,11 @@ def _attempts(response):
     return attempts or [{"model": response.model, "input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}]
 
 
-async def judge(client, group, splits=0):
-    """({candidate id: verdict}, the model that answered (None if it declined), attempts). A cut-off answer is asked again in halves."""
+async def judge(client, group, splits=0, charge=None):
+    """({candidate id: verdict}, the model that answered (None if it declined), attempts). A cut-off answer is asked again in
+    halves. charge(attempts) is called as soon as each call is made, so what a job spends is on its run even if it fails afterwards."""
     numbered = {n: c for n, c in enumerate(group, 1)}
-    response = await client.beta.messages.create(
+    response = await orchestrator.gate().call(lambda: client.beta.messages.create(
         model=config.VERIFIER_MODEL,
         max_tokens=MAX_TOKENS,
         betas=[FALLBACK_BETA],
@@ -154,16 +155,18 @@ async def judge(client, group, splits=0):
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": "\n\n".join(item_text(n, c) for n, c in numbered.items())}],
         output_config={"effort": EFFORT, "format": {"type": "json_schema", "schema": SCHEMA}},
-    )
+    ))
     attempts = _attempts(response)
     outcome = "ok" if response.stop_reason == "end_turn" else response.stop_reason
     for attempt in attempts:
         attempt["outcome"] = outcome
+    if charge:
+        charge(attempts)
     if response.stop_reason == "max_tokens" and len(group) > 1 and splits < 3:
         middle = len(group) // 2
         verdicts, models = {}, []
         for half in (group[:middle], group[middle:]):
-            more, model, more_attempts = await judge(client, half, splits + 1)
+            more, model, more_attempts = await judge(client, half, splits + 1, charge)
             verdicts.update(more)
             models.append(model)
             attempts += more_attempts
@@ -291,8 +294,9 @@ async def verify_document(conn, document_id, client=None, run_id=None, now_at=No
     moment = _now(now_at)
     pending = conn.execute(f"SELECT * FROM candidates WHERE document_id = ? AND {DUE} ORDER BY id",
                            (document_id, MAX_VERIFY_ATTEMPTS, _iso(moment))).fetchall()
-    totals = {"candidates": len(pending), "linked": 0, "rejected": 0, "declined": 0, "unanswered": 0, "models": [],
+    totals = {"candidates": len(pending), "linked": 0, "rejected": 0, "declined": 0, "unanswered": 0, "models": [], "deferred": None,
               "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+    attempted = set()  # candidates a call was made for: only those use up one of their attempts
     if not pending:
         return totals
     if client is None:
@@ -301,7 +305,16 @@ async def verify_document(conn, document_id, client=None, run_id=None, now_at=No
         client = anthropic.AsyncAnthropic(api_key=config.anthropic_api_key(), timeout=TIMEOUT_S)
 
     async def run_batch(group):
-        verdicts, model, attempts = await judge(client, group)
+        """The candidates the answer skipped; None when today's allowance can't take the call (the rest waits)."""
+        tokens = sum(chunker.estimate_tokens(item_text(0, c)) for c in group)
+        reservation = orchestrator.reserve(conn, orchestrator.verify_estimate(tokens, len(group)), moment)
+        if not reservation.ok:
+            totals["deferred"] = reservation
+            return None
+        with reservation:
+            verdicts, model, attempts = await judge(
+                client, group, charge=lambda calls: orchestrator.charge(conn, run_id, calls))
+        attempted.update(c["id"] for c in group)
         _record(attempts)
         totals["input_tokens"] += sum(a["input_tokens"] for a in attempts)
         totals["output_tokens"] += sum(a["output_tokens"] for a in attempts)
@@ -319,14 +332,21 @@ async def verify_document(conn, document_id, client=None, run_id=None, now_at=No
 
     missed = []
     for group in batches(pending):
-        missed += await run_batch(group)
+        skipped = await run_batch(group)
+        if skipped is None:
+            break
+        missed += skipped
     for candidate in missed:  # an item the answer skipped is asked about on its own, once
-        if await run_batch([candidate]):
+        again = await run_batch([candidate])
+        if again is None:
+            break
+        if again:
             totals["unanswered"] += 1
-    conn.execute(
-        f"""UPDATE candidates SET verify_attempts = verify_attempts + 1, verify_after = ?, updated_at = ?
-            WHERE status = 'pending' AND id IN ({", ".join("?" * len(pending))})""",
-        (_iso(moment + RETRY_AFTER), now(), *(c["id"] for c in pending)))
+    if attempted:
+        conn.execute(
+            f"""UPDATE candidates SET verify_attempts = verify_attempts + 1, verify_after = ?, updated_at = ?
+                WHERE status = 'pending' AND id IN ({", ".join("?" * len(attempted))})""",
+            (_iso(moment + RETRY_AFTER), now(), *attempted))
     return totals
 
 
@@ -361,6 +381,10 @@ async def verify_job(job, conn):
     if not totals["candidates"]:
         return {"notes": "nothing to check"}
     extra = "".join(f", {totals[k]} {k}" for k in ("declined", "unanswered") if totals[k])
-    return {"notes": f"{totals['candidates']} checked: {totals['linked']} linked, {totals['rejected']} rejected{extra}",
-            "model": ", ".join(totals["models"]) or config.VERIFIER_MODEL, "input_tokens": totals["input_tokens"],
-            "output_tokens": totals["output_tokens"], "cost_usd": round(totals["cost_usd"], 6)}
+    result = {"notes": f"{totals['candidates']} checked: {totals['linked']} linked, {totals['rejected']} rejected{extra}",
+              "model": ", ".join(totals["models"]) or config.VERIFIER_MODEL, "input_tokens": totals["input_tokens"],
+              "output_tokens": totals["output_tokens"], "cost_usd": round(totals["cost_usd"], 6)}
+    if totals["deferred"] is not None:  # the worker queues the rest again for when the allowance allows (orchestrator.requeue_later)
+        result["notes"] += f"; the rest {totals['deferred'].reason}"
+        result["defer_until"], result["defer_reason"] = totals["deferred"].until, totals["deferred"].reason
+    return result

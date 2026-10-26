@@ -8,7 +8,14 @@ import { usePolled } from '../../hooks/usePolled.js'
 import InfoButton from '../risk/InfoButton.jsx'
 
 const SHOWN = 9
-const STATUS_LABEL = { reading: 'reading', waiting: 'waiting', failed: 'failed', 'up to date': 'up to date', 'not on EDGAR': 'not on EDGAR' }
+const STATUS_LABEL = {
+  reading: 'reading',
+  waiting: 'waiting',
+  failed: 'failed',
+  'up to date': 'up to date',
+  'not on EDGAR': 'not on EDGAR',
+  'waiting for ASX source': 'waiting for ASX source',
+}
 
 // One company's filings, shown under its row: what each is, where it stands, and the actions
 function Filings({ company, onChanged, onClose }) {
@@ -144,8 +151,9 @@ export default function CompaniesPanel({ pipeline, companies, onChanged, onClose
                 onClick={() => setSelected(open ? null : c.company_id)}
               >
                 <span className="pipeline-symbol">{c.symbol || '—'}</span>
-                <span className="pipeline-name" title={c.name}>
+                <span className="pipeline-name" title={c.held ? `${c.name} (you hold it)` : c.name}>
                   {c.name}
+                  {c.held && <span className="pipeline-held"> · held</span>}
                 </span>
                 <span className="pipeline-filing-col">{c.latest_filing ?? '—'}</span>
                 <span className="pipeline-read">{readTime(c.read_at)}</span>

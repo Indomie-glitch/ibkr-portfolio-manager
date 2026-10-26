@@ -17,7 +17,7 @@ from datetime import timedelta
 
 import config
 from secrets_guard import mask_secrets
-from supply_chain import control, db, jobs
+from supply_chain import control, db, jobs, orchestrator
 
 HANDLERS = {}
 HANDLER_TIMEOUT_S = 15 * 60
@@ -63,7 +63,7 @@ class Worker:
     async def run_once(self):
         """Claims and runs one job. Returns True if there was one (whatever its outcome), False if the queue had nothing for us."""
         conn = self.connection()
-        job = jobs.claim(conn, self.name, kinds=list(self.handlers))
+        job = jobs.claim(conn, self.name, kinds=orchestrator.claimable_kinds(conn, self.handlers))
         if job is None:
             return False
         beat = asyncio.create_task(self._heartbeat(job["id"]))
@@ -81,6 +81,8 @@ class Worker:
             jobs.fail(conn, job, f"{exc.__class__.__name__}: {mask_secrets(exc)}")
         else:
             jobs.finish(conn, job, **{k: v for k, v in (result or {}).items() if k in ("notes", "model", "input_tokens", "output_tokens", "cost_usd")})
+            if result and result.get("defer_until"):  # it did what today's allowance allowed: the rest is queued for later
+                orchestrator.requeue_later(conn, job, result["defer_until"], result.get("defer_reason"))
         finally:
             beat.cancel()
         return True
@@ -123,7 +125,7 @@ async def run_workers(path, count):
     workers[0].start(exclusive=True)  # one process: whatever was running before is a leftover
     control.active_workers = count
     try:
-        await asyncio.gather(scout.keep_scheduling(path), *(w.run_forever(exclusive=False) for w in workers))
+        await asyncio.gather(scout.keep_scheduling(path), orchestrator.keep_holdings(path), *(w.run_forever(exclusive=False) for w in workers))
     finally:
         control.active_workers = 0
         for w in workers:

@@ -121,11 +121,15 @@ async def download_job(job, conn):
 
 
 def due_companies(conn, now=None, every_s=SCOUT_EVERY_S):
-    """Theme companies that no scout job has covered within `every_s` (or has open)."""
+    """Watched companies (theme or held) that no scout job has covered within `every_s` (or has open)."""
     cutoff = jobs._iso((now or datetime.now(timezone.utc)) - timedelta(seconds=every_s))
+    # theme companies and the ones the user holds (orchestrator.py); a company listed only on the ASX waits for an ASX source (#131)
     rows = conn.execute(
-        """SELECT DISTINCT c.id FROM theme_companies tc JOIN companies c ON c.id = tc.company_id
-           WHERE NOT EXISTS (SELECT 1 FROM jobs j WHERE j.kind = 'scout' AND j.key = CAST(c.id AS TEXT)
+        """SELECT c.id FROM companies c
+           WHERE (c.held = 1 OR EXISTS (SELECT 1 FROM theme_companies tc WHERE tc.company_id = c.id)) AND c.merged_into IS NULL
+             AND NOT (EXISTS (SELECT 1 FROM identifiers i WHERE i.company_id = c.id AND i.scheme = 'ticker' AND i.market = 'ASX')
+                      AND NOT EXISTS (SELECT 1 FROM identifiers i WHERE i.company_id = c.id AND i.scheme = 'ticker' AND i.market = 'US'))
+             AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.kind = 'scout' AND j.key = CAST(c.id AS TEXT)
                              AND (j.status IN ('queued', 'running') OR j.created_at > ?))
            ORDER BY c.id""", (cutoff,)).fetchall()
     return [row["id"] for row in rows]

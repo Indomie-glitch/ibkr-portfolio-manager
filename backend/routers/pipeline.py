@@ -81,7 +81,7 @@ def run_now(request: Request):
     if not control.load_settings()["enabled"]:
         raise HTTPException(status_code=409, detail="Turn on Run pipeline in Settings first.")
     with graph_db() as conn:
-        return {"queued": status.run_now(conn)}
+        return status.run_now(conn)
 
 
 class Retry(BaseModel):
