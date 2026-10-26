@@ -6271,7 +6271,8 @@ button.ai-source:hover {
 
 .pipeline-status-pill.off,
 .pipeline-pill.up-to-date,
-.pipeline-pill.not-on-EDGAR {
+.pipeline-pill.not-on-EDGAR,
+.pipeline-pill.waiting-for-ASX-source {
   background: rgba(152, 152, 157, 0.14);
   color: var(--text-2);
 }
@@ -6410,6 +6411,11 @@ button.ai-source:hover {
 
 .pipeline-status-col {
   flex: 0 0 80px;
+}
+
+.pipeline-held {
+  color: var(--text-3);
+  font-size: 11px;
 }
 
 .pipeline-cost {
