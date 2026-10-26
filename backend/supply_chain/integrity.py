@@ -15,6 +15,16 @@ def check(conn):
     for row in conn.execute("""SELECT r.id FROM relationships r
                                WHERE r.tier > (SELECT MIN(e.tier) FROM evidence e WHERE e.relationship_id = r.id)"""):
         problems.append(f"relationship {row['id']} has a worse tier than its best evidence")
+    for row in conn.execute("SELECT id FROM relationships WHERE kind = 'partnership' AND supplier_id > customer_id AND merged_into IS NULL"):
+        problems.append(f"partnership {row['id']} isn't stored lower company id first (A-B and B-A must be one link)")
+    for row in conn.execute("""SELECT r.id FROM relationships r JOIN relationships t ON t.id = r.merged_into
+                               WHERE t.merged_into IS NOT NULL OR r.merged_into = r.id"""):
+        problems.append(f"relationship {row['id']} is merged into a link that is itself merged")
+    from supply_chain import merge  # here: merge imports graph
+    for row in conn.execute("SELECT id, confidence FROM relationships"):
+        rows = merge.evidence_rows(conn, row["id"])
+        if rows and abs(row["confidence"] - merge.confidence_of(rows)) > 1e-9:
+            problems.append(f"relationship {row['id']}'s confidence isn't the one its evidence gives (merge.refresh)")
     for row in conn.execute("PRAGMA foreign_key_check"):
         problems.append(f"{row['table']} row {row['rowid']} points to a missing {row['parent']} row")
     return problems

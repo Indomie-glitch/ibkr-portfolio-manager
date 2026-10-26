@@ -13,7 +13,7 @@ from supply_chain.db import now, transaction
 IDENTIFIER_SCHEMES = ("ticker", "isin", "figi", "share_class_figi", "cik", "lei", "wikidata", "mops", "edinet", "dart", "asx", "name")
 RELATIONSHIP_KINDS = ("supplies", "partnership")
 EVIDENCE_FIELDS = ("locator", "supplier_revenue_share", "customer_supply_share", "customer_share_scope", "share_note", "stated_on",
-                   "verification", "verified_by", "states_ended", "run_id")
+                   "verification", "verified_by", "states_ended", "copied_from", "run_id")
 
 
 class IdentifierConflict(Exception):
@@ -36,9 +36,22 @@ def add_company(conn, name, country=None, sector=None, industry=None, placeholde
         (name, country, sector, industry, 1 if placeholder_for else 0, placeholder_for, stamp, stamp)).lastrowid
 
 
+def current_company(conn, company_id):
+    """The company a merged one now lives on as (a "Customer A" placeholder upgraded to the named company, #127), so a later
+    document never attaches to the retired one. A company that wasn't merged is itself."""
+    seen = set()
+    while company_id is not None and company_id not in seen:
+        seen.add(company_id)
+        row = conn.execute("SELECT merged_into FROM companies WHERE id = ?", (company_id,)).fetchone()
+        if row is None or row["merged_into"] is None:
+            return company_id
+        company_id = row["merged_into"]
+    return company_id
+
+
 def find_company(conn, scheme, value, market=""):
     row = conn.execute("SELECT company_id FROM identifiers WHERE scheme = ? AND market = ? AND value = ?", (scheme, market, value)).fetchone()
-    return row["company_id"] if row else None
+    return current_company(conn, row["company_id"]) if row else None
 
 
 def add_identifier(conn, company_id, scheme, value, market="", source=None):
@@ -91,7 +104,7 @@ def _insert_evidence(conn, row):
 
 def add_evidence(conn, relationship_id, evidence):
     """More evidence for an existing relationship; the same quote from the same document is stored once.
-    Returns the evidence id. Updates the relationship's last_seen and, if this evidence is better, its tier."""
+    Returns the evidence id. Updates last_seen, then the merge rules recompute the link from all its evidence."""
     row = _evidence_row(relationship_id, evidence)
     with transaction(conn):
         found = conn.execute("SELECT id FROM evidence WHERE relationship_id = ? AND document_id = ? AND quote_hash = ?",
@@ -99,7 +112,13 @@ def add_evidence(conn, relationship_id, evidence):
         evidence_id = found["id"] if found else _insert_evidence(conn, row)
         conn.execute("UPDATE relationships SET last_seen = ?, updated_at = ?, tier = MIN(tier, ?) WHERE id = ?",
                      (now(), now(), row["tier"], relationship_id))
+    _merge().refresh(conn, relationship_id)
     return evidence_id
+
+
+def _merge():
+    from supply_chain import merge  # here: merge imports this module
+    return merge
 
 
 def add_relationship(conn, supplier_id, customer_id, evidence, kind="supplies", what=None, supplier_revenue_share=None,
@@ -107,9 +126,20 @@ def add_relationship(conn, supplier_id, customer_id, evidence, kind="supplies", 
     """The supplier sells to the customer, with the evidence it came from (a dict: document_id, quote, tier,
     extractor, and optionally locator, shares, stated_on, ...). Both rows are written in one transaction;
     without evidence nothing is written. If the link already exists the evidence is added to it. Returns
-    the relationship id."""
+    the relationship id. Shares, tier, confidence, dates and status are then set from all of the link's evidence by the
+    merge rules (merge.refresh), whatever was passed here. A partnership has no direction: it is stored with the lower
+    company id first, so A-B and B-A are one link. A merged company is replaced by the one it was merged into."""
     if kind not in RELATIONSHIP_KINDS:
         raise ValueError(f"unknown relationship kind {kind!r}")
+    supplier_id, customer_id = current_company(conn, supplier_id), current_company(conn, customer_id)
+    if kind == "partnership" and supplier_id > customer_id:
+        supplier_id, customer_id = customer_id, supplier_id
+    # a share given with the evidence is what that statement says: it goes on the evidence, where the merge reads it
+    evidence = dict(evidence)
+    for name, value in (("supplier_revenue_share", supplier_revenue_share), ("customer_supply_share", customer_supply_share),
+                        ("customer_share_scope", customer_share_scope)):
+        if value is not None and evidence.get(name) is None:
+            evidence[name] = value
     row = _evidence_row(None, evidence)
     existing = conn.execute("SELECT id FROM relationships WHERE supplier_id = ? AND customer_id = ? AND kind = ?",
                             (supplier_id, customer_id, kind)).fetchone()
@@ -128,20 +158,8 @@ def add_relationship(conn, supplier_id, customer_id, evidence, kind="supplies", 
              confidence, row["tier"], stamp, stamp, stamp, stamp)).lastrowid
         evidence_id = _insert_evidence(conn, {**row, "relationship_id": relationship_id})
         conn.execute("UPDATE relationships SET primary_evidence_id = ? WHERE id = ?", (evidence_id, relationship_id))
+    _merge().refresh(conn, relationship_id)
     return relationship_id
-
-
-def refresh_shares(conn, relationship_id):
-    """Sets the relationship's shares from its newest evidence that states each one (by stated_on), so a later filing's
-    figure replaces an older one while the older stays as evidence."""
-    stamp = now()
-    for columns in (("supplier_revenue_share",), ("customer_supply_share", "customer_share_scope")):
-        row = conn.execute(f"""SELECT {', '.join(columns)}, stated_on FROM evidence WHERE relationship_id = ? AND {columns[0]} IS NOT NULL
-                               ORDER BY stated_on DESC, id DESC LIMIT 1""", (relationship_id,)).fetchone()
-        if row:
-            assignments = ", ".join(f"{c} = ?" for c in columns)
-            conn.execute(f"UPDATE relationships SET {assignments}, shares_as_of = MAX(COALESCE(shares_as_of, ''), ?), updated_at = ? WHERE id = ?",
-                         (*[row[c] for c in columns], row["stated_on"], stamp, relationship_id))
 
 
 # ---------- Rejected candidates ----------

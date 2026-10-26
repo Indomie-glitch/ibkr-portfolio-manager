@@ -28,7 +28,6 @@ XBRLDI = "{http://xbrl.org/2006/xbrldi}"
 XLINK = "{http://www.w3.org/1999/xlink}"
 CONCEPT = "ConcentrationRiskPercentage1"
 EXTRACTOR = "xbrl"
-CONFIDENCE = 0.9
 
 COUNTERPARTY_AXIS = re.compile(r"MajorCustomers|Customer|Supplier|Vendor|Counterparty", re.I)
 # Dimensions that narrow a counterparty's share without changing whose it is: kept as a note
@@ -198,7 +197,8 @@ def placeholder(conn, filer_id, filer_name, row, side):
     """The unnamed counterparty for one label and fiscal year (found again, not duplicated)."""
     name = f"{row['label']} (unnamed {side} of {filer_name}, year to {row['end']})"
     found = conn.execute("SELECT id FROM companies WHERE is_placeholder = 1 AND placeholder_for = ? AND name = ?", (filer_id, name)).fetchone()
-    return found["id"] if found else graph.add_company(conn, name, placeholder_for=filer_id)
+    # an upgraded placeholder (#127) lives on as the named company: a later document attaches there
+    return graph.current_company(conn, found["id"]) if found else graph.add_company(conn, name, placeholder_for=filer_id)
 
 
 async def import_rows(conn, filer_id, document_id, rows, resolve=None):
@@ -236,8 +236,7 @@ async def import_rows(conn, filer_id, document_id, rows, resolve=None):
         else:
             evidence["share_note"] = "; ".join([f"{row['percent']:g}% of accounts receivable", *row["notes"]])
         supplier, customer = (counterparty, filer_id) if supplier_side else (filer_id, counterparty)
-        relationship_id = graph.add_relationship(conn, supplier, customer, evidence, confidence=CONFIDENCE)
-        graph.refresh_shares(conn, relationship_id)
+        relationship_id = graph.add_relationship(conn, supplier, customer, evidence)  # the merge rules set shares and confidence
         results.append({"row": row, "status": "linked", "how": how, "relationship_id": relationship_id, "counterparty_id": counterparty})
     return results
 

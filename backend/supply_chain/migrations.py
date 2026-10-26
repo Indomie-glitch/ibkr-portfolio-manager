@@ -292,6 +292,29 @@ ALTER TABLE candidates ADD COLUMN verify_attempts INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE candidates ADD COLUMN verify_after TEXT;   -- not checked again before this time
 """
 
+MERGE = """
+-- The merge (#127). first_seen / last_confirmed are the dates the evidence's statements are about (last_seen stays the
+-- last time evidence was written). merged_into marks what a placeholder upgrade retired: the "Customer A" link and company
+-- now live on in the named ones. Nothing is deleted, so an upgrade can be undone (merge.undo).
+ALTER TABLE relationships ADD COLUMN last_confirmed TEXT;
+ALTER TABLE relationships ADD COLUMN merged_into INTEGER REFERENCES relationships (id);
+ALTER TABLE companies ADD COLUMN merged_into INTEGER REFERENCES companies (id);
+-- A copy of another link's evidence made by an upgrade: removed again by an undo
+ALTER TABLE evidence ADD COLUMN copied_from INTEGER REFERENCES evidence (id);
+CREATE INDEX relationships_merged ON relationships (merged_into);
+
+-- Every upgrade and every undo; an undone pair is never upgraded again by the daily job
+CREATE TABLE merge_decisions (
+    id INTEGER PRIMARY KEY,
+    placeholder_relationship_id INTEGER NOT NULL REFERENCES relationships (id),
+    relationship_id INTEGER NOT NULL REFERENCES relationships (id),
+    decision TEXT NOT NULL CHECK (decision IN ('merged', 'undone')),
+    detail TEXT,                       -- the matching share and period, in plain words
+    created_at TEXT NOT NULL
+);
+CREATE INDEX merge_decisions_pair ON merge_decisions (placeholder_relationship_id, relationship_id);
+"""
+
 # (version, name, sql). Add new migrations at the end.
 MIGRATIONS = [
     (1, "initial graph schema (#115)", INITIAL),
@@ -299,4 +322,5 @@ MIGRATIONS = [
     (3, "chunk reads and Reader candidates (#124)", READER),
     (4, "verified_by and states_ended on evidence (#125)", VERIFIED_EVIDENCE),
     (5, "verify attempts on candidates (#125)", VERIFY_ATTEMPTS),
+    (6, "relationship merge: last_confirmed, merged_into, copied evidence, decisions (#127)", MERGE),
 ]

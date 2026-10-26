@@ -9,7 +9,7 @@ later piece follows.
 
 - **Direction.** A relationship is *supplier → customer*: the supplier sells to the customer.
 - **Partnerships have no direction.** A `partnership` (joint venture, co-development, licensing) is stored with the
-  filer as `supplier_id`, but that is only for storage: A-B and B-A are the same link, and the merge (#127) treats them so.
+  lower company id as `supplier_id`, only so A-B and B-A are the same row (#127); neither side supplies the other.
 - **Two dependencies, both optional.** Each is a percentage from 0 to 100 and NULL when no document says.
   - `supplier_revenue_share`: how much of the **supplier's** revenue comes from this customer
     ("Customer A was 23% of NVIDIA's revenue"). It shows how much the supplier depends on the customer.
@@ -88,7 +88,9 @@ erDiagram
         text customer_share_scope
         int tier "1 2 3"
         text status "active stale ended"
-        real confidence
+        real confidence "merge.level: high medium low"
+        text last_confirmed
+        int merged_into FK
         int primary_evidence_id FK }
     evidence { int id PK
         int relationship_id FK
@@ -101,7 +103,8 @@ erDiagram
         real customer_supply_share
         text verification
         text verified_by "model that checked it"
-        int states_ended }
+        int states_ended
+        int copied_from FK }
     rejected { int id PK
         int document_id FK
         text quote
@@ -157,7 +160,7 @@ erDiagram
 | Group ("Top Ten Customers", "Three Largest Customers", "Ablecom and Compuware") | Left out: not one company. |
 | Narrowed by a region or product line | Left out. A business segment is kept as a note. |
 
-Benchmarks: a revenue share fills `supplier_revenue_share` (the filer supplies the counterparty); a purchases share means the counterparty is the filer's **supplier** and fills `customer_supply_share` with the benchmark as scope ("Supplier A: 63.1% of purchases, total" for Super Micro); a receivables share is kept as a `share_note` on the evidence only. Revenue and receivables figures of the same label and year are one relationship. Other benchmarks ("Manufacturer Concentration") are left out. The same figure tagged twice keeps the more precise one. `graph.refresh_shares` sets a relationship's shares from its newest evidence, so an older filing loaded later doesn't overwrite a newer figure.
+Benchmarks: a revenue share fills `supplier_revenue_share` (the filer supplies the counterparty); a purchases share means the counterparty is the filer's **supplier** and fills `customer_supply_share` with the benchmark as scope ("Supplier A: 63.1% of purchases, total" for Super Micro); a receivables share is kept as a `share_note` on the evidence only. Revenue and receivables figures of the same label and year are one relationship. Other benchmarks ("Manufacturer Concentration") are left out. The same figure tagged twice keeps the more precise one. The merge rules (`merge.refresh`, #127) set a relationship's shares from all its evidence, so an older filing loaded later doesn't overwrite a newer figure.
 
 The scout queues an `xbrl` job (priority 55) for every new 10-K that has XBRL data. 10-Qs (quarterly shares) and 20-Fs (IFRS tags) are not read yet.
 
@@ -220,15 +223,37 @@ A share outside 0-100, or whose digits aren't in the quote, doesn't reject the c
 | partly_supported | If the supplier, customer, direction or kind is unsupported, the link itself is, so it goes to `rejected` (`partly_supported_link`). Otherwise it is written with only the supported fields; the evidence's `share_note` lists what was left out. |
 | not_supported | `rejected` with the reason, `rejected_by` `verifier`. |
 
-An unnamed counterparty becomes a placeholder company exactly as the XBRL import makes them: one per filer, label and period ("Customer A (unnamed customer of Acme Semiconductor Inc., year to 2026-01-25)"), so XBRL and the Reader share it and the merge (#127) can later upgrade it. A candidate whose share the Reader dropped is still checked for the link itself (the claim then has no share). Ending a link from `states_ended`, and its tier and share rules across evidence, are the merge's job (#127).
+An unnamed counterparty becomes a placeholder company exactly as the XBRL import makes them: one per filer, label and period ("Customer A (unnamed customer of Acme Semiconductor Inc., year to 2026-01-25)"), so XBRL and the Reader share it and the merge (#127) can later upgrade it. A candidate whose share the Reader dropped is still checked for the link itself (the claim then has no share). Shares, confidence, dates and status are then set by the merge rules below.
 
-**Confidence.** `relationships.confidence` is `NOT NULL DEFAULT 0`, and no rule for it exists yet beyond the XBRL import's own constant (0.9 for its tier 1 facts). Verified tier 2 links are left at the default, **0 = not scored**, until the merge (#127) computes confidence from all of a link's evidence.
 
 **Refusals.** Requests carry Anthropic's server-side fallback (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`): a declined check is answered by the fallback model (Claude Sonnet 5 for claude-sonnet-5-5). The model that actually answered is the one recorded: `evidence.verified_by`, the candidate's stored verdict, `runs.model`, and each attempt in `usage.sqlite` (feature `supply_chain_verifier`) priced at its own model's rate from `usage.iterations`. If the whole chain declines, the candidates stay `pending`.
 
 **The job.** Kind `verify`, key = the document id, queued when a read finishes with pending candidates (and hourly for any left without one), at priority 46: above reads (40-45), so each document is checked before the next is read and links appear steadily in the log, whose LINK lines now end "· verified" (a partnership shows as `A ↔ B`). An item the answer skipped is asked about alone, once; an answer cut off at the output limit is asked again in halves.
 
 **Never a paid loop.** A candidate still unchecked after a verify job (the whole fallback chain declined, or the answer skipped it twice) counts an attempt (`candidates.verify_attempts`, migration 5) and waits 3 days (`verify_after`). It is tried once more after that, then given up on: it stays `pending` and is counted as *unchecked* under Needs attention in the pipeline sheet. A company's Retry gives its unchecked candidates fresh attempts. The hourly scheduler only queues documents with candidates that are due, and waits the same 3 days after a verify job that failed for good, so an API error can't turn into an hourly retry either.
+
+## One link per pair: the merge (#127)
+
+The same link arrives from many documents: XBRL (tier 1), the Reader (tier 2), several years of 10-Ks. `graph.add_relationship` adds each statement to the one link for that supplier, customer and kind (a partnership with the lower company id first, so A-B and B-A are one link), and every write ends with `merge.refresh`, which recomputes the link from all of its evidence. A statement's date is its `stated_on`, else its report's period end, else its filing date.
+
+| Field | Rule |
+|---|---|
+| Shares | Each share on its own: the newest statement wins; for the same period a tier 1 figure beats a tier 2 one. |
+| `confidence` | high **0.9** = a tier 1 source, or a verified tier 2 source from a filing (sec, mops, edinet, dart, asx); medium **0.6** = verified tier 2 not from a filing, or tier 3 confirmed by a second independent document (another publisher, not the same text); low **0.3** = one tier 3 source, or unverified tier 2. Every consumer reads it through `merge.level(confidence)` (high / medium / low), the one place the thresholds live; low links are never used by the risk rules (Milestone 12). |
+| `first_seen` / `last_confirmed` | The earliest and the latest statement dates (`last_seen` stays the last time evidence was written; "new this week" in the pipeline sheet uses `created_at`). |
+| `status`, `ended_at` | **ended** when the newest statement says it ended (`states_ended`; a tie goes to ended), `ended_at` = that statement's date. Otherwise **stale** when `last_confirmed` is over 18 months old, else **active**. A statement dated after `ended_at` revives an ended link; one dated before it (an older 10-K read today) doesn't. A newer statement revives a stale link. Nothing is deleted. |
+
+**Placeholder upgrades.** When a document names the customer a filer called "Customer A" before, the placeholder link is merged into the named one, only if every condition holds (a wrong merge is worse than two links):
+- the same filer, on the same side of a supply link, with a named (not placeholder) counterparty;
+- a trusted figure on both sides (tier 1, or verified tier 2; a share the Reader dropped is no figure), of the same measure and scope;
+- the same period (statement date);
+- the same share at the precision of the less precise figure: "23%" covers 22.5 to 23.5, so it matches XBRL's 23.4; 23.4 and 23.1 don't;
+- unique both ways: exactly one named company of that filer matches, and no other placeholder of the filer matches the named one's figure (two customers that both round to 23: no merge);
+- the placeholder is in no other link, and the pair was never undone.
+
+The upgrade copies the placeholder link's evidence onto the named link (`evidence.copied_from`), marks the link and the placeholder company `merged_into`, and records it in `merge_decisions`. Merged links are left out of counts and the log. Lookups follow `companies.merged_into` (`graph.current_company`: identifier lookups, the name resolver's matches and saved decisions, `add_relationship`, `xbrl.placeholder`), so a later document attaches to the named company, never the retired placeholder. `merge.undo(conn, placeholder_link_id)` reverses an upgrade: the copies are removed, both `merged_into` cleared, and an `undone` decision stops the daily job from redoing it.
+
+**Every row is scored.** `db.open_graph` runs `merge.recompute_all` when migration 6 is first applied, so no link keeps an old placeholder value (XBRL's fixed 0.9, the Verifier's 0). The daily `merge` job (key = the date, priority 20, queued by the scheduler; no AI) runs it again: partnerships in one order, every link recomputed (which is what makes a link stale), then placeholder upgrades. `integrity.check()` also reports a partnership stored the wrong way round, a link merged into a merged link, and a confidence that isn't the one its evidence gives.
 
 ## Running it and watching it (#122)
 
@@ -287,6 +312,7 @@ queued -> running -> done
 | #123 | document chunker (done; `supply_chain/chunker.py`) | `documents.local_path` in, chunks out |
 | #124 | Reader (done; `supply_chain/reader.py`: chunks to candidates with Claude) | `chunk_reads`, `candidates`, `rejected` |
 | #125 | Verifier (done; `supply_chain/verifier.py`: candidates to verified tier 2 links) | `relationships`, `evidence`, `rejected`, placeholder companies |
-| M11 | orchestrator, merge (#127) | `evidence`, `rejected`, `runs.cost_usd`, `relationships.confidence` |
+| #127 | merge (done; `supply_chain/merge.py`: one link per pair, shares, confidence, stale / ended, placeholder upgrades) | `relationships`, `evidence.copied_from`, `merge_decisions` |
+| M11 | orchestrator | `runs.cost_usd` |
 | M12 | graph API and explorer | indexes on both ends of `relationships`; chains of up to three layers by a recursive query |
 | M13 | server, export, sync | plain SQL (Postgres), `updated_at`, `ended` instead of deletes |

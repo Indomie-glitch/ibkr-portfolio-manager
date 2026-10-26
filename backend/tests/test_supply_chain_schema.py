@@ -184,7 +184,7 @@ class ShareTests(GraphCase):
         graph.add_evidence(self.conn, rid, {"document_id": doc2, "quote": "TSMC makes 90% of our chips.", "tier": 2, "extractor": "reader",
                                            "customer_supply_share": 90, "customer_share_scope": "chips", "stated_on": "2026-09-27"})
         shares = [r[0] for r in self.conn.execute("SELECT customer_supply_share FROM evidence WHERE relationship_id = ? ORDER BY id", (rid,))]
-        self.assertEqual(shares, [None, 90])
+        self.assertEqual(shares, [100, 90])  # the share given with the first statement is on its evidence (#127)
 
     def test_percentages_stay_between_0_and_100(self):
         for column in ("supplier_revenue_share", "customer_supply_share"):

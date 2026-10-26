@@ -229,12 +229,11 @@ def link(conn, candidate, verdict, model, run_id=None):
                 "verification": "verified", "verified_by": model,
                 "states_ended": int(bool(candidate["ended"]) and "ended" not in unsupported), "run_id": run_id}
     supplier_id, customer_id = counterparty_ids(conn, candidate)
-    # confidence is left at the schema's default (0, not scored): the merge (#127) sets it from all of a link's evidence
+    # shares, confidence, dates and status are set from all of the link's evidence by the merge rules (merge.refresh)
     relationship_id = graph.add_relationship(conn, supplier_id, customer_id, evidence, kind=candidate["kind"], what=keep["what"],
                                              supplier_revenue_share=keep["supplier_revenue_share"],
                                              customer_supply_share=keep["customer_supply_share"],
                                              customer_share_scope=keep["customer_share_scope"], shares_as_of=stated_on)
-    graph.refresh_shares(conn, relationship_id)
     return relationship_id
 
 

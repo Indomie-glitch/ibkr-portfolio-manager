@@ -116,7 +116,7 @@ class VerdictTests(VerifierTestCase):
         self.assertEqual((relationship["supplier_id"], relationship["customer_id"], relationship["kind"], relationship["tier"]),
                          (self.gamma, self.acme, "supplies", 2))
         self.assertEqual((relationship["customer_supply_share"], relationship["customer_share_scope"], relationship["what"]), (100.0, "wafers", "wafers"))
-        self.assertEqual(relationship["confidence"], 0)  # not scored until the merge (#127)
+        self.assertEqual(relationship["confidence"], 0.9)  # verified tier 2 from a filing: high (merge.py, #127)
         evidence, = self.evidence()
         self.assertEqual((evidence["extractor"], evidence["tier"], evidence["verification"], evidence["verified_by"]),
                          ("reader", 2, "verified", "claude-sonnet-5-5"))
@@ -160,7 +160,7 @@ class VerdictTests(VerifierTestCase):
         self.add_candidate(ended=1)
         self.verify()
         self.assertEqual(self.evidence()[0]["states_ended"], 1)
-        self.assertEqual(self.relationships()[0]["status"], "active")  # ending the link is the merge's job (#127)
+        self.assertEqual(self.relationships()[0]["status"], "ended")  # the merge (#127): its newest statement says it ended
 
     def test_ended_claim_the_context_doesnt_support(self):
         self.add_candidate(ended=1)
