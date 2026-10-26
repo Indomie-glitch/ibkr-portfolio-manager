@@ -23,7 +23,7 @@ import anthropic
 
 import config
 import usage_store
-from supply_chain import chunker, db, graph, jobs, resolver, verifier
+from supply_chain import chunker, db, graph, jobs, orchestrator, resolver, verifier
 from supply_chain.db import now
 from supply_chain.worker import Permanent, handler
 from supply_chain.xbrl import GROUP_WORDS
@@ -253,22 +253,25 @@ def _halves(chunk):
     return halves
 
 
-async def extract(client, filer, document, chunk, splits=0):
+async def extract(client, filer, document, chunk, splits=0, charge=None):
     """[(relationship, the piece of the chunk it was read from)] and the calls' usage [{input_tokens, output_tokens,
-    outcome}]. An answer cut off by MAX_TOKENS is read again in halves; a refusal reads as nothing found."""
-    response = await client.messages.create(
+    outcome}]. An answer cut off by MAX_TOKENS is read again in halves; a refusal reads as nothing found. charge(usage) is
+    called as soon as each call is made, so what a job spends is on its run even if it fails afterwards."""
+    response = await orchestrator.gate().call(lambda: client.messages.create(
         model=config.READER_MODEL,
         max_tokens=MAX_TOKENS,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message(filer, document, chunk)}],
         output_config={"effort": EFFORT, "format": {"type": "json_schema", "schema": SCHEMA}},
-    )
+    ))
     usage = [{"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens,
               "outcome": "ok" if response.stop_reason == "end_turn" else response.stop_reason}]
+    if charge:
+        charge(usage)
     if response.stop_reason == "max_tokens" and splits < MAX_SPLITS:
         found = []
         for half in _halves(chunk):
-            more, more_usage = await extract(client, filer, document, half, splits + 1)
+            more, more_usage = await extract(client, filer, document, half, splits + 1, charge)
             found += more
             usage += more_usage
         return found, usage
@@ -387,17 +390,24 @@ async def read_document(conn, document_id, client=None, resolve=None, run_id=Non
     chunks = await asyncio.to_thread(chunker.chunk_filing, path.parent, document["kind"], path.name, document["source"])
     filer = filer_of(conn, document["company_id"])
     resolve = resolve or resolver.resolve
-    totals = {"chunks": len(chunks), "skipped": 0, "candidates": 0, "rejected": 0, "declined": 0,
+    totals = {"chunks": len(chunks), "skipped": 0, "candidates": 0, "rejected": 0, "declined": 0, "deferred": None,
               "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
     for chunk in chunks:
         if _already_read(conn, document_id, chunk):
             totals["skipped"] += 1
             continue
+        reservation = orchestrator.reserve(conn, orchestrator.read_estimate(conn, chunk.tokens))
+        if not reservation.ok:  # today's allowance (or the month's) can't take this chunk: the rest waits
+            totals["deferred"] = reservation
+            break
         if client is None:
             if not config.anthropic_api_key():
+                reservation.release()
                 raise RuntimeError("no Anthropic API key")  # retried: the key may be added in Settings
             client = anthropic.AsyncAnthropic(api_key=config.anthropic_api_key(), timeout=TIMEOUT_S)
-        found, usage = await extract(client, filer, dict(document), chunk)
+        with reservation:
+            found, usage = await extract(client, filer, dict(document), chunk,
+                                         charge=lambda calls: orchestrator.charge(conn, run_id, [{**c, "model": config.READER_MODEL} for c in calls]))
         await asyncio.to_thread(_record_usage, usage)
         totals["input_tokens"] += sum(u["input_tokens"] for u in usage)
         totals["output_tokens"] += sum(u["output_tokens"] for u in usage)
@@ -407,7 +417,8 @@ async def read_document(conn, document_id, client=None, resolve=None, run_id=Non
         added, rejected = _save(conn, document_id, chunk, outcomes, usage, len(found), run_id)
         totals["candidates"] += added
         totals["rejected"] += rejected
-    conn.execute("UPDATE documents SET status = 'processed' WHERE id = ? AND status = 'downloaded'", (document_id,))
+    if totals["deferred"] is None:
+        conn.execute("UPDATE documents SET status = 'processed' WHERE id = ? AND status = 'downloaded'", (document_id,))
     return totals
 
 
@@ -445,5 +456,9 @@ async def read_job(job, conn):
         return {"notes": "nothing to read"}
     notes = (f"{totals['chunks']} chunks ({totals['skipped']} read before), {totals['candidates']} candidates, "
              f"{totals['rejected']} rejected" + (f", {totals['declined']} declined" if totals["declined"] else ""))
-    return {"notes": notes, "model": config.READER_MODEL, "input_tokens": totals["input_tokens"],
-            "output_tokens": totals["output_tokens"], "cost_usd": round(totals["cost_usd"], 6)}
+    result = {"notes": notes, "model": config.READER_MODEL, "input_tokens": totals["input_tokens"],
+              "output_tokens": totals["output_tokens"], "cost_usd": round(totals["cost_usd"], 6)}
+    if totals["deferred"] is not None:  # the worker queues the rest again for when the allowance allows (orchestrator.requeue_later)
+        result["notes"] += f"; the rest {totals['deferred'].reason}"
+        result["defer_until"], result["defer_reason"] = totals["deferred"].until, totals["deferred"].reason
+    return result

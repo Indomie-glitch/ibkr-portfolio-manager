@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import usage_store
+from tests.pipeline_isolation import isolate
 from supply_chain import graph, integrity, jobs, reader, status, verifier
 from supply_chain.db import now, open_graph
 
@@ -56,6 +57,7 @@ class VerifierTestCase(unittest.TestCase):
         patch = mock.patch.object(usage_store, "DB_PATH", root / "usage.sqlite")
         patch.start()
         self.addCleanup(patch.stop)
+        isolate(self, root)
         self.acme = graph.add_company(self.conn, "Acme Semiconductor Inc.")
         graph.add_identifier(self.conn, self.acme, "ticker", "ACME", "US")
         self.beta = graph.add_company(self.conn, "Beta Corp")
@@ -327,7 +329,7 @@ class JobTests(VerifierTestCase):
     def test_read_job_queues_the_verify(self):
         async def found(conn, document_id, run_id=None, **kwargs):
             self.add_candidate()
-            return {"chunks": 1, "skipped": 0, "candidates": 1, "rejected": 0, "declined": 0, "input_tokens": 1, "output_tokens": 1, "cost_usd": 0.0}
+            return {"chunks": 1, "skipped": 0, "candidates": 1, "rejected": 0, "declined": 0, "deferred": None, "input_tokens": 1, "output_tokens": 1, "cost_usd": 0.0}
 
         job_id, _ = jobs.enqueue(self.conn, "read", str(self.document), company_id=self.acme)
         job = jobs.claim(self.conn, "test")
