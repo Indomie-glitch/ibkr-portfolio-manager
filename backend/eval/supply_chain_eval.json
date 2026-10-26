@@ -1,0 +1,3044 @@
+{
+ "version": 1,
+ "created": "2026-10-27",
+ "scope": "Each document lists the supplier, customer and partnership relationships its text states between the filer and a named company, or an unnamed one with a stated figure (a share, a contract), within the sections the chunker sends to the Reader. Not counted: financing (lenders, underwriters, trustees), equity stakes on their own, leases, litigation, competitors, auditors, directors, and relationships between two other companies. 'relationships' are known true; 'optional' ones are stated ambiguously and count neither for nor against; 'not_relationships' are traps the run must not turn into links. Every quote is cut from the filing's cleaned text; `python -m eval.supply_chain_eval --check` finds each one again.",
+ "companies": {
+  "TSMC": {
+   "aliases": [
+    "Taiwan Semiconductor Manufacturing Company Limited",
+    "Taiwan Semiconductor Manufacturing Company",
+    "TSMC"
+   ],
+   "private": false
+  },
+  "Samsung": {
+   "aliases": [
+    "Samsung Electronics Co., Ltd.",
+    "Samsung Electronics",
+    "Samsung"
+   ],
+   "private": false
+  },
+  "SK hynix": {
+   "aliases": [
+    "SK hynix Inc.",
+    "SK Hynix Inc.",
+    "SK hynix",
+    "SK Hynix"
+   ],
+   "private": false
+  },
+  "Micron": {
+   "aliases": [
+    "Micron Technology, Inc.",
+    "Micron Technology",
+    "Micron"
+   ],
+   "private": false
+  },
+  "Hon Hai": {
+   "aliases": [
+    "Hon Hai Precision Industry Co., Ltd.",
+    "Hon Hai Precision",
+    "Hon Hai",
+    "Foxconn"
+   ],
+   "private": false
+  },
+  "Wistron": {
+   "aliases": [
+    "Wistron Corporation",
+    "Wistron"
+   ],
+   "private": false
+  },
+  "Fabrinet": {
+   "aliases": [
+    "Fabrinet"
+   ],
+   "private": false
+  },
+  "Groq": {
+   "aliases": [
+    "Groq, Inc.",
+    "Groq"
+   ],
+   "private": true
+  },
+  "NVIDIA": {
+   "aliases": [
+    "NVIDIA Corporation",
+    "NVIDIA"
+   ],
+   "private": false
+  },
+  "AMD": {
+   "aliases": [
+    "Advanced Micro Devices, Inc.",
+    "Advanced Micro Devices",
+    "AMD"
+   ],
+   "private": false
+  },
+  "GlobalFoundries": {
+   "aliases": [
+    "GLOBALFOUNDRIES Inc.",
+    "GlobalFoundries Inc.",
+    "GlobalFoundries",
+    "GF"
+   ],
+   "private": false
+  },
+  "UMC": {
+   "aliases": [
+    "United Microelectronics Corporation",
+    "United Microelectronics Corp",
+    "UMC"
+   ],
+   "private": false
+  },
+  "SPIL": {
+   "aliases": [
+    "Siliconware Precision Industries Ltd.",
+    "Siliconware Precision Industries",
+    "SPIL"
+   ],
+   "private": false
+  },
+  "King Yuan Electronics": {
+   "aliases": [
+    "King Yuan Electronics Company",
+    "King Yuan Electronics Co Ltd",
+    "King Yuan Electronics",
+    "KYEC"
+   ],
+   "private": false
+  },
+  "Tongfu Microelectronics": {
+   "aliases": [
+    "Tongfu Microelectronics Co., Ltd.",
+    "Tongfu Microelectronics",
+    "Tongfu",
+    "ATMP JV",
+    "ATMP JVs",
+    "ATMP joint ventures"
+   ],
+   "private": false
+  },
+  "Higon (THATIC)": {
+   "aliases": [
+    "Higon Information Technology Co., Ltd.",
+    "Higon Information Technology",
+    "THATIC",
+    "Hygon",
+    "Hygon Information Technology Co., Ltd."
+   ],
+   "private": true
+  },
+  "Sanmina": {
+   "aliases": [
+    "Sanmina Corporation",
+    "Sanmina Corp",
+    "Sanmina"
+   ],
+   "private": false
+  },
+  "OpenAI": {
+   "aliases": [
+    "OpenAI OpCo, LLC",
+    "OpenAI OpCo",
+    "OpenAI, L.P.",
+    "OpenAI Group PBC",
+    "OpenAI"
+   ],
+   "private": true
+  },
+  "Sony": {
+   "aliases": [
+    "Sony Group Corporation",
+    "Sony"
+   ],
+   "private": false
+  },
+  "Microsoft": {
+   "aliases": [
+    "Microsoft Corporation",
+    "Microsoft"
+   ],
+   "private": false
+  },
+  "Valve": {
+   "aliases": [
+    "Valve Corporation",
+    "Valve"
+   ],
+   "private": true
+  },
+  "Ablecom": {
+   "aliases": [
+    "Ablecom Technology, Inc.",
+    "Ablecom Technology Inc",
+    "Ablecom"
+   ],
+   "private": true
+  },
+  "Compuware": {
+   "aliases": [
+    "Compuware Technology, Inc.",
+    "Compuware Technology Inc",
+    "Compuware"
+   ],
+   "private": true
+  },
+  "Leadtek": {
+   "aliases": [
+    "Leadtek Research Inc.",
+    "Leadtek Research Inc",
+    "Leadtek"
+   ],
+   "private": false
+  },
+  "Corporate Venture": {
+   "aliases": [
+    "Corporate Venture",
+    "the Corporate Venture"
+   ],
+   "private": true
+  },
+  "Meta": {
+   "aliases": [
+    "Meta Platforms, Inc.",
+    "Meta Platforms",
+    "Meta"
+   ],
+   "private": false
+  },
+  "Apple": {
+   "aliases": [
+    "Apple Inc.",
+    "Apple"
+   ],
+   "private": false
+  },
+  "Qualcomm": {
+   "aliases": [
+    "Qualcomm Incorporated",
+    "Qualcomm Inc.",
+    "Qualcomm"
+   ],
+   "private": false
+  },
+  "VMware": {
+   "aliases": [
+    "VMware LLC",
+    "VMware, Inc.",
+    "VMware",
+    "Broadcom Inc.",
+    "Broadcom"
+   ],
+   "private": false
+  },
+  "Arm China": {
+   "aliases": [
+    "Arm Technology (China) Co. Limited",
+    "Arm Technology (China) Co. Ltd.",
+    "Arm China"
+   ],
+   "private": true
+  },
+  "SoftBank Group": {
+   "aliases": [
+    "SoftBank Group Corp.",
+    "SoftBank Group",
+    "SoftBank"
+   ],
+   "private": false
+  },
+  "Ampere": {
+   "aliases": [
+    "Ampere Computing",
+    "Ampere Computing LLC",
+    "Ampere"
+   ],
+   "private": true
+  },
+  "Linaro": {
+   "aliases": [
+    "Linaro Limited",
+    "Linaro"
+   ],
+   "private": true
+  },
+  "Nuvia": {
+   "aliases": [
+    "Nuvia, Inc.",
+    "Nuvia"
+   ],
+   "private": true
+  },
+  "SB Energy": {
+   "aliases": [
+    "SB Energy Corp.",
+    "SB Energy"
+   ],
+   "private": true
+  },
+  "Stargate Project": {
+   "aliases": [
+    "Stargate Project",
+    "Stargate"
+   ],
+   "private": true
+  },
+  "Cadence": {
+   "aliases": [
+    "Cadence Design Systems, Inc.",
+    "Cadence Design Systems",
+    "Cadence"
+   ],
+   "private": false
+  },
+  "Intel": {
+   "aliases": [
+    "Intel Corporation",
+    "Intel"
+   ],
+   "private": false
+  },
+  "Super Micro Computer": {
+   "aliases": [
+    "Super Micro Computer, Inc.",
+    "Super Micro Computer",
+    "Supermicro"
+   ],
+   "private": false
+  },
+  "CoreWeave": {
+   "aliases": [
+    "CoreWeave, Inc.",
+    "CoreWeave"
+   ],
+   "private": false
+  },
+  "Amkor": {
+   "aliases": [
+    "Amkor Technology, Inc.",
+    "Amkor Technology",
+    "Amkor"
+   ],
+   "private": false
+  },
+  "Dell": {
+   "aliases": [
+    "Dell Technologies Inc.",
+    "Dell Technologies",
+    "Dell"
+   ],
+   "private": false
+  },
+  "Arm": {
+   "aliases": [
+    "Arm Holdings plc",
+    "Arm Holdings",
+    "Arm Limited",
+    "Arm"
+   ],
+   "private": false
+  }
+ },
+ "documents": [
+  {
+   "id": "nvda-10k-fy26",
+   "company": "NVIDIA Corporation",
+   "ticker": "NVDA",
+   "market": "US",
+   "form": "10-K",
+   "cik": 1045810,
+   "accession": "0001045810-26-000021",
+   "primary_document": "nvda-20260125.htm",
+   "filed": "2026-02-25",
+   "period_end": "2026-01-25",
+   "items": [],
+   "relationships": [
+    {
+     "id": "nvda-10k-fy26#1",
+     "headline": true,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "TSMC",
+     "customer": "NVIDIA",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "semiconductor wafers",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 112,
+     "quote": "We utilize foundries, such as Taiwan Semiconductor Manufacturing Company Limited, or TSMC, and Samsung Electronics Co., Ltd., or Samsung, to produce our semiconductor wafers."
+    },
+    {
+     "id": "nvda-10k-fy26#2",
+     "headline": false,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "Samsung",
+     "customer": "NVIDIA",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "semiconductor wafers and memory",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 112,
+     "quote": "We utilize foundries, such as Taiwan Semiconductor Manufacturing Company Limited, or TSMC, and Samsung Electronics Co., Ltd., or Samsung, to produce our semiconductor wafers."
+    },
+    {
+     "id": "nvda-10k-fy26#3",
+     "headline": true,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "SK hynix",
+     "customer": "NVIDIA",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "memory",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 112,
+     "quote": "We purchase memory from SK Hynix Inc., Micron Technology, Inc., and Samsung."
+    },
+    {
+     "id": "nvda-10k-fy26#4",
+     "headline": false,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "Micron",
+     "customer": "NVIDIA",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "memory",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 112,
+     "quote": "We purchase memory from SK Hynix Inc., Micron Technology, Inc., and Samsung."
+    },
+    {
+     "id": "nvda-10k-fy26#5",
+     "headline": false,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "Hon Hai",
+     "customer": "NVIDIA",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "assembly, testing and packaging",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 112,
+     "quote": "We engage with independent subcontractors and contract manufacturers such as Hon Hai Precision Industry Co., Ltd., Wistron Corporation, and Fabrinet to perform assembly, testing and packaging of our final products."
+    },
+    {
+     "id": "nvda-10k-fy26#6",
+     "headline": false,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "Wistron",
+     "customer": "NVIDIA",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "assembly, testing and packaging",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 112,
+     "quote": "We engage with independent subcontractors and contract manufacturers such as Hon Hai Precision Industry Co., Ltd., Wistron Corporation, and Fabrinet to perform assembly, testing and packaging of our final products."
+    },
+    {
+     "id": "nvda-10k-fy26#7",
+     "headline": false,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "Fabrinet",
+     "customer": "NVIDIA",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "assembly, testing and packaging",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 112,
+     "quote": "We engage with independent subcontractors and contract manufacturers such as Hon Hai Precision Industry Co., Ltd., Wistron Corporation, and Fabrinet to perform assembly, testing and packaging of our final products."
+    },
+    {
+     "id": "nvda-10k-fy26#8",
+     "headline": true,
+     "categories": [
+      "named_supplier",
+      "private"
+     ],
+     "supplier": "Groq",
+     "customer": "NVIDIA",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "IP licence",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 208,
+     "quote": "We have entered into an intellectual property license arrangement with Groq, Inc., or Groq, that required significant, nonrefundable payments."
+    },
+    {
+     "id": "nvda-10k-fy26#9",
+     "headline": true,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "NVIDIA",
+     "customer": null,
+     "unnamed": "one direct customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 22,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-01-25",
+     "ended": false,
+     "private": false,
+     "paragraph": 316,
+     "quote": "For fiscal year 2026, sales to one direct customer represented 22% of total revenue and sales to another direct customer represented 14% of total revenue, all of which were primarily attributable to the Compute & Networking segment."
+    },
+    {
+     "id": "nvda-10k-fy26#10",
+     "headline": true,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "NVIDIA",
+     "customer": null,
+     "unnamed": "another direct customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 14,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-01-25",
+     "ended": false,
+     "private": false,
+     "paragraph": 316,
+     "quote": "For fiscal year 2026, sales to one direct customer represented 22% of total revenue and sales to another direct customer represented 14% of total revenue, all of which were primarily attributable to the Compute & Networking segment."
+    },
+    {
+     "id": "nvda-10k-fy26#11",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "NVIDIA",
+     "customer": null,
+     "unnamed": "one direct customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 12,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-01-26",
+     "ended": false,
+     "private": false,
+     "paragraph": 498,
+     "quote": "For fiscal year 2025, sales to one direct customer represented 12% of total revenue and sales to two direct customers each represented 11% of total revenue, all of which were primarily attributable to the Compute & Networking segment."
+    },
+    {
+     "id": "nvda-10k-fy26#12",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "NVIDIA",
+     "customer": null,
+     "unnamed": "two direct customers (first)",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 11,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-01-26",
+     "ended": false,
+     "private": false,
+     "paragraph": 498,
+     "quote": "For fiscal year 2025, sales to one direct customer represented 12% of total revenue and sales to two direct customers each represented 11% of total revenue, all of which were primarily attributable to the Compute & Networking segment."
+    },
+    {
+     "id": "nvda-10k-fy26#13",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "NVIDIA",
+     "customer": null,
+     "unnamed": "two direct customers (second)",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 11,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-01-26",
+     "ended": false,
+     "private": false,
+     "paragraph": 498,
+     "quote": "For fiscal year 2025, sales to one direct customer represented 12% of total revenue and sales to two direct customers each represented 11% of total revenue, all of which were primarily attributable to the Compute & Networking segment."
+    },
+    {
+     "id": "nvda-10k-fy26#14",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "NVIDIA",
+     "customer": null,
+     "unnamed": "one direct customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 13,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2024-01-28",
+     "ended": false,
+     "private": false,
+     "paragraph": 499,
+     "quote": "For fiscal year 2024, sales to one direct customer represented 13% of total revenue, and were primarily attributable to the Compute & Networking segment."
+    }
+   ],
+   "optional": [
+    {
+     "id": "nvda-10k-fy26#15",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": null,
+     "customer": "NVIDIA",
+     "unnamed": "three direct customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-01-25",
+     "ended": false,
+     "private": false,
+     "paragraph": 815,
+     "quote": "Three direct customers accounted for 25%, 18%, and 13% of our accounts receivable balance as of January 25, 2026.",
+     "note": "receivable shares only; no revenue share"
+    },
+    {
+     "id": "nvda-10k-fy26#16",
+     "headline": false,
+     "categories": [],
+     "supplier": "Microsoft",
+     "customer": "NVIDIA",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership",
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 390,
+     "quote": "Under our agreement with Microsoft for the Xbox, if someone makes an offer to purchase at least 30% of our outstanding common stock, Microsoft may have first and last rights of refusal to purchase the stock.",
+     "note": "an agreement with Microsoft for the Xbox, mentioned for its right of first refusal on a takeover; who supplies whom is not stated"
+    }
+   ],
+   "not_relationships": [
+    {
+     "paragraph": 299,
+     "quote": "We are finalizing an investment and partnership agreement with OpenAI.",
+     "why": "not yet agreed: 'there is no assurance that we will enter into' it"
+    },
+    {
+     "paragraph": 117,
+     "quote": "•suppliers and licensors of hardware and software for discrete and integrated GPUs, custom chips and other accelerated computing solutions, including solutions offered for AI, such as Advanced Micro Devices, Inc., or AMD, Huawei Technologies Co. Ltd., or Huawei, and Intel Corporation, or Intel;",
+     "why": "a list of competitors"
+    },
+    {
+     "paragraph": 514,
+     "quote": "The change in Other income, net, compared to fiscal year 2025, was primarily driven by unrealized gains in non-marketable and publicly-held equity securities, including gains from our previously announced investment in Intel’s common stock.",
+     "why": "an equity investment, not a supply relationship"
+    },
+    {
+     "paragraph": 209,
+     "quote": "We entered into multi-year cloud service agreements to support our research and development activities.",
+     "why": "unnamed cloud providers"
+    }
+   ]
+  },
+  {
+   "id": "nvda-8k-2026-08-17",
+   "company": "NVIDIA Corporation",
+   "ticker": "NVDA",
+   "market": "US",
+   "form": "8-K",
+   "cik": 1045810,
+   "accession": "0001045810-26-000069",
+   "primary_document": "nvda-20260817.htm",
+   "filed": "2026-08-17",
+   "period_end": "2026-08-17",
+   "items": [
+    "1.01",
+    "2.03",
+    "7.01"
+   ],
+   "relationships": [
+    {
+     "id": "nvda-8k-2026-08-17#1",
+     "headline": true,
+     "categories": [
+      "8k_agreement",
+      "private"
+     ],
+     "supplier": "SB Energy",
+     "customer": "NVIDIA",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership",
+      "supplies"
+     ],
+     "what": "land, power and shell capacity for AI compute",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 29,
+     "quote": "On August 17, 2026, NVIDIA Corporation (“NVIDIA”) announced a multi-year partnership with SB Energy Corp. (collectively with its affiliates, “SB Energy”) to advance the development of the PORTS Technology Campus, a large-scale AI data center campus in Pike County, Ohio (the “Portsmouth Site”)."
+    },
+    {
+     "id": "nvda-8k-2026-08-17#2",
+     "headline": true,
+     "categories": [
+      "8k_agreement",
+      "private"
+     ],
+     "supplier": "NVIDIA",
+     "customer": "OpenAI",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "the DSX AI factory platform",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 36,
+     "quote": "OpenAI, as the tenant, will utilize capacity at the Portsmouth Site supporting approximately 4.25 gigawatts of IT load to deploy NVIDIA’s full-stack DSX AI factory platform, subject to limited exceptions."
+    }
+   ],
+   "optional": [],
+   "not_relationships": [
+    {
+     "paragraph": 31,
+     "quote": "On August 17, 2026, NVIDIA entered into multiple residual value guaranties (collectively, the “Agreements”) with SB Energy (the “Lessor”) relating to leases for approximately 4.25 gigawatts of IT load in the aggregate at the Portsmouth Site.",
+     "why": "a financial guarantee for a lease, not a supply relationship"
+    }
+   ]
+  },
+  {
+   "id": "amd-10k-fy25",
+   "company": "Advanced Micro Devices, Inc.",
+   "ticker": "AMD",
+   "market": "US",
+   "form": "10-K",
+   "cik": 2488,
+   "accession": "0000002488-26-000018",
+   "primary_document": "amd-20251227.htm",
+   "filed": "2026-02-04",
+   "period_end": "2025-12-27",
+   "items": [],
+   "relationships": [
+    {
+     "id": "amd-10k-fy25#1",
+     "headline": true,
+     "categories": [
+      "named_supplier",
+      "risk_factor"
+     ],
+     "supplier": "TSMC",
+     "customer": "AMD",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "wafers at 7 nm or smaller",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 270,
+     "quote": "We rely on Taiwan Semiconductor Manufacturing Company Limited (TSMC) for the production of all wafers for microprocessor and GPU products at 7 nanometer (nm) or smaller nodes, and we rely primarily on GLOBALFOUNDRIES Inc. (GF) for wafers for microprocessor and GPU products manufactured at process nodes larger than 7 nm."
+    },
+    {
+     "id": "amd-10k-fy25#2",
+     "headline": true,
+     "categories": [
+      "named_supplier",
+      "risk_factor"
+     ],
+     "supplier": "GlobalFoundries",
+     "customer": "AMD",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "wafers at nodes above 7 nm",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 270,
+     "quote": "We rely on Taiwan Semiconductor Manufacturing Company Limited (TSMC) for the production of all wafers for microprocessor and GPU products at 7 nanometer (nm) or smaller nodes, and we rely primarily on GLOBALFOUNDRIES Inc. (GF) for wafers for microprocessor and GPU products manufactured at process nodes larger than 7 nm."
+    },
+    {
+     "id": "amd-10k-fy25#3",
+     "headline": false,
+     "categories": [
+      "named_supplier",
+      "risk_factor"
+     ],
+     "supplier": "UMC",
+     "customer": "AMD",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "programmable logic devices",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 270,
+     "quote": "We also utilize TSMC, United Microelectronics Corporation (UMC) and Samsung Electronics Co., Ltd. for our integrated circuits (IC) in the form of programmable logic devices."
+    },
+    {
+     "id": "amd-10k-fy25#4",
+     "headline": false,
+     "categories": [
+      "named_supplier",
+      "risk_factor"
+     ],
+     "supplier": "Samsung",
+     "customer": "AMD",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "programmable logic devices",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 270,
+     "quote": "We also utilize TSMC, United Microelectronics Corporation (UMC) and Samsung Electronics Co., Ltd. for our integrated circuits (IC) in the form of programmable logic devices."
+    },
+    {
+     "id": "amd-10k-fy25#5",
+     "headline": false,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "SPIL",
+     "customer": "AMD",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "assembly, test and packaging",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 144,
+     "quote": "We are party to two ATMP joint ventures (collectively, the ATMP JVs) with Tongfu Microelectronics Co., Ltd. The ATMP JVs, Siliconware Precision Industries Ltd. (SPIL) and King Yuan Electronics Company (KYEC) provide ATMP services for our products."
+    },
+    {
+     "id": "amd-10k-fy25#6",
+     "headline": false,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "King Yuan Electronics",
+     "customer": "AMD",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "assembly, test and packaging",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 144,
+     "quote": "We are party to two ATMP joint ventures (collectively, the ATMP JVs) with Tongfu Microelectronics Co., Ltd. The ATMP JVs, Siliconware Precision Industries Ltd. (SPIL) and King Yuan Electronics Company (KYEC) provide ATMP services for our products."
+    },
+    {
+     "id": "amd-10k-fy25#7",
+     "headline": false,
+     "categories": [
+      "named_supplier",
+      "china_listed"
+     ],
+     "supplier": "Tongfu Microelectronics",
+     "customer": "AMD",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "assembly, test and packaging (through the ATMP joint ventures)",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 701,
+     "quote": "The ATMP JV provides assembly, test, mark and packaging (ATMP) services to the Company."
+    },
+    {
+     "id": "amd-10k-fy25#8",
+     "headline": false,
+     "categories": [
+      "partnership",
+      "china_listed"
+     ],
+     "supplier": "Tongfu Microelectronics",
+     "customer": "AMD",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 144,
+     "quote": "We are party to two ATMP joint ventures (collectively, the ATMP JVs) with Tongfu Microelectronics Co., Ltd. The ATMP JVs, Siliconware Precision Industries Ltd. (SPIL) and King Yuan Electronics Company (KYEC) provide ATMP services for our products."
+    },
+    {
+     "id": "amd-10k-fy25#9",
+     "headline": false,
+     "categories": [
+      "partnership",
+      "private"
+     ],
+     "supplier": "Higon (THATIC)",
+     "customer": "AMD",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 330,
+     "quote": "We have equity interests in two joint ventures (collectively, the THATIC JV) with Higon Information Technology Co., Ltd. (THATIC), a third-party Chinese entity."
+    },
+    {
+     "id": "amd-10k-fy25#10",
+     "headline": true,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "Sanmina",
+     "customer": "AMD",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies",
+      "partnership"
+     ],
+     "what": "manufacturing",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 439,
+     "quote": "Sanmina will also be our preferred partner for manufacturing capabilities in building complex AI solutions."
+    },
+    {
+     "id": "amd-10k-fy25#11",
+     "headline": true,
+     "categories": [
+      "named_customer",
+      "private"
+     ],
+     "supplier": "AMD",
+     "customer": "OpenAI",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "AMD GPUs (6 gigawatts)",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 49,
+     "quote": "In October 2025, we entered into a product purchase agreement with OpenAI OpCo, LLC, (OpenAI) to deploy 6 gigawatts of AMD GPUs, with the deployment of the first gigawatt of capacity powered by our AMD Instinct MI450 series products."
+    },
+    {
+     "id": "amd-10k-fy25#12",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "AMD",
+     "customer": null,
+     "unnamed": "one Client and Gaming segment customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 18,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2023-12-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 654,
+     "quote": "One Client and Gaming segment customer accounted for 18% of consolidated net revenue in fiscal year 2023."
+    }
+   ],
+   "optional": [
+    {
+     "id": "amd-10k-fy25#13",
+     "headline": false,
+     "categories": [],
+     "supplier": "AMD",
+     "customer": "Sony",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "semi-custom SoCs",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 79,
+     "quote": "AMD semi-custom SoC products power the Sony PlayStation® 5, the Microsoft® Xbox Series S™ and X™ game consoles, as well as the recently revealed Valve Steam Machine PC.",
+     "note": "the sentence names the consoles, not the sale"
+    },
+    {
+     "id": "amd-10k-fy25#14",
+     "headline": false,
+     "categories": [],
+     "supplier": "AMD",
+     "customer": "Microsoft",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "semi-custom SoCs",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 79,
+     "quote": "AMD semi-custom SoC products power the Sony PlayStation® 5, the Microsoft® Xbox Series S™ and X™ game consoles, as well as the recently revealed Valve Steam Machine PC.",
+     "note": "the sentence names the consoles, not the sale"
+    },
+    {
+     "id": "amd-10k-fy25#15",
+     "headline": false,
+     "categories": [],
+     "supplier": "AMD",
+     "customer": "Valve",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "semi-custom SoCs",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 79,
+     "quote": "AMD semi-custom SoC products power the Sony PlayStation® 5, the Microsoft® Xbox Series S™ and X™ game consoles, as well as the recently revealed Valve Steam Machine PC.",
+     "note": "the sentence names the consoles, not the sale"
+    },
+    {
+     "id": "amd-10k-fy25#16",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": null,
+     "customer": "AMD",
+     "unnamed": "two customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 758,
+     "quote": "One customer accounted for approximately 11% and another customer accounted for 24% of the total consolidated accounts receivable balance as of December 27, 2025 and December 28, 2024, respectively.",
+     "note": "receivable shares only"
+    }
+   ],
+   "not_relationships": [
+    {
+     "paragraph": 298,
+     "quote": "Our ability to innovate beyond the x86 instruction set controlled by Intel depends partially on Microsoft designing and developing its operating systems to run on or support our x86-based microprocessor products.",
+     "why": "AMD depends on Microsoft's operating systems, but the sentence states no supply or partnership"
+    },
+    {
+     "paragraph": 245,
+     "quote": "In addition, strategic partnerships, acquisitions and business collaborations by and between our competitors may increase competition and adversely affect our business.",
+     "why": "a partnership between two other companies (Nvidia and Intel)"
+    },
+    {
+     "paragraph": 47,
+     "quote": "In March 2025, we acquired ZT Group Int’l, Inc. (ZT Systems), where we retained certain intellectual property and employees associated with the design operations (ZT Design Business).",
+     "why": "an acquisition, not a supply relationship"
+    }
+   ]
+  },
+  {
+   "id": "amd-8k-2026-08-17",
+   "company": "Advanced Micro Devices, Inc.",
+   "ticker": "AMD",
+   "market": "US",
+   "form": "8-K",
+   "cik": 2488,
+   "accession": "0001193125-26-354029",
+   "primary_document": "d142696d8k.htm",
+   "filed": "2026-08-17",
+   "period_end": "2026-08-13",
+   "items": [
+    "1.01",
+    "2.03",
+    "9.01"
+   ],
+   "relationships": [],
+   "optional": [],
+   "not_relationships": [
+    {
+     "paragraph": 31,
+     "quote": "The purchase and sale of the Notes was made pursuant to an Underwriting Agreement (the “Underwriting Agreement”), dated August 13, 2026, with Barclays Capital Inc., BofA Securities, Inc., Citigroup Global Markets Inc., J.P.",
+     "why": "underwriters of a bond offering: financing, not a supply relationship"
+    }
+   ]
+  },
+  {
+   "id": "smci-10k-fy26",
+   "company": "Super Micro Computer, Inc.",
+   "ticker": "SMCI",
+   "market": "US",
+   "form": "10-K",
+   "cik": 1375365,
+   "accession": "0001375365-26-000022",
+   "primary_document": "smci-20260630.htm",
+   "filed": "2026-08-31",
+   "period_end": "2026-06-30",
+   "items": [],
+   "relationships": [
+    {
+     "id": "smci-10k-fy26#1",
+     "headline": true,
+     "categories": [
+      "named_supplier",
+      "risk_factor",
+      "private"
+     ],
+     "supplier": "Ablecom",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "contract design, manufacturing coordination and warehousing",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 271,
+     "quote": "We use Ablecom, a related party, for contract design and manufacturing coordination support and warehousing, and Compuware, also a related party and an affiliate of Ablecom, for distribution, contract manufacturing and warehousing."
+    },
+    {
+     "id": "smci-10k-fy26#2",
+     "headline": true,
+     "categories": [
+      "named_supplier",
+      "risk_factor",
+      "private"
+     ],
+     "supplier": "Compuware",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "distribution, contract manufacturing and warehousing",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 271,
+     "quote": "We use Ablecom, a related party, for contract design and manufacturing coordination support and warehousing, and Compuware, also a related party and an affiliate of Ablecom, for distribution, contract manufacturing and warehousing."
+    },
+    {
+     "id": "smci-10k-fy26#3",
+     "headline": false,
+     "categories": [
+      "distributor",
+      "private"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": "Compuware",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "distribution",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 271,
+     "quote": "In addition, we have appointed Compuware as a nonexclusive authorized distributor of our products in Taiwan, China, Australia, Malaysia, and U.S. in addition to acting as our sales representative."
+    },
+    {
+     "id": "smci-10k-fy26#4",
+     "headline": true,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "Leadtek",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "graphics cards",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 1169,
+     "quote": "We purchased graphics cards worth $0.0 million, $0.5 million, and $2.1 million from Leadtek during the fiscal years ended June 30, 2026, 2025 and 2024, respectively."
+    },
+    {
+     "id": "smci-10k-fy26#5",
+     "headline": false,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": "Leadtek",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "servers",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 1169,
+     "quote": "We engaged in transactions whereby we sold servers worth $1.2 million, $0.7 million, and $1.4 million to Leadtek during the fiscal years ended June 30, 2026, 2025 and 2024, respectively."
+    },
+    {
+     "id": "smci-10k-fy26#6",
+     "headline": false,
+     "categories": [
+      "named_customer",
+      "private"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": "Corporate Venture",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "products",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 1175,
+     "quote": "We sold products worth $8.1 million, $11.0 million and $21.8 million to the Corporate Venture in the fiscal years 2026, 2025 and 2024, respectively."
+    },
+    {
+     "id": "smci-10k-fy26#7",
+     "headline": true,
+     "categories": [
+      "ended",
+      "private",
+      "partnership"
+     ],
+     "supplier": "Corporate Venture",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-12-23",
+     "ended": true,
+     "private": true,
+     "paragraph": 1176,
+     "quote": "On November 25, 2025, the Equity Transfer Agreement was signed, and the divestiture of our 30% interest was completed on December 23, 2025, and the Corporate Venture ceased to be a related party as of December 23, 2025.",
+     "note": "the joint venture investment (technology rights contributed in 2016) ended with the divestiture"
+    },
+    {
+     "id": "smci-10k-fy26#8",
+     "headline": true,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "Super Micro Computer",
+     "unnamed": "one supplier",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 63.1,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2026-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 297,
+     "quote": "One supplier accounted for a significant portion of our total purchases in fiscal year 2026 of 63.1%, and two suppliers accounted for a significant portion of our total purchases in fiscal year 2025 of 64.4% and 5.1%, and 65.4% and 6.3% in fiscal year 2024, respectively."
+    },
+    {
+     "id": "smci-10k-fy26#9",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "Super Micro Computer",
+     "unnamed": "first of two suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 64.4,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2025-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 297,
+     "quote": "One supplier accounted for a significant portion of our total purchases in fiscal year 2026 of 63.1%, and two suppliers accounted for a significant portion of our total purchases in fiscal year 2025 of 64.4% and 5.1%, and 65.4% and 6.3% in fiscal year 2024, respectively."
+    },
+    {
+     "id": "smci-10k-fy26#10",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "Super Micro Computer",
+     "unnamed": "second of two suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 5.1,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2025-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 297,
+     "quote": "One supplier accounted for a significant portion of our total purchases in fiscal year 2026 of 63.1%, and two suppliers accounted for a significant portion of our total purchases in fiscal year 2025 of 64.4% and 5.1%, and 65.4% and 6.3% in fiscal year 2024, respectively."
+    },
+    {
+     "id": "smci-10k-fy26#11",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "Super Micro Computer",
+     "unnamed": "first of two suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 65.4,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2024-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 297,
+     "quote": "One supplier accounted for a significant portion of our total purchases in fiscal year 2026 of 63.1%, and two suppliers accounted for a significant portion of our total purchases in fiscal year 2025 of 64.4% and 5.1%, and 65.4% and 6.3% in fiscal year 2024, respectively."
+    },
+    {
+     "id": "smci-10k-fy26#12",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "Super Micro Computer",
+     "unnamed": "second of two suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 6.3,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2024-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 297,
+     "quote": "One supplier accounted for a significant portion of our total purchases in fiscal year 2026 of 63.1%, and two suppliers accounted for a significant portion of our total purchases in fiscal year 2025 of 64.4% and 5.1%, and 65.4% and 6.3% in fiscal year 2024, respectively."
+    },
+    {
+     "id": "smci-10k-fy26#13",
+     "headline": true,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": null,
+     "unnamed": "one customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 28.1,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 865,
+     "quote": "For the fiscal year ended June 30, 2026, sales to one customer represented 28.1% of total net sales."
+    },
+    {
+     "id": "smci-10k-fy26#14",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": null,
+     "unnamed": "first of four customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 20.9,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 865,
+     "quote": "For the fiscal year ended June 30, 2025, sales to four customers represented 20.9%, 11.5%, 11.3%, and 11.1% of total net sales."
+    },
+    {
+     "id": "smci-10k-fy26#15",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": null,
+     "unnamed": "second of four customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 11.5,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 865,
+     "quote": "For the fiscal year ended June 30, 2025, sales to four customers represented 20.9%, 11.5%, 11.3%, and 11.1% of total net sales."
+    },
+    {
+     "id": "smci-10k-fy26#16",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": null,
+     "unnamed": "third of four customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 11.3,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 865,
+     "quote": "For the fiscal year ended June 30, 2025, sales to four customers represented 20.9%, 11.5%, 11.3%, and 11.1% of total net sales."
+    },
+    {
+     "id": "smci-10k-fy26#17",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": null,
+     "unnamed": "fourth of four customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 11.1,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 865,
+     "quote": "For the fiscal year ended June 30, 2025, sales to four customers represented 20.9%, 11.5%, 11.3%, and 11.1% of total net sales."
+    },
+    {
+     "id": "smci-10k-fy26#18",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": null,
+     "unnamed": "one customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 20.0,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2024-06-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 865,
+     "quote": "For the fiscal year ended June 30, 2024, sales to one customer represented 20.0% of total net sales."
+    }
+   ],
+   "optional": [
+    {
+     "id": "smci-10k-fy26#19",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": null,
+     "customer": "Super Micro Computer",
+     "unnamed": "three customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 825,
+     "quote": "As of June 30, 2026, three customers accounted for 23.0%, 17.1%, and 12.5% of our accounts receivable balance.",
+     "note": "receivable shares only"
+    },
+    {
+     "id": "smci-10k-fy26#20",
+     "headline": false,
+     "categories": [],
+     "supplier": "NVIDIA",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies",
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 106,
+     "quote": "We work closely with NVIDIA, Intel and AMD, among others, to develop products that are compatible with the latest generation of industry-standard technologies under development.",
+     "note": "'these vendors': collaboration on compatible products; no purchase is stated"
+    },
+    {
+     "id": "smci-10k-fy26#21",
+     "headline": false,
+     "categories": [],
+     "supplier": "Intel",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies",
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 106,
+     "quote": "We work closely with NVIDIA, Intel and AMD, among others, to develop products that are compatible with the latest generation of industry-standard technologies under development.",
+     "note": "'these vendors': collaboration on compatible products; no purchase is stated"
+    },
+    {
+     "id": "smci-10k-fy26#22",
+     "headline": false,
+     "categories": [],
+     "supplier": "AMD",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies",
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 106,
+     "quote": "We work closely with NVIDIA, Intel and AMD, among others, to develop products that are compatible with the latest generation of industry-standard technologies under development.",
+     "note": "'these vendors': collaboration on compatible products; no purchase is stated"
+    }
+   ],
+   "not_relationships": [
+    {
+     "paragraph": 1133,
+     "quote": "Simultaneously, we entered into a Sublicense agreement, the term of which coincides with our Data Center Space lease.",
+     "why": "a sublicense of data-centre space: a lease, not a supply relationship"
+    },
+    {
+     "paragraph": 951,
+     "quote": "On July 16, 2025, we entered into a Receivables Purchase Agreement (as amended, supplemented or otherwise modified from time to time, the “Receivables Purchase Agreement”), by and among, us, as seller and guarantor, MUFG Bank, Ltd. (“MUFG”), Crédit Agricole Corporate and Investment Bank, and certain other entities from time to time party thereto as purchasers (the “Purchasers”), and MUFG as administrative agent (in such capacity, the “Administrative Agent”).",
+     "why": "financing"
+    }
+   ]
+  },
+  {
+   "id": "smci-8k-2026-06-10",
+   "company": "Super Micro Computer, Inc.",
+   "ticker": "SMCI",
+   "market": "US",
+   "form": "8-K",
+   "cik": 1375365,
+   "accession": "0001193125-26-270430",
+   "primary_document": "d151436d8k.htm",
+   "filed": "2026-06-15",
+   "period_end": "2026-06-10",
+   "items": [
+    "1.01",
+    "3.03",
+    "5.03",
+    "9.01"
+   ],
+   "relationships": [],
+   "optional": [],
+   "not_relationships": [
+    {
+     "paragraph": 27,
+     "quote": "On June 10, 2026, Super Micro Computer, Inc., a Delaware corporation (the “Company”) entered into an underwriting agreement (the “Underwriting Agreement”) with J.P.",
+     "why": "underwriters of a share offering: financing"
+    }
+   ]
+  },
+  {
+   "id": "crwv-10k-fy25",
+   "company": "CoreWeave, Inc.",
+   "ticker": "CRWV",
+   "market": "US",
+   "form": "10-K",
+   "cik": 1769628,
+   "accession": "0001769628-26-000104",
+   "primary_document": "crwv-20251231.htm",
+   "filed": "2026-03-02",
+   "period_end": "2025-12-31",
+   "items": [],
+   "relationships": [
+    {
+     "id": "crwv-10k-fy25#1",
+     "headline": true,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "CoreWeave",
+     "customer": "Microsoft",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 67,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 236,
+     "quote": "We recognized an aggregate of approximately 67% of our revenue from our top customer, Microsoft, for the year ended December 31, 2025."
+    },
+    {
+     "id": "crwv-10k-fy25#2",
+     "headline": true,
+     "categories": [
+      "named_customer",
+      "private"
+     ],
+     "supplier": "CoreWeave",
+     "customer": "OpenAI",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "cloud computing services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 236,
+     "quote": "In May 2025, we entered into a master services agreement with OpenAI OpCo, LLC (\"OpenAI\") and in September 2025, we entered into an order form under this master services agreement pursuant to which OpenAI has committed to pay us up to approximately $6.5 billion through May 31, 2031 and, as a result, we expect OpenAI to be a significant customer in future periods."
+    },
+    {
+     "id": "crwv-10k-fy25#3",
+     "headline": true,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "CoreWeave",
+     "customer": "Meta",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "cloud computing services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 236,
+     "quote": "Similarly, in September 2025, we entered into an order form under an existing master services agreement pursuant to which Meta Platforms, Inc. (\"Meta\") initially committed to pay us up to approximately $14.2 billion through December 2031 and, as a result, we also expect Meta to be a significant customer in future periods."
+    },
+    {
+     "id": "crwv-10k-fy25#4",
+     "headline": true,
+     "categories": [
+      "named_supplier",
+      "risk_factor"
+     ],
+     "supplier": "NVIDIA",
+     "customer": "CoreWeave",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "GPUs",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 186,
+     "quote": "For example, as a result of our obligations in our current customer contracts, all of the GPUs used in our infrastructure today are NVIDIA GPUs."
+    },
+    {
+     "id": "crwv-10k-fy25#5",
+     "headline": true,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "CoreWeave",
+     "unnamed": "largest of three suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 23,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2025-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 186,
+     "quote": "Additionally, for the year ended December 31, 2025, three suppliers accounted for 23%, 20%, and 17% of total purchases, for the year ended December 31, 2024, three suppliers accounted for 46%, 16%, and 14% of total purchases, and for the year ended December 31, 2023, three suppliers account for 57%, 22%, and 11% of total purchases."
+    },
+    {
+     "id": "crwv-10k-fy25#6",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "CoreWeave",
+     "unnamed": "second of three suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 20,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2025-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 186,
+     "quote": "Additionally, for the year ended December 31, 2025, three suppliers accounted for 23%, 20%, and 17% of total purchases, for the year ended December 31, 2024, three suppliers accounted for 46%, 16%, and 14% of total purchases, and for the year ended December 31, 2023, three suppliers account for 57%, 22%, and 11% of total purchases."
+    },
+    {
+     "id": "crwv-10k-fy25#7",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "CoreWeave",
+     "unnamed": "third of three suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 17,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2025-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 186,
+     "quote": "Additionally, for the year ended December 31, 2025, three suppliers accounted for 23%, 20%, and 17% of total purchases, for the year ended December 31, 2024, three suppliers accounted for 46%, 16%, and 14% of total purchases, and for the year ended December 31, 2023, three suppliers account for 57%, 22%, and 11% of total purchases."
+    },
+    {
+     "id": "crwv-10k-fy25#8",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "CoreWeave",
+     "unnamed": "largest of three suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 46,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2024-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 186,
+     "quote": "Additionally, for the year ended December 31, 2025, three suppliers accounted for 23%, 20%, and 17% of total purchases, for the year ended December 31, 2024, three suppliers accounted for 46%, 16%, and 14% of total purchases, and for the year ended December 31, 2023, three suppliers account for 57%, 22%, and 11% of total purchases."
+    },
+    {
+     "id": "crwv-10k-fy25#9",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "CoreWeave",
+     "unnamed": "second of three suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 16,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2024-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 186,
+     "quote": "Additionally, for the year ended December 31, 2025, three suppliers accounted for 23%, 20%, and 17% of total purchases, for the year ended December 31, 2024, three suppliers accounted for 46%, 16%, and 14% of total purchases, and for the year ended December 31, 2023, three suppliers account for 57%, 22%, and 11% of total purchases."
+    },
+    {
+     "id": "crwv-10k-fy25#10",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "CoreWeave",
+     "unnamed": "third of three suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 14,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2024-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 186,
+     "quote": "Additionally, for the year ended December 31, 2025, three suppliers accounted for 23%, 20%, and 17% of total purchases, for the year ended December 31, 2024, three suppliers accounted for 46%, 16%, and 14% of total purchases, and for the year ended December 31, 2023, three suppliers account for 57%, 22%, and 11% of total purchases."
+    },
+    {
+     "id": "crwv-10k-fy25#11",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "CoreWeave",
+     "unnamed": "largest of three suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 57,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2023-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 186,
+     "quote": "Additionally, for the year ended December 31, 2025, three suppliers accounted for 23%, 20%, and 17% of total purchases, for the year ended December 31, 2024, three suppliers accounted for 46%, 16%, and 14% of total purchases, and for the year ended December 31, 2023, three suppliers account for 57%, 22%, and 11% of total purchases."
+    },
+    {
+     "id": "crwv-10k-fy25#12",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "CoreWeave",
+     "unnamed": "second of three suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 22,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2023-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 186,
+     "quote": "Additionally, for the year ended December 31, 2025, three suppliers accounted for 23%, 20%, and 17% of total purchases, for the year ended December 31, 2024, three suppliers accounted for 46%, 16%, and 14% of total purchases, and for the year ended December 31, 2023, three suppliers account for 57%, 22%, and 11% of total purchases."
+    },
+    {
+     "id": "crwv-10k-fy25#13",
+     "headline": false,
+     "categories": [
+      "unnamed_supplier"
+     ],
+     "supplier": null,
+     "customer": "CoreWeave",
+     "unnamed": "third of three suppliers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": 11,
+     "customer_share_scope": "total purchases",
+     "stated_on": "2023-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 186,
+     "quote": "Additionally, for the year ended December 31, 2025, three suppliers accounted for 23%, 20%, and 17% of total purchases, for the year ended December 31, 2024, three suppliers accounted for 46%, 16%, and 14% of total purchases, and for the year ended December 31, 2023, three suppliers account for 57%, 22%, and 11% of total purchases."
+    },
+    {
+     "id": "crwv-10k-fy25#14",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "CoreWeave",
+     "customer": null,
+     "unnamed": "Customer B",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 15,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2024-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 985,
+     "quote": "Customer B | * | 15 % | 17 %"
+    },
+    {
+     "id": "crwv-10k-fy25#15",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "CoreWeave",
+     "customer": null,
+     "unnamed": "Customer B",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 17,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2023-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 985,
+     "quote": "Customer B | * | 15 % | 17 %"
+    },
+    {
+     "id": "crwv-10k-fy25#16",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "CoreWeave",
+     "customer": null,
+     "unnamed": "Customer C",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 21,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2023-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 985,
+     "quote": "Customer C | * | * | 21 %"
+    },
+    {
+     "id": "crwv-10k-fy25#19",
+     "headline": false,
+     "categories": [
+      "partnership"
+     ],
+     "supplier": "NVIDIA",
+     "customer": "CoreWeave",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 441,
+     "quote": "For example, in January 2026, we announced that we entered into a collaboration framework with NVIDIA Corporation to expand our long-standing complementary relationship to advance AI adoption at global scale.",
+     "late": true
+    }
+   ],
+   "optional": [
+    {
+     "id": "crwv-10k-fy25#17",
+     "headline": false,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "CoreWeave",
+     "customer": "Microsoft",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 62,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2024-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 985,
+     "quote": "Customer A | 67 % | 62 % | 35 %",
+     "note": "Customer A in 2024 and 2023: Microsoft is named only for 2025"
+    },
+    {
+     "id": "crwv-10k-fy25#18",
+     "headline": false,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "CoreWeave",
+     "customer": "Microsoft",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 35,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2023-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 985,
+     "quote": "Customer A | 67 % | 62 % | 35 %",
+     "note": "Customer A in 2024 and 2023: Microsoft is named only for 2025"
+    },
+    {
+     "id": "crwv-10k-fy25#20",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "CoreWeave",
+     "customer": null,
+     "unnamed": "Customer A",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 67,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 985,
+     "quote": "Customer A | 67 % | 62 % | 35 %",
+     "note": "Microsoft, named in the risk factors: the unnamed form of the same customer"
+    }
+   ],
+   "not_relationships": [
+    {
+     "paragraph": 201,
+     "quote": "For example, NVIDIA relies on suppliers such as Taiwan Semiconductor Manufacturing Company for semiconductor fabrication and other manufacturers for compute and networking components.",
+     "why": "a relationship between two other companies (TSMC and NVIDIA)"
+    },
+    {
+     "paragraph": 332,
+     "quote": "Key competitors that offer general purpose cloud computing services as part of a broader, diversified product portfolio include Amazon (AWS), Google (Google Cloud Platform), Microsoft (Azure), and Oracle, a number of which are also our current customers.",
+     "why": "a list of competitors"
+    }
+   ]
+  },
+  {
+   "id": "amkr-10k-fy25",
+   "company": "Amkor Technology, Inc.",
+   "ticker": "AMKR",
+   "market": "US",
+   "form": "10-K",
+   "cik": 1047127,
+   "accession": "0001047127-26-000014",
+   "primary_document": "amkr-20251231.htm",
+   "filed": "2026-02-20",
+   "period_end": "2025-12-31",
+   "items": [],
+   "relationships": [
+    {
+     "id": "amkr-10k-fy25#1",
+     "headline": true,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "Amkor",
+     "customer": "Apple",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "packaging and test services",
+     "supplier_revenue_share": 29.8,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 151,
+     "quote": "Direct sales to Apple and Qualcomm accounted for 29.8% and 11.1% of our net sales, respectively, for the year ended December 31, 2025."
+    },
+    {
+     "id": "amkr-10k-fy25#2",
+     "headline": true,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "Amkor",
+     "customer": "Qualcomm",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "packaging and test services",
+     "supplier_revenue_share": 11.1,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-12-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 151,
+     "quote": "Direct sales to Apple and Qualcomm accounted for 29.8% and 11.1% of our net sales, respectively, for the year ended December 31, 2025."
+    }
+   ],
+   "optional": [],
+   "not_relationships": []
+  },
+  {
+   "id": "dell-10k-fy26",
+   "company": "Dell Technologies Inc.",
+   "ticker": "DELL",
+   "market": "US",
+   "form": "10-K",
+   "cik": 1571996,
+   "accession": "0001571996-26-000008",
+   "primary_document": "dell-20260130.htm",
+   "filed": "2026-03-16",
+   "period_end": "2026-01-30",
+   "items": [],
+   "relationships": [
+    {
+     "id": "dell-10k-fy26#1",
+     "headline": true,
+     "categories": [
+      "ended"
+     ],
+     "supplier": "VMware",
+     "customer": "Dell",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "VMware products for resale",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2024-03-25",
+     "ended": true,
+     "private": false,
+     "paragraph": 61,
+     "quote": "On March 25, 2024, we terminated our Commercial Framework Agreement with VMware, whereby we acted as a distributor of VMware standalone products and services.",
+     "note": "the distribution agreement ended; VMware products are still embedded in Dell's VxRail"
+    },
+    {
+     "id": "dell-10k-fy26#2",
+     "headline": true,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Dell",
+     "customer": null,
+     "unnamed": "one customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 12,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-01-30",
+     "ended": false,
+     "private": false,
+     "paragraph": 967,
+     "quote": "One customer accounted for 12% of the Company’s consolidated net revenue for the fiscal year ended January 30, 2026, with substantially all of such net revenue attributable to the sale of ISG offerings."
+    },
+    {
+     "id": "dell-10k-fy26#3",
+     "headline": false,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "Dell",
+     "customer": "VMware",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "products and services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 1142,
+     "quote": "•Dell Technologies sold and leased products and sold services to VMware.",
+     "note": "until its acquisition by Broadcom in November 2023 VMware was a related party",
+     "late": true
+    }
+   ],
+   "optional": [],
+   "not_relationships": [
+    {
+     "paragraph": 352,
+     "quote": "VMware was a related party until its acquisition by Broadcom on November 22, 2023.",
+     "why": "ownership history, not a supply relationship"
+    }
+   ]
+  },
+  {
+   "id": "arm-20f-fy26",
+   "company": "Arm Holdings plc",
+   "ticker": "ARM",
+   "market": "US",
+   "form": "20-F",
+   "cik": 1973239,
+   "accession": "0001973239-26-000097",
+   "primary_document": "arm-20260331.htm",
+   "filed": "2026-05-26",
+   "period_end": "2026-03-31",
+   "items": [],
+   "relationships": [
+    {
+     "id": "arm-20f-fy26#1",
+     "headline": true,
+     "categories": [
+      "named_customer",
+      "private"
+     ],
+     "supplier": "Arm",
+     "customer": "Arm China",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "IP licences (exclusive distributor in the PRC)",
+     "supplier_revenue_share": 16,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-03-31",
+     "ended": false,
+     "private": true,
+     "paragraph": 237,
+     "quote": "In particular, our top five customers (including Arm China and SoftBank Group) collectively accounted for approximately 57%, 56% and 54% of our total revenue for the fiscal years ended March 31, 2026, 2025 and 2024, respectively, and our largest customer individually, Arm China, accounted for approximately 16%, 17% and 21% of our total revenue, respectively, during those fiscal years."
+    },
+    {
+     "id": "arm-20f-fy26#2",
+     "headline": false,
+     "categories": [
+      "named_customer",
+      "private"
+     ],
+     "supplier": "Arm",
+     "customer": "Arm China",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "IP licences",
+     "supplier_revenue_share": 17,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-03-31",
+     "ended": false,
+     "private": true,
+     "paragraph": 237,
+     "quote": "In particular, our top five customers (including Arm China and SoftBank Group) collectively accounted for approximately 57%, 56% and 54% of our total revenue for the fiscal years ended March 31, 2026, 2025 and 2024, respectively, and our largest customer individually, Arm China, accounted for approximately 16%, 17% and 21% of our total revenue, respectively, during those fiscal years."
+    },
+    {
+     "id": "arm-20f-fy26#3",
+     "headline": false,
+     "categories": [
+      "named_customer",
+      "private"
+     ],
+     "supplier": "Arm",
+     "customer": "Arm China",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "IP licences",
+     "supplier_revenue_share": 21,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2024-03-31",
+     "ended": false,
+     "private": true,
+     "paragraph": 237,
+     "quote": "In particular, our top five customers (including Arm China and SoftBank Group) collectively accounted for approximately 57%, 56% and 54% of our total revenue for the fiscal years ended March 31, 2026, 2025 and 2024, respectively, and our largest customer individually, Arm China, accounted for approximately 16%, 17% and 21% of our total revenue, respectively, during those fiscal years."
+    },
+    {
+     "id": "arm-20f-fy26#4",
+     "headline": true,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "Arm",
+     "customer": "Qualcomm",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "IP licences",
+     "supplier_revenue_share": 9,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 327,
+     "quote": "We can provide no assurances regarding the outcome of either litigation or how the litigation will affect our relationship with or revenue from Qualcomm, which is currently a major customer of ours and accounted for 9% of our total revenue for the fiscal year ended March 31, 2026."
+    },
+    {
+     "id": "arm-20f-fy26#5",
+     "headline": false,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "Arm",
+     "customer": "SoftBank Group",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "licensing and services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 1901,
+     "quote": "During the fiscal years ended March 31, 2026 and 2025, the Company entered into related party transactions with an affiliate of SoftBank Group relating to licensing and service arrangements under the consulting agreement with SoftBank Group (the “Consulting Agreement”).",
+     "note": "'an affiliate of SoftBank Group'; the top-five-customers sentence also names SoftBank Group as a customer"
+    },
+    {
+     "id": "arm-20f-fy26#6",
+     "headline": false,
+     "categories": [
+      "named_customer",
+      "private"
+     ],
+     "supplier": "Arm",
+     "customer": "Ampere",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "licensing and services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 1902,
+     "quote": "The Company continues to have licensing and servicing arrangements with Ampere for which the Company may earn fees for services provided."
+    },
+    {
+     "id": "arm-20f-fy26#7",
+     "headline": false,
+     "categories": [
+      "named_supplier",
+      "private"
+     ],
+     "supplier": "Ampere",
+     "customer": "Arm",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "development services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 1902,
+     "quote": "Effective March 2026, the Company entered into a development agreement with Ampere (the “Ampere Development Agreement”), enabling Ampere to provide development services to the Company under one or more statements of work."
+    },
+    {
+     "id": "arm-20f-fy26#8",
+     "headline": false,
+     "categories": [
+      "named_supplier",
+      "private"
+     ],
+     "supplier": "Linaro",
+     "customer": "Arm",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 1910,
+     "quote": "Linaro continues to be a service partner to the Company."
+    },
+    {
+     "id": "arm-20f-fy26#9",
+     "headline": true,
+     "categories": [
+      "ended",
+      "private"
+     ],
+     "supplier": "Arm",
+     "customer": "Nuvia",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "architecture licence",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2022-03-31",
+     "ended": true,
+     "private": true,
+     "paragraph": 324,
+     "quote": "On August 31, 2022, we sued Qualcomm and Nuvia, in the U.S. District Court for the District of Delaware alleging that, inter alia, Qualcomm and Nuvia breached the termination provisions of Nuvia’s Architecture License Agreement (the “Nuvia ALA”) with us by failing to destroy technology Nuvia developed under the Nuvia ALA, which we terminated in March 2022 based on Nuvia’s failure to obtain our consent to the assignment of the Nuvia ALA to Qualcomm.",
+     "note": "the Nuvia Architecture License Agreement, terminated by Arm in March 2022"
+    },
+    {
+     "id": "arm-20f-fy26#10",
+     "headline": true,
+     "categories": [
+      "ended",
+      "private"
+     ],
+     "supplier": "Arm China",
+     "customer": "Arm",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "software engineering services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2023-12-31",
+     "ended": true,
+     "private": true,
+     "paragraph": 1894,
+     "quote": "In the fiscal year ended March 31, 2024, the Company recognized $5.5 million of contract termination costs in disposal, restructuring and other operating expenses, net in the Consolidated Income Statements due to a terminated agreement with Arm China for certain software engineering-related services, which was brought in-house.",
+     "note": "terminated in December 2023, the services brought in-house"
+    },
+    {
+     "id": "arm-20f-fy26#11",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Arm",
+     "customer": null,
+     "unnamed": "second largest customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 14,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 1604,
+     "quote": "For the fiscal year ended March 31, 2026, the Company had three customers that collectively represented 42% of total revenue, with the single largest customer accounting for 16% of total revenue, the second largest customer accounting for 14% of total revenue, and the third largest customer accounting for 12% of total revenue."
+    },
+    {
+     "id": "arm-20f-fy26#12",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Arm",
+     "customer": null,
+     "unnamed": "third largest customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 12,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 1604,
+     "quote": "For the fiscal year ended March 31, 2026, the Company had three customers that collectively represented 42% of total revenue, with the single largest customer accounting for 16% of total revenue, the second largest customer accounting for 14% of total revenue, and the third largest customer accounting for 12% of total revenue."
+    },
+    {
+     "id": "arm-20f-fy26#13",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Arm",
+     "customer": null,
+     "unnamed": "second largest customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 11,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 1604,
+     "quote": "For the fiscal year ended March 31, 2025, the Company had four customers that collectively represented 49% of total revenue, with the single largest customer accounting for 17% of total revenue, the second largest customer accounting for 11% of total revenue, the third largest customer accounting for 11% of total revenue, and the fourth largest customer accounting for 10% of total revenue."
+    },
+    {
+     "id": "arm-20f-fy26#14",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Arm",
+     "customer": null,
+     "unnamed": "third largest customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 11,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 1604,
+     "quote": "For the fiscal year ended March 31, 2025, the Company had four customers that collectively represented 49% of total revenue, with the single largest customer accounting for 17% of total revenue, the second largest customer accounting for 11% of total revenue, the third largest customer accounting for 11% of total revenue, and the fourth largest customer accounting for 10% of total revenue."
+    },
+    {
+     "id": "arm-20f-fy26#15",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Arm",
+     "customer": null,
+     "unnamed": "fourth largest customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 10,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 1604,
+     "quote": "For the fiscal year ended March 31, 2025, the Company had four customers that collectively represented 49% of total revenue, with the single largest customer accounting for 17% of total revenue, the second largest customer accounting for 11% of total revenue, the third largest customer accounting for 11% of total revenue, and the fourth largest customer accounting for 10% of total revenue."
+    },
+    {
+     "id": "arm-20f-fy26#16",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Arm",
+     "customer": null,
+     "unnamed": "second largest customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 11,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2024-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 1604,
+     "quote": "For the fiscal year ended March 31, 2024, the Company had three customers that collectively represented 42% of total revenue, with the single largest customer accounting for 21% of total revenue, the second largest customer accounting for 11% of total revenue and the third largest customer accounting for 10% of total revenue."
+    },
+    {
+     "id": "arm-20f-fy26#17",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Arm",
+     "customer": null,
+     "unnamed": "third largest customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 10,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2024-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 1604,
+     "quote": "For the fiscal year ended March 31, 2024, the Company had three customers that collectively represented 42% of total revenue, with the single largest customer accounting for 21% of total revenue, the second largest customer accounting for 11% of total revenue and the third largest customer accounting for 10% of total revenue."
+    }
+   ],
+   "optional": [
+    {
+     "id": "arm-20f-fy26#18",
+     "headline": false,
+     "categories": [],
+     "supplier": "Arm China",
+     "customer": "Arm",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 1894,
+     "quote": "For the fiscal years ended March 31, 2026, 2025 and 2024, the Company recognized revenue under the terms of the IPLA with Arm China of $790.6 million, $670.4 million and $670.8 million, respectively, and recognized expenses under a service share arrangement with Arm China of $63.3 million, $59.4 million, and $74.1 million, respectively.",
+     "note": "an ongoing services arrangement alongside the ended software engineering one"
+    },
+    {
+     "id": "arm-20f-fy26#19",
+     "headline": false,
+     "categories": [],
+     "supplier": "Stargate Project",
+     "customer": "Arm",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership",
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 412,
+     "quote": "For example, in January 2025, SoftBank Group announced the Stargate Project, a joint venture between SoftBank Group, OpenAI and Oracle Corporation, to invest in building new AI infrastructure, where we were named as a key technology partner.",
+     "note": "'we have received no formal commitments that our technology will be used'"
+    },
+    {
+     "id": "arm-20f-fy26#20",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Arm",
+     "customer": null,
+     "unnamed": "single largest customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 16,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 1604,
+     "quote": "For the fiscal year ended March 31, 2026, the Company had three customers that collectively represented 42% of total revenue, with the single largest customer accounting for 16% of total revenue, the second largest customer accounting for 14% of total revenue, and the third largest customer accounting for 12% of total revenue.",
+     "note": "Arm China, said elsewhere to be the largest customer: the unnamed form of the same customer"
+    },
+    {
+     "id": "arm-20f-fy26#21",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Arm",
+     "customer": null,
+     "unnamed": "single largest customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 17,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2025-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 1604,
+     "quote": "For the fiscal year ended March 31, 2025, the Company had four customers that collectively represented 49% of total revenue, with the single largest customer accounting for 17% of total revenue, the second largest customer accounting for 11% of total revenue, the third largest customer accounting for 11% of total revenue, and the fourth largest customer accounting for 10% of total revenue.",
+     "note": "Arm China, said elsewhere to be the largest customer: the unnamed form of the same customer"
+    },
+    {
+     "id": "arm-20f-fy26#22",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Arm",
+     "customer": null,
+     "unnamed": "single largest customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": 21,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2024-03-31",
+     "ended": false,
+     "private": false,
+     "paragraph": 1604,
+     "quote": "For the fiscal year ended March 31, 2024, the Company had three customers that collectively represented 42% of total revenue, with the single largest customer accounting for 21% of total revenue, the second largest customer accounting for 11% of total revenue and the third largest customer accounting for 10% of total revenue.",
+     "note": "Arm China, said elsewhere to be the largest customer: the unnamed form of the same customer"
+    }
+   ],
+   "not_relationships": [
+    {
+     "paragraph": 304,
+     "quote": "For example, on August 26, 2025, the Company completed the sale of its Artisan foundation IP business, consisting of standard cell libraries, memory compilers, and general-purpose I/Os to Cadence Design Systems, Inc. (“Cadence”).",
+     "why": "a divestiture of a business to Cadence, not a supply relationship"
+    },
+    {
+     "paragraph": 325,
+     "quote": "On April 18, 2024, Qualcomm brought a new action in Delaware against Arm Holdings plc, asserting claims that were rejected for inclusion in the original action.",
+     "why": "litigation about the existing Qualcomm licence"
+    }
+   ]
+  }
+ ]
+}

@@ -2,6 +2,7 @@
 
     cd backend && venv/bin/python scripts/pipeline_run.py --budget 0.50 --companies AMD,NVDA,MU,ANET
     cd backend && venv/bin/python scripts/pipeline_run.py --report            # only print the report on what is in the database
+    cd backend && venv/bin/python scripts/pipeline_run.py --budget 0.01 --companies ANET --copy-database   # on a copy: nothing is left in your database
 
 It uses the real data folder (data/supply_chain.sqlite, data/filings, usage.sqlite) and the same workers, handlers and
 orchestrator as the app, but:
@@ -16,7 +17,9 @@ check of the pipeline sheet's numbers against the database.
 import argparse
 import asyncio
 import json
+import sqlite3
 import sys
+import tempfile
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -122,6 +125,7 @@ def report(conn, since):
 
     print("\n=== Sheet against the database ===")
     overview = status.overview(conn)
+    checks_waiting = (overview["cost"]["waiting_for_tomorrow"], conn.execute("SELECT COUNT(*) FROM jobs WHERE status = 'queued' AND last_error LIKE 'waiting for %'").fetchone()[0])
     month_start = stamp(control.month_start())
     checks = [
         ("links total", overview["links"]["total"], conn.execute("SELECT COUNT(*) FROM relationships WHERE status != 'ended' AND merged_into IS NULL").fetchone()[0]),
@@ -144,6 +148,7 @@ def report(conn, since):
                    + conn.execute("SELECT COUNT(*) FROM jobs WHERE status = 'queued' AND attempts > 0 AND last_error IS NOT NULL").fetchone()[0]
                    + verifier.unchecked_count(conn)
                    + conn.execute("SELECT COUNT(*) FROM jobs WHERE status = 'queued' AND last_error LIKE 'too big for the budget%'").fetchone()[0]))
+    checks.append(("jobs waiting for tomorrow", *checks_waiting))
     for name, sheet, database in checks:
         print(f"  {'OK ' if abs(sheet - database) < 1e-4 else 'DIFF'} {name}: sheet {sheet} / database {database}")
     problems = __import__("supply_chain.integrity", fromlist=["check"]).check(conn)
@@ -159,8 +164,18 @@ async def main():
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--minutes", type=float, default=25)
     parser.add_argument("--report", action="store_true", help="only print the report")
+    parser.add_argument("--copy-database", action="store_true", help="work on a temporary copy of supply_chain.sqlite (and its settings): "
+                        "no job, link or setting is left in the real one (the Claude calls still cost real money and are logged in usage.sqlite)")
     args = parser.parse_args()
 
+    if args.copy_database:
+        folder = Path(tempfile.mkdtemp(prefix="pipeline-run-"))
+        source = sqlite3.connect(db.DB_PATH)
+        copy = sqlite3.connect(folder / db.DB_PATH.name)
+        source.backup(copy)
+        source.close(), copy.close()
+        db.DB_PATH = folder / db.DB_PATH.name  # control.settings_path() follows it
+        print(f"Working on a copy: {db.DB_PATH}")
     path = db.DB_PATH
     conn = db.open_graph(path)
     since = datetime.now(timezone.utc)
