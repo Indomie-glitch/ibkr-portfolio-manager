@@ -259,7 +259,7 @@ The upgrade copies the placeholder link's evidence onto the named link (`evidenc
 
 Settings > Supply chain pipeline has the **Run pipeline** switch (off by default: it uses the user's Anthropic key when it reads reports with Claude), a **monthly budget** in US dollars (default US$10) and a status line with **Open pipeline…**, which opens the pipeline sheet. The switches are kept in `pipeline_settings.json` next to the database (`supply_chain/control.py`); until someone chooses, "run" follows `PIPELINE` in `.env`.
 
-The supervisor in `worker.keep_running` checks every 5 seconds: workers run while the pipeline is on, not paused and this month's spending (the sum of `runs.cost_usd` since the 1st, UTC) is under the budget. When that stops being true the workers stop (the job in hand goes back in the queue, no attempt counted) and they start again by themselves, e.g. next month. It also loads the watch list from `seed/themes.json` at start.
+The supervisor in `worker.keep_running` checks every 5 seconds: workers run while the pipeline is on, not paused and this month's spending (the sum of `runs.cost_usd` since the 1st, at midnight local time) is under the budget. When that stops being true the workers stop (the job in hand goes back in the queue, no attempt counted) and they start again by themselves, e.g. next month. It also loads the watch list from `seed/themes.json` at start.
 
 The sheet (`GET /pipeline`, `/pipeline/companies`, `/pipeline/log`, built by `supply_chain/status.py`) shows only what the tables say: Coverage (watched companies whose latest filing is downloaded), Links (active relationships, new in 7 days, ended), Needs attention (jobs failed for good, plus ones waiting to retry) and Cost (month against budget). A company is *failed* if one of its jobs failed for good, *reading* while a job runs, *waiting* while jobs are queued (or not yet looked at), *up to date* when everything is done, and *not on EDGAR* when SEC has no filings for it. The log is built from runs (RUN, DONE, FAIL, SCOUT) and relationships (LINK). Retry requeues failed jobs (`POST /pipeline/retry`); Run now looks at every watched company again and resumes a pause.
 
@@ -274,6 +274,32 @@ Filings name companies in their own words ("TSMC", "Micron Technology, Inc.", "C
 Names are compared after normalising (case, accents, punctuation, `&`/`and`, `N.V.`/`NV`, and endings such as Inc, Corp, Co, Ltd, Limited, plc, AG, SA removed) plus the alias list. Nothing looser: a name that merely *starts* with a known company ("Apple Operations International Limited") is skipped as a probable subsidiary, a name two different companies share is skipped as ambiguous, and "Customer A" is skipped as unnamed. Share classes (GOOG / GOOGL) count as one company when their company market cap is the same. At OpenFIGI, depositary receipts (ADRs) of the same name are the same company, and an answer without the name is retried without the legal ending ("Wistron Corporation" -> "wistron", "Lenovo Group Limited" -> "lenovo group"). Common names that differ from the legal one (Foxconn = Hon Hai Precision, TSMC, AMD, Amazon, Luxshare ...) are in `seed/aliases.json` with the company's ticker; the first time one is used it is stored as a `name` identifier (source `alias_list`) on the company (created if missing), so the store answers from then on. "Samsung" alone is left unmatched because it names a whole group. When OpenFIGI lists several share classes of one name, the one with at least three times the listings of the next is the company's primary listing (Lenovo: the Hong Kong shares and their dollar, euro and yuan counters); a closer call is still skipped as ambiguous.
 
 Each decision is saved in `name_resolutions` (matched: `method`; skipped: `reason` and `detail`), with the identifiers that were learnt carrying the method as their `source`. The same name is not looked up twice; a skipped name is looked at again after 30 days. OpenFIGI being unreachable is not a decision and is not saved.
+
+## What runs first, and how much it may spend (#126)
+
+`supply_chain/orchestrator.py` sits on top of the job queue and the monthly budget.
+
+**Holdings first.** While IB is connected, a background loop marks the companies the user holds (`ib.portfolio()`, stocks on US exchanges and the ASX, matched by ticker and market, following `merged_into`) as `companies.held`. Holdings the graph doesn't have yet are added. `jobs.claim` adds 1000 to the priority of a job about a held company, so everything about a held company (scouting, downloads, XBRL, reading, checking) runs before any theme company's; within each group the kinds keep their own priorities. The mark is stored, so the order is right at start-up before IB connects, and it stays when IB is down. Held companies outside the AI-hardware theme are scouted like the theme ones; a company listed only on the ASX isn't scouted and shows in the Companies panel as *waiting for ASX source* (#131). Watchlists live in the browser and aren't used (#330).
+
+**A daily pace inside the monthly budget** (no setting of its own). With *left* = the monthly budget minus what was spent before today:
+
+```
+today's cap = min(left, max(left / days left in the month (counting today), budget / 60))
+allowance   = min(cap + Run now's additions - spent today, left this month) - what running calls have reserved
+```
+
+Unspent days roll forward by themselves (the days left share more), an expensive day shrinks the next ones, and the floor of half an even daily share keeps some progress every day. A US$10 budget gives about US$0.32 a day on the 1st and US$2.00 a day on the 27th when nothing was spent. **Run now** adds one more day's cap to today's allowance each time it is pressed (the sheet says "Run now added US$0.33"), never more than the month has left; the addition lasts until midnight. The monthly budget stays the hard limit. The day and the month both start at midnight in the computer's local time (`control.clock_zone`), the same clock as `usage_store`'s monthly totals, so the sheet's "today" and the budget's month turn over together (the monthly budget used UTC before #126).
+
+**Before each Claude call** the job reserves its estimated cost against the allowance:
+- Reading a chunk: its estimated tokens (which run 7-24% above the real count) plus about 1,000 for the prompt, in; out is 5% of the input, at least 500 tokens (from `chunk_reads` once it has 20 rows, with 20% headroom), priced with `usage_store.PRICES`.
+- Checking a batch of claims: the claims and contexts plus about 700 tokens in, 120 tokens a claim out, at Sonnet's price.
+- A call that fits goes ahead; the estimate stays reserved while it runs, so two workers can't both spend what only one could. A call that doesn't fit is not made. The job keeps what it has saved (chunks read, verdicts written), is finished, and queues the rest again for just after the next midnight (the job's `last_error` says why: *waiting for tomorrow's allowance*), and the worker takes the next job, which may be cheaper (a Haiku chunk can fit when a Sonnet batch doesn't). Under US$0.002 of allowance the AI kinds aren't claimed at all, so jobs aren't claimed and put off in a loop; scouting, downloads, XBRL and merging are free and always go on.
+- A single call bigger than a whole day's cap runs on a day with nothing spent yet (nothing else is started meanwhile). One bigger than what is left of the month waits for the first of next month; one bigger than the whole monthly budget stays queued and counts under Needs attention (*too big for the budget*).
+- Every call's tokens and cost are added to the job's run as the call is made (`jobs.add_usage`), so money spent by a job that then fails is still counted and the budget sees it at once. Finishing a job no longer overwrites that.
+
+**Spacing.** All Claude calls (Reader and Verifier) go through one `Gate`: at most 2 at a time, starting at least 1 second apart. After a 429 or an overloaded answer (529), every worker waits for `Retry-After` (30 seconds, then 60, when there is none; at most 5 minutes) and the call is tried again, up to 3 times, like `sec_client` does for the SEC.
+
+**What the sheet shows.** The Cost tile says "US$0.12 of today's US$0.33" with the share of the month, what Run now added and how many jobs are waiting for tomorrow; its ⓘ gives the split between reading and checking. The Companies panel has each company's cost (reading and checking included) and marks held ones.
 
 ## Job queue and workers (#116)
 
@@ -312,7 +338,7 @@ queued -> running -> done
 | #123 | document chunker (done; `supply_chain/chunker.py`) | `documents.local_path` in, chunks out |
 | #124 | Reader (done; `supply_chain/reader.py`: chunks to candidates with Claude) | `chunk_reads`, `candidates`, `rejected` |
 | #125 | Verifier (done; `supply_chain/verifier.py`: candidates to verified tier 2 links) | `relationships`, `evidence`, `rejected`, placeholder companies |
+| #126 | orchestrator (done; `supply_chain/orchestrator.py`: holdings first, daily pace, cost estimates, spacing of Claude calls) | `companies.held`, `runs.cost_usd` |
 | #127 | merge (done; `supply_chain/merge.py`: one link per pair, shares, confidence, stale / ended, placeholder upgrades) | `relationships`, `evidence.copied_from`, `merge_decisions` |
-| M11 | orchestrator | `runs.cost_usd` |
 | M12 | graph API and explorer | indexes on both ends of `relationships`; chains of up to three layers by a recursive query |
 | M13 | server, export, sync | plain SQL (Postgres), `updated_at`, `ended` instead of deletes |
