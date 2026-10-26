@@ -275,6 +275,29 @@ Names are compared after normalising (case, accents, punctuation, `&`/`and`, `N.
 
 Each decision is saved in `name_resolutions` (matched: `method`; skipped: `reason` and `detail`), with the identifiers that were learnt carrying the method as their `source`. The same name is not looked up twice; a skipped name is looked at again after 30 days. OpenFIGI being unreachable is not a decision and is not saved.
 
+## Evaluation set (#133)
+
+`backend/eval/supply_chain_eval.json` lists what 10 filings state: 5 10-Ks and an Arm 20-F (NVIDIA, AMD, Super Micro, CoreWeave, Amkor, Dell, Arm), NVIDIA's August 2026 8-K (SB Energy, OpenAI), and two bond / preferred-share 8-Ks that state no supply relationship at all.
+- **86 known relationships**, 30 of them the *headline* cases: named customers with percentages (CoreWeave's Microsoft 67%, Amkor's Apple 29.8% and Qualcomm 11.1%, Arm's Arm China 16% and Qualcomm 9%), named critical suppliers in risk factors (AMD's TSMC and GlobalFoundries, Super Micro's Ablecom and Compuware, CoreWeave's NVIDIA), 8-K agreements, unnamed customers and suppliers with shares, four ended relationships (Super Micro's Corporate Venture, Dell's VMware agreement, Arm's Nuvia licence and Arm China services contract) and private counterparties (OpenAI, Groq, SB Energy, Ablecom, Arm China ...).
+- **24 optional** ones the text states ambiguously (receivables shares, "these vendors") count neither for nor against; **18 traps** (a prospective OpenAI deal "with no assurance", a sale of a business, competitors, a relationship between two other companies) must not become links.
+- Every entry has the filing's quote, cut from the cleaned text (never retyped); `--check` finds each one again, and says which the chunker would not send to the Reader.
+- Scope: what each text states between the filer and a named company (or an unnamed one with a stated figure), within the sections the chunker sends. Not counted: financing, equity stakes alone, leases, litigation, competitors. Entries added after reviewing the first run's extra links are marked `late` and counted in the report.
+
+`python -m eval.supply_chain_eval` (from `backend/`) runs the chunker, Reader, Verifier and merge on those filings into a temporary database, with the real name resolver, and reports recall (overall, headline, by kind of case), wrong links, wrong numbers, rejections by reason, duplicate placeholders, links made from traps, the confidence levels, and the cost. It prints an estimate (about US$0.4) and asks first; `--reader-effort low|medium|high`, `--label`, `--check`, `--rescore <run>`. It uses the real Claude API, so it is never part of the unit tests. Each run saves `docs/eval/<date>-<label>.md`, `.json` and `.raw.json`; `--rescore` scores a saved run again after a correction to the truth file, without new calls.
+
+**Baseline** (26 Oct 2026, scored against the corrected file; found = the right companies, and for an unnamed one the right share and year):
+
+| | Reader medium | Reader low |
+|---|---|---|
+| Found, of 86 | **36 (42%)** | 25 (29%) |
+| Headline cases found, of 30 | 17 | 13 |
+| Links / wrong links | 46 / 0 | 29 / 2 |
+| Wrong numbers, links made from traps | 0, 0 | 0, 1 |
+| Ended relationships found / marked ended (of 4) | 1 / 1 | 1 / 1 |
+| Cost | US$0.24 | US$0.19 |
+
+What the misses are (medium): 30 were never returned by the Reader (mostly statements about several unnamed counterparties at once, "sales to four customers represented 20.9%, 11.5%, 11.3% and 11.1%", which its prompt tells it to leave out as groups); 17 were rejected as `unresolved_company` (private companies such as OpenAI, Groq, Ablecom and Compuware, and China- or Taiwan-listed ones such as Tongfu); the others one wrong direction and two "groups". Every found link is "high" confidence whatever the evidence. The Verifier once dropped a correct stated number (Dell's 12%).
+
 ## What runs first, and how much it may spend (#126)
 
 `supply_chain/orchestrator.py` sits on top of the job queue and the monthly budget.
@@ -338,6 +361,7 @@ queued -> running -> done
 | #123 | document chunker (done; `supply_chain/chunker.py`) | `documents.local_path` in, chunks out |
 | #124 | Reader (done; `supply_chain/reader.py`: chunks to candidates with Claude) | `chunk_reads`, `candidates`, `rejected` |
 | #125 | Verifier (done; `supply_chain/verifier.py`: candidates to verified tier 2 links) | `relationships`, `evidence`, `rejected`, placeholder companies |
+| #133 | evaluation set (done; `backend/eval/`: 86 known relationships in 10 filings, `python -m eval.supply_chain_eval`) | reports in `docs/eval/` |
 | #126 | orchestrator (done; `supply_chain/orchestrator.py`: holdings first, daily pace, cost estimates, spacing of Claude calls) | `companies.held`, `runs.cost_usd` |
 | #127 | merge (done; `supply_chain/merge.py`: one link per pair, shares, confidence, stale / ended, placeholder upgrades) | `relationships`, `evidence.copied_from`, `merge_decisions` |
 | M12 | graph API and explorer | indexes on both ends of `relationships`; chains of up to three layers by a recursive query |

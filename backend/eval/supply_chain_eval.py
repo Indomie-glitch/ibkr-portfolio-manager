@@ -210,9 +210,16 @@ def placeholder_year(name):
     return m.group(1) if m else None
 
 
-def find_link(truth, doc, item, links, used, strict=True):
+def same_passage(link, doc, item):
+    quote = reader.normalise(item["quote"])
+    return any(reader.normalise(e["quote"]) and (reader.normalise(e["quote"]) in quote or quote in reader.normalise(e["quote"]))
+               for e in link["evidence"] if e["eval_doc"] == doc["id"])
+
+
+def find_link(truth, doc, item, links, used, strict=True, ignore_share=False):
     """The output link that satisfies a truth item, or None. Named: both companies match (swapped for a partnership), kind accepted. Unnamed:
-    a placeholder link of the filer with the same share (and, if strict, the same fiscal year)."""
+    a placeholder link of the filer with the same share (and, if strict, the same fiscal year); with ignore_share, one whose evidence is the
+    same passage whatever number it kept (a number the Verifier dropped)."""
     for link in links:
         if link["id"] in used or not any(e["eval_doc"] == doc["id"] for e in link["evidence"]):
             continue
@@ -225,8 +232,13 @@ def find_link(truth, doc, item, links, used, strict=True):
             else:
                 ok = name_matches(truth, filer, link["customer_name"]) and link["supplier_placeholder"] and link["kind"] in item["accept_kinds"]
                 column, share, placeholder = "customer_supply_share", item["customer_supply_share"], link["supplier_name"]
-            if not ok or share is None:
+            if not ok:
                 continue
+            if share is None or ignore_share:
+                # no share to compare (receivables only), or the number was lost: the link's evidence quotes the same passage as the truth
+                if not same_passage(link, doc, item):
+                    continue
+                return link
             shares = [e[column] for e in link["evidence"] if e["eval_doc"] == doc["id"] and e[column] is not None]
             if not any(merge.same_share(share, s) for s in shares):
                 continue
@@ -251,8 +263,9 @@ def side_name(item, side):
 def score(truth, out, ids):
     """The metrics of a run: found per truth item, wrong links, wrong numbers, rejected by reason, duplicates, traps."""
     links = out["links"]
-    used, found, loose, missed = set(), [], [], []
+    used, found, loose, lost, missed = set(), [], [], [], []
     wrong_numbers, ended_missed, wrongly_ended = [], [], []
+    ended_found = 0
     per_item = {}
     for doc in truth["documents"]:
         if doc["id"] not in ids:
@@ -263,12 +276,15 @@ def score(truth, out, ids):
             if link is None and item["unnamed"]:
                 link = find_link(truth, doc, item, links, used, strict=False)
                 how = "found_other_year"
+            if link is None and item["unnamed"] and (item["supplier_revenue_share"] is not None or item["customer_supply_share"] is not None):
+                link = find_link(truth, doc, item, links, used, ignore_share=True)
+                how = "found_no_number"
             if link is None:
                 missed.append((doc["id"], item))
                 per_item[item["id"]] = {"result": "missed"}
                 continue
             used.add(link["id"])
-            (found if how == "found" else loose).append((doc["id"], item, link))
+            (found if how == "found" else loose if how == "found_other_year" else lost).append((doc["id"], item, link))
             per_item[item["id"]] = {"result": how, "link": link["id"], "confidence": link["confidence"], "level": merge.level(link["confidence"])}
             if not item["unnamed"]:
                 for column in ("supplier_revenue_share", "customer_supply_share"):
@@ -279,8 +295,10 @@ def score(truth, out, ids):
                     elif wanted is None and mine:
                         wrong_numbers.append((doc["id"], item, column, mine))
             states_ended = any(e["states_ended"] for e in link["evidence"] if e["eval_doc"] == doc["id"])
-            if item["ended"] and not (states_ended or link["status"] == "ended"):
-                ended_missed.append((doc["id"], item))
+            if item["ended"]:
+                ended_found += 1
+                if not (states_ended or link["status"] == "ended"):
+                    ended_missed.append((doc["id"], item))
             if not item["ended"] and states_ended and not item["unnamed"]:
                 wrongly_ended.append((doc["id"], item))
     # optional items use up their link too (so they are not "wrong"), without counting for or against
@@ -332,18 +350,18 @@ def score(truth, out, ids):
     headline_found = sum(per_item[i["id"]]["result"] == "found" for i in headline)
     levels = Counter(per_item[i]["level"] for i in per_item if "level" in per_item[i])
     return {
-        "truth": total, "found": len(found), "found_other_year": len(loose), "missed": len(missed),
-        "recall": round(len(found) / total, 3) if total else None, "recall_loose": round((len(found) + len(loose)) / total, 3) if total else None,
+        "truth": total, "found": len(found), "found_other_year": len(loose), "found_no_number": len(lost), "missed": len(missed),
+        "recall": round(len(found) / total, 3) if total else None, "recall_loose": round((len(found) + len(loose) + len(lost)) / total, 3) if total else None,
         "headline": len(headline), "headline_found": headline_found,
         "links": len(links), "wrong_links": len(wrong), "precision": round(len(used) / len(links), 3) if links else None,
         "wrong_numbers": len(wrong_numbers), "ended_truth": sum(1 for d in truth["documents"] if d["id"] in ids for i in d["relationships"] if i["ended"]),
-        "ended_missed": len(ended_missed), "wrongly_ended": len(wrongly_ended), "trap_links": len(trap_hits),
+        "ended_found": ended_found, "ended_marked": ended_found - len(ended_missed), "ended_missed": len(ended_missed), "wrongly_ended": len(wrongly_ended), "trap_links": len(trap_hits),
         "duplicate_groups": len(duplicates), "duplicate_links": sum(len(v) - 1 for v in duplicates.values()),
         "rejected": {f"{reason} ({by})": n for (reason, by), n in sorted(rejected.items(), key=lambda kv: -kv[1])},
         "candidates": dict(candidates), "confidence_levels_of_found": dict(levels),
         "categories": {k: {"truth": v[0], "found": v[1]} for k, v in sorted(categories.items())},
         "per_item": per_item,
-        "_missed": missed, "_loose": loose, "_wrong": wrong, "_wrong_numbers": wrong_numbers, "_ended_missed": ended_missed, "_wrongly_ended": wrongly_ended,
+        "_missed": missed, "_loose": loose, "_lost": lost, "_wrong": wrong, "_wrong_numbers": wrong_numbers, "_ended_missed": ended_missed, "_wrongly_ended": wrongly_ended,
         "_trap_hits": trap_hits, "_duplicates": duplicates, "_optional_found": optional_found,
     }
 
@@ -392,13 +410,14 @@ def render(truth, ids, out, metrics, run, label, started):
              "| | |", "|---|---|",
              f"| Known relationships | {m['truth']} (30 headline; {late} added to the file after reviewing the first run) |",
              f"| **Found** (right companies, and for unnamed ones the right share and year) | **{m['found']}** ({m['recall']:.0%} recall) |",
-             f"| Found with the right share but another year | {m['found_other_year']} (recall counting these: {m['recall_loose']:.0%}) |",
+             f"| Found with the right share but another year | {m['found_other_year']} |",
+             f"| Found, but the number was lost (the customer and passage are right) | {m['found_no_number']} (recall counting these two: {m['recall_loose']:.0%}) |",
              f"| Headline cases found | {m['headline_found']} of {m['headline']} |",
              f"| Missed | {m['missed']} |",
              f"| Links in the result | {m['links']} |",
              f"| **Wrong links** (match nothing in the truth; to review below) | **{m['wrong_links']}** (precision {m['precision']:.0%}) |",
              f"| Wrong numbers on found links | {m['wrong_numbers']} |",
-             f"| Ended relationships missed | {m['ended_missed']} of {m['ended_truth']} |",
+             f"| Ended relationships | {m['ended_found']} of {m['ended_truth']} found; {m['ended_marked']} of those marked ended |",
              f"| Wrongly ended | {m['wrongly_ended']} |",
              f"| Links made from a trap sentence | {m['trap_links']} |",
              f"| Duplicate unnamed counterparties | {m['duplicate_links']} extra links in {m['duplicate_groups']} groups |",
@@ -423,8 +442,10 @@ def render(truth, ids, out, metrics, run, label, started):
         for doc_id, item, link in m["_loose"]:
             placeholder = link["customer_name"] if item["supplier"] else link["supplier_name"]
             lines.append(f"- **{doc_id}** {side_name(item, 'supplier')} → {side_name(item, 'customer')} (known: year to {item['stated_on']}) was made as `{placeholder}`")
-    if m["_wrong_numbers"] or m["_ended_missed"] or m["_wrongly_ended"]:
+    if m["_wrong_numbers"] or m["_ended_missed"] or m["_wrongly_ended"] or m["_lost"]:
         lines += ["", "## Wrong numbers and endings", ""]
+        for doc_id, item, link in m["_lost"]:
+            lines.append(f"- **{doc_id}** {side_name(item, 'supplier')} → {side_name(item, 'customer')}: the link exists but lost its number (known {item['supplier_revenue_share'] or item['customer_supply_share']}%)")
         for doc_id, item, column, mine in m["_wrong_numbers"]:
             lines.append(f"- **{doc_id}** {item['supplier']} → {item['customer']}: {column} is {mine}, known {item[column]}")
         lines += [f"- **{d}** {i['supplier'] or '?'} → {i['customer'] or '?'}: ended in the filing, not marked ended" for d, i in m["_ended_missed"]]

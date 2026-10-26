@@ -159,7 +159,7 @@ class ScoringTests(unittest.TestCase):
         c = self.company
         self.link(c["Omega"], c["Acme Inc."], states_ended=1, quote="it ended")
         _, m = self.scored()
-        self.assertEqual((m["ended_truth"], m["ended_missed"]), (1, 0))
+        self.assertEqual((m["ended_truth"], m["ended_found"], m["ended_marked"], m["ended_missed"]), (1, 1, 1, 0))
         self.assertEqual(m["per_item"]["d#8"]["result"], "found")
         # the same pair without an ending statement
         other = ev.score(self.truth, {"links": [], "candidates": [], "rejected": []}, self.ids)
@@ -184,6 +184,26 @@ class ScoringTests(unittest.TestCase):
         self.link(c["Acme Inc."], self.placeholder("Delta Systems", "2026-01-25"))
         _, m = self.scored()
         self.assertEqual(m["per_item"]["d#3"]["result"], "found")   # the private company, kept under its own label
+
+    def test_unnamed_items_without_a_share_match_by_their_quote(self):
+        truth = self.truth
+        doc = truth["documents"][0]
+        base = doc["relationships"][3]
+        receivable = dict(base, id="d#30", supplier_revenue_share=None, quote="one customer was 11% of receivables")
+        doc["optional"].append(receivable)
+        c = self.company
+        self.link(c["Acme Inc."], self.placeholder("Customer A", "2025-12-31"), quote="one customer was 11% of receivables")
+        self.link(c["Acme Inc."], self.placeholder("Customer B", "2025-12-31"), quote="something else entirely")
+        _, m = self.scored()
+        self.assertEqual(len(m["_optional_found"]), 1)
+        self.assertEqual(m["wrong_links"], 1)
+
+    def test_a_link_that_lost_its_number_is_found_without_it(self):
+        c = self.company
+        self.link(c["Acme Inc."], self.placeholder("one customer", "2026-01-25"), quote="quote 4")   # no share kept
+        _, m = self.scored()
+        self.assertEqual((m["found"], m["found_no_number"], m["wrong_links"]), (0, 1, 0))
+        self.assertEqual(m["per_item"]["d#4"]["result"], "found_no_number")
 
     def test_duplicate_unnamed_counterparties(self):
         c = self.company

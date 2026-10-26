@@ -691,9 +691,9 @@
      "categories": [
       "unnamed_customer"
      ],
-     "supplier": null,
-     "customer": "NVIDIA",
-     "unnamed": "three direct customers",
+     "supplier": "NVIDIA",
+     "customer": null,
+     "unnamed": "first of three direct customers",
      "kind": "supplies",
      "accept_kinds": [
       "supplies"
@@ -707,10 +707,58 @@
      "private": false,
      "paragraph": 815,
      "quote": "Three direct customers accounted for 25%, 18%, and 13% of our accounts receivable balance as of January 25, 2026.",
-     "note": "receivable shares only; no revenue share"
+     "note": "receivable shares only (25%, 18%, 13%); no revenue share"
     },
     {
      "id": "nvda-10k-fy26#16",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "NVIDIA",
+     "customer": null,
+     "unnamed": "second of three direct customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-01-25",
+     "ended": false,
+     "private": false,
+     "paragraph": 815,
+     "quote": "Three direct customers accounted for 25%, 18%, and 13% of our accounts receivable balance as of January 25, 2026.",
+     "note": "receivable shares only (25%, 18%, 13%); no revenue share"
+    },
+    {
+     "id": "nvda-10k-fy26#17",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "NVIDIA",
+     "customer": null,
+     "unnamed": "third of three direct customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": "2026-01-25",
+     "ended": false,
+     "private": false,
+     "paragraph": 815,
+     "quote": "Three direct customers accounted for 25%, 18%, and 13% of our accounts receivable balance as of January 25, 2026.",
+     "note": "receivable shares only (25%, 18%, 13%); no revenue share"
+    },
+    {
+     "id": "nvda-10k-fy26#18",
      "headline": false,
      "categories": [],
      "supplier": "Microsoft",
@@ -1204,9 +1252,9 @@
      "categories": [
       "unnamed_customer"
      ],
-     "supplier": null,
-     "customer": "AMD",
-     "unnamed": "two customers",
+     "supplier": "AMD",
+     "customer": null,
+     "unnamed": "one customer",
      "kind": "supplies",
      "accept_kinds": [
       "supplies"
@@ -1220,7 +1268,31 @@
      "private": false,
      "paragraph": 758,
      "quote": "One customer accounted for approximately 11% and another customer accounted for 24% of the total consolidated accounts receivable balance as of December 27, 2025 and December 28, 2024, respectively.",
-     "note": "receivable shares only"
+     "note": "receivable shares only (11% and 24%)"
+    },
+    {
+     "id": "amd-10k-fy25#17",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "AMD",
+     "customer": null,
+     "unnamed": "another customer",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 758,
+     "quote": "One customer accounted for approximately 11% and another customer accounted for 24% of the total consolidated accounts receivable balance as of December 27, 2025 and December 28, 2024, respectively.",
+     "note": "receivable shares only (11% and 24%)"
     }
    ],
    "not_relationships": [
@@ -1238,6 +1310,11 @@
      "paragraph": 47,
      "quote": "In March 2025, we acquired ZT Group Int’l, Inc. (ZT Systems), where we retained certain intellectual property and employees associated with the design operations (ZT Design Business).",
      "why": "an acquisition, not a supply relationship"
+    },
+    {
+     "paragraph": 439,
+     "quote": "We retained select intellectual property and employees associated with the design operations (ZT Design Business), and in October 2025, we sold the ZT data center infrastructure manufacturing business (ZT Manufacturing Business) to Sanmina Corporation (Sanmina) for $2.4 billion in cash, subject to certain purchase price adjustments, and 1.2 million shares of Sanmina common stock.",
+     "why": "the sale of a business to Sanmina: a divestiture, not a supply relationship (Sanmina as a preferred manufacturing partner is a separate sentence)"
     }
    ]
   },
@@ -1711,9 +1788,9 @@
      "categories": [
       "unnamed_customer"
      ],
-     "supplier": null,
-     "customer": "Super Micro Computer",
-     "unnamed": "three customers",
+     "supplier": "Super Micro Computer",
+     "customer": null,
+     "unnamed": "first of three customers",
      "kind": "supplies",
      "accept_kinds": [
       "supplies"
@@ -1727,10 +1804,58 @@
      "private": false,
      "paragraph": 825,
      "quote": "As of June 30, 2026, three customers accounted for 23.0%, 17.1%, and 12.5% of our accounts receivable balance.",
-     "note": "receivable shares only"
+     "note": "receivable shares only (23.0%, 17.1%, 12.5%)"
     },
     {
      "id": "smci-10k-fy26#20",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": null,
+     "unnamed": "second of three customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 825,
+     "quote": "As of June 30, 2026, three customers accounted for 23.0%, 17.1%, and 12.5% of our accounts receivable balance.",
+     "note": "receivable shares only (23.0%, 17.1%, 12.5%)"
+    },
+    {
+     "id": "smci-10k-fy26#21",
+     "headline": false,
+     "categories": [
+      "unnamed_customer"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": null,
+     "unnamed": "third of three customers",
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 825,
+     "quote": "As of June 30, 2026, three customers accounted for 23.0%, 17.1%, and 12.5% of our accounts receivable balance.",
+     "note": "receivable shares only (23.0%, 17.1%, 12.5%)"
+    },
+    {
+     "id": "smci-10k-fy26#22",
      "headline": false,
      "categories": [],
      "supplier": "NVIDIA",
@@ -1753,7 +1878,7 @@
      "note": "'these vendors': collaboration on compatible products; no purchase is stated"
     },
     {
-     "id": "smci-10k-fy26#21",
+     "id": "smci-10k-fy26#23",
      "headline": false,
      "categories": [],
      "supplier": "Intel",
@@ -1776,7 +1901,7 @@
      "note": "'these vendors': collaboration on compatible products; no purchase is stated"
     },
     {
-     "id": "smci-10k-fy26#22",
+     "id": "smci-10k-fy26#24",
      "headline": false,
      "categories": [],
      "supplier": "AMD",
@@ -2461,6 +2586,31 @@
      "id": "dell-10k-fy26#3",
      "headline": false,
      "categories": [
+      "partnership"
+     ],
+     "supplier": "VMware",
+     "customer": "Dell",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 1143,
+     "quote": "•Dell Technologies and VMware entered into joint marketing, sales, and branding arrangements, for which both parties incurred costs.",
+     "note": "related-party arrangements until November 2023",
+     "late": true
+    },
+    {
+     "id": "dell-10k-fy26#4",
+     "headline": false,
+     "categories": [
       "named_customer"
      ],
      "supplier": "Dell",
@@ -2958,6 +3108,30 @@
      "id": "arm-20f-fy26#20",
      "headline": false,
      "categories": [
+      "named_customer"
+     ],
+     "supplier": "Arm",
+     "customer": "SoftBank Group",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 1901,
+     "quote": "During the fiscal years ended March 31, 2026 and 2025, the Company entered into related party transactions with an affiliate of SoftBank Group relating to licensing and service arrangements under the consulting agreement with SoftBank Group (the “Consulting Agreement”).",
+     "note": "the same SoftBank relationship read as the unnamed 'affiliate of SoftBank Group'"
+    },
+    {
+     "id": "arm-20f-fy26#21",
+     "headline": false,
+     "categories": [
       "unnamed_customer"
      ],
      "supplier": "Arm",
@@ -2979,7 +3153,7 @@
      "note": "Arm China, said elsewhere to be the largest customer: the unnamed form of the same customer"
     },
     {
-     "id": "arm-20f-fy26#21",
+     "id": "arm-20f-fy26#22",
      "headline": false,
      "categories": [
       "unnamed_customer"
@@ -3003,7 +3177,7 @@
      "note": "Arm China, said elsewhere to be the largest customer: the unnamed form of the same customer"
     },
     {
-     "id": "arm-20f-fy26#22",
+     "id": "arm-20f-fy26#23",
      "headline": false,
      "categories": [
       "unnamed_customer"
