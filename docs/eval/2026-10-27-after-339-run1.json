@@ -1,0 +1,534 @@
+{
+ "label": "after-339 (run 1 of 3)",
+ "run": {
+  "reader_cost": 0.0,
+  "verifier_cost": 0.229034,
+  "reader_in": 0,
+  "reader_out": 0,
+  "verifier_in": 80177,
+  "verifier_out": 6868,
+  "declined": 0,
+  "deferred": 0,
+  "merge": {
+   "relationships": 64,
+   "changed": 0,
+   "partnerships": 0,
+   "upgraded": 3,
+   "joined": 0
+  },
+  "reader_cache": {
+   "hits": 33,
+   "misses": 0,
+   "saved_usd": 0.1000534
+  },
+  "reader_effort": "medium",
+  "verifier_effort": "medium",
+  "fresh": false,
+  "run_index": 0
+ },
+ "metrics": {
+  "truth": 90,
+  "found": 50,
+  "found_other_year": 0,
+  "found_no_number": 0,
+  "missed": 40,
+  "recall": 0.556,
+  "recall_loose": 0.556,
+  "headline": 30,
+  "headline_found": 23,
+  "links": 61,
+  "wrong_links": 4,
+  "precision": 0.934,
+  "wrong_numbers": 0,
+  "ended_truth": 4,
+  "ended_found": 1,
+  "ended_marked": 1,
+  "ended_missed": 0,
+  "wrongly_ended": 1,
+  "trap_links": 3,
+  "duplicate_groups": 1,
+  "duplicate_links": 1,
+  "rejected": {
+   "unresolved_company (rule)": 7,
+   "partly_supported_link (verifier)": 6,
+   "not_supported (verifier)": 4,
+   "quote_not_found (rule)": 1
+  },
+  "candidates": {
+   "linked": 81,
+   "not_supported": 4,
+   "partly_supported": 6
+  },
+  "confidence_levels_of_found": {
+   "medium": 50
+  },
+  "categories": {
+   "8k_agreement": {
+    "truth": 2,
+    "found": 1
+   },
+   "china_listed": {
+    "truth": 2,
+    "found": 1
+   },
+   "distributor": {
+    "truth": 1,
+    "found": 1
+   },
+   "ended": {
+    "truth": 4,
+    "found": 1
+   },
+   "named_customer": {
+    "truth": 17,
+    "found": 14
+   },
+   "named_supplier": {
+    "truth": 24,
+    "found": 20
+   },
+   "partnership": {
+    "truth": 5,
+    "found": 2
+   },
+   "private": {
+    "truth": 22,
+    "found": 13
+   },
+   "risk_factor": {
+    "truth": 7,
+    "found": 6
+   },
+   "unnamed_customer": {
+    "truth": 24,
+    "found": 10
+   },
+   "unnamed_supplier": {
+    "truth": 14,
+    "found": 1
+   }
+  },
+  "per_item": {
+   "nvda-10k-fy26#1": {
+    "result": "found",
+    "link": 1,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#2": {
+    "result": "found",
+    "link": 2,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#3": {
+    "result": "found",
+    "link": 3,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#4": {
+    "result": "found",
+    "link": 4,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#5": {
+    "result": "found",
+    "link": 5,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#6": {
+    "result": "found",
+    "link": 6,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#7": {
+    "result": "found",
+    "link": 7,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#8": {
+    "result": "found",
+    "link": 8,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#9": {
+    "result": "found",
+    "link": 9,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#10": {
+    "result": "found",
+    "link": 10,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#11": {
+    "result": "found",
+    "link": 11,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#12": {
+    "result": "found",
+    "link": 12,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#13": {
+    "result": "found",
+    "link": 13,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#14": {
+    "result": "found",
+    "link": 14,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-8k-2026-08-17#1": {
+    "result": "found",
+    "link": 15,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-8k-2026-08-17#2": {
+    "result": "missed"
+   },
+   "amd-10k-fy25#1": {
+    "result": "found",
+    "link": 17,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#2": {
+    "result": "found",
+    "link": 18,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#3": {
+    "result": "found",
+    "link": 19,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#4": {
+    "result": "found",
+    "link": 20,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#5": {
+    "result": "missed"
+   },
+   "amd-10k-fy25#6": {
+    "result": "found",
+    "link": 21,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#7": {
+    "result": "found",
+    "link": 26,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#8": {
+    "result": "missed"
+   },
+   "amd-10k-fy25#9": {
+    "result": "found",
+    "link": 22,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#10": {
+    "result": "found",
+    "link": 25,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#11": {
+    "result": "found",
+    "link": 16,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#12": {
+    "result": "found",
+    "link": 27,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#18": {
+    "result": "found",
+    "link": 23,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#1": {
+    "result": "found",
+    "link": 29,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#2": {
+    "result": "found",
+    "link": 30,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#3": {
+    "result": "found",
+    "link": 31,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#4": {
+    "result": "found",
+    "link": 36,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#5": {
+    "result": "found",
+    "link": 35,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#6": {
+    "result": "found",
+    "link": 37,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#7": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#8": {
+    "result": "found",
+    "link": 32,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#9": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#10": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#11": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#12": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#13": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#14": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#15": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#16": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#17": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#18": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#25": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#26": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#1": {
+    "result": "found",
+    "link": 39,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#2": {
+    "result": "found",
+    "link": 40,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#3": {
+    "result": "found",
+    "link": 41,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#4": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#5": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#6": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#7": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#8": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#9": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#10": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#11": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#12": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#13": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#14": {
+    "result": "found",
+    "link": 45,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#15": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#16": {
+    "result": "found",
+    "link": 46,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#19": {
+    "result": "found",
+    "link": 42,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#21": {
+    "result": "missed"
+   },
+   "amkr-10k-fy25#1": {
+    "result": "found",
+    "link": 47,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amkr-10k-fy25#2": {
+    "result": "found",
+    "link": 48,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "dell-10k-fy26#1": {
+    "result": "found",
+    "link": 51,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "dell-10k-fy26#2": {
+    "result": "found",
+    "link": 53,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "dell-10k-fy26#3": {
+    "result": "missed"
+   },
+   "dell-10k-fy26#4": {
+    "result": "found",
+    "link": 52,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#1": {
+    "result": "found",
+    "link": 57,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#2": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#3": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#4": {
+    "result": "found",
+    "link": 54,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#5": {
+    "result": "found",
+    "link": 55,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#6": {
+    "result": "found",
+    "link": 61,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#7": {
+    "result": "found",
+    "link": 62,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#8": {
+    "result": "found",
+    "link": 63,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#9": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#10": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#11": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#12": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#13": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#14": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#15": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#16": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#17": {
+    "result": "missed"
+   }
+  }
+ }
+}
