@@ -1,0 +1,47 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 8429,
+    "output_tokens": 237
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Unnamed AI lab and enterprise customers\",\"is_filer\":false,\"unnamed\":true},\"counterparty_role\":\"customer\",\"what\":\"cloud computing services\",\"quote\":\"We have strategically aligned with some of the world's leading AI labs and enterprises that are building the next generation of foundational models and providing AI capabilities to organizations across the world.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 8429,
+    "output_tokens": 82
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[]}"
+    }
+   ]
+  },
+  "2": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 8429,
+    "output_tokens": 141
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[]}"
+    }
+   ]
+  }
+ }
+}

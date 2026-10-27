@@ -1,0 +1,47 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 16927,
+    "output_tokens": 2300
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"Arm Holdings plc\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Arm China\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"customer\",\"what\":null,\"quote\":\"For the fiscal years ended March 31, 2026, 2025 and 2024, revenues attributable to our relationship with Arm China were approximately 16%, 17% and 21% of our total revenue, respectively.\",\"supplier_revenue_share\":16,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"approximately 16%\",\"period_as_written\":\"For the fiscal years ended March 31, 2026, 2025 and 2024\",\"stated_on\":\"2026-03-31\",\"ended\":false},{\"supplier\":{\"name\":\"Arm Holdings plc\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Acorn Computers\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":null,\"quote\":\"Established in 1990, Arm began as a joint venture between Acorn Computers, Apple Computer, and VLSI Technology.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Arm Holdings plc\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Apple Computer\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":null,\"quote\":\"Established in 1990, Arm began as a joint venture between Acorn Computers, Apple Computer, and VLSI Technology.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Arm Holdings plc\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"VLSI Technology\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":null,\"quote\":\"Established in 1990, Arm began as a joint venture between Acorn Computers, Apple Computer, and VLSI Technology.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 16927,
+    "output_tokens": 2370
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"Arm Holdings plc\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Arm China\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"customer\",\"what\":\"licenses of certain of our IP under the IPLA\",\"quote\":\"For the fiscal years ended March 31, 2026, 2025 and 2024, revenues attributable to our relationship with Arm China were approximately 16%, 17% and 21% of our total revenue, respectively.\",\"supplier_revenue_share\":16,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"approximately 16%\",\"period_as_written\":\"For the fiscal years ended March 31, 2026, 2025 and 2024\",\"stated_on\":\"2026-03-31\",\"ended\":false},{\"supplier\":{\"name\":\"Arm Holdings plc\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Acorn Computers\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":null,\"quote\":\"Established in 1990, Arm began as a joint venture between Acorn Computers, Apple Computer, and VLSI Technology.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Arm Holdings plc\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Apple Computer\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":null,\"quote\":\"Established in 1990, Arm began as a joint venture between Acorn Computers, Apple Computer, and VLSI Technology.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Arm Holdings plc\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"VLSI Technology\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":null,\"quote\":\"Established in 1990, Arm began as a joint venture between Acorn Computers, Apple Computer, and VLSI Technology.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  },
+  "2": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 16927,
+    "output_tokens": 1461
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"Arm Holdings plc\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Arm China\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":\"certain of our IP licensed under the IPLA\",\"quote\":\"For the fiscal years ended March 31, 2026, 2025 and 2024, revenues attributable to our relationship with Arm China were approximately 16%, 17% and 21% of our total revenue, respectively.\",\"supplier_revenue_share\":16,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"approximately 16%\",\"period_as_written\":\"fiscal years ended March 31, 2026\",\"stated_on\":\"2026-03-31\",\"ended\":false}]}"
+    }
+   ]
+  }
+ }
+}

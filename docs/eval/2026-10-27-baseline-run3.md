@@ -1,0 +1,209 @@
+# Supply chain evaluation: baseline (run 3 of 3)
+
+Run 2026-10-27 19:53 · commit 748d2c9 + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
+
+## Summary
+
+| | |
+|---|---|
+| Known relationships | 86 (30 headline; 3 added to the file after reviewing the first run) |
+| **Found** (right companies, and for unnamed ones the right share and year) | **31** (36% recall) |
+| Found with the right share but another year | 0 |
+| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 36%) |
+| Headline cases found | 14 of 30 |
+| Missed | 55 |
+| Links in the result | 36 |
+| **Wrong links** (match nothing in the truth; to review below) | **1** (precision 97%) |
+| Wrong numbers on found links | 0 |
+| Ended relationships | 1 of 4 found; 1 of those marked ended |
+| Wrongly ended | 0 |
+| Links made from a trap sentence | 0 |
+| Duplicate unnamed counterparties | 0 extra links in 0 groups |
+| Confidence level of the found links | high 31 |
+| **Cost** | **US$0.219** (Reader US$0.098, Verifier US$0.121) |
+| Tokens | Reader 670,939 in / 62,563 out · Verifier 40,849 in / 3,933 out |
+| Reader answers | 0 from the cache (they cost US$0.000 when first read), 33 read now (--fresh); cost read afresh US$0.219 |
+
+## Recall by kind of case
+
+| Case | Known | Found |
+|---|---|---|
+| 8k agreement | 2 | 1 |
+| china listed | 2 | 0 |
+| distributor | 1 | 0 |
+| ended | 4 | 1 |
+| named customer | 15 | 9 |
+| named supplier | 22 | 13 |
+| partnership | 5 | 2 |
+| private | 19 | 2 |
+| risk factor | 7 | 4 |
+| unnamed customer | 24 | 5 |
+| unnamed supplier | 14 | 0 |
+
+## Candidates and rejections
+
+Candidates by status: linked 44, not_supported 2, partly_supported 6
+
+| Rejected | Count |
+|---|---|
+| unresolved_company (rule) | 40 |
+| partly_supported_link (verifier) | 6 |
+| generic_counterparty (rule) | 2 |
+| not_supported (verifier) | 2 |
+| name_not_in_text (rule) | 1 |
+| quote_not_found (rule) | 1 |
+
+## Missed
+
+- **nvda-10k-fy26** Groq → NVIDIA (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **nvda-10k-fy26** NVIDIA → (two direct customers (first)): rejected: generic_counterparty (rule) - 'one of two direct customers (11% in fiscal year 2025)' is a group, not one company
+- **nvda-10k-fy26** NVIDIA → (two direct customers (second)): rejected: generic_counterparty (rule) - 'one of two direct customers (11% in fiscal year 2025)' is a group, not one company
+- **nvda-8k-2026-08-17** NVIDIA → OpenAI (headline): the Reader did not return it
+- **amd-10k-fy25** SPIL → AMD: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **amd-10k-fy25** Tongfu Microelectronics → AMD: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **amd-10k-fy25** Tongfu Microelectronics → AMD: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **amd-10k-fy25** Higon (THATIC) → AMD: the Reader did not return it
+- **amd-10k-fy25** Sanmina → AMD (headline): rejected: not_supported (verifier) - AMD sold its ZT manufacturing business to Sanmina and Sanmina is a preferred manufacturing
+- **amd-10k-fy25** AMD → OpenAI (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **smci-10k-fy26** Ablecom → Super Micro Computer (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **smci-10k-fy26** Compuware → Super Micro Computer (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **smci-10k-fy26** Super Micro Computer → Compuware: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **smci-10k-fy26** Corporate Venture → Super Micro Computer (headline): the Reader did not return it
+- **smci-10k-fy26** (one supplier) → Super Micro Computer (headline): rejected: partly_supported_link (verifier) - The context says one unnamed supplier accounted for 63.1% of total purchases in fiscal 202
+- **smci-10k-fy26** (first of two suppliers) → Super Micro Computer: rejected: partly_supported_link (verifier) - The context says one unnamed supplier accounted for 63.1% of total purchases in fiscal 202
+- **smci-10k-fy26** (second of two suppliers) → Super Micro Computer: rejected: partly_supported_link (verifier) - The context says one unnamed supplier accounted for 63.1% of total purchases in fiscal 202
+- **smci-10k-fy26** (first of two suppliers) → Super Micro Computer: rejected: partly_supported_link (verifier) - The context says one unnamed supplier accounted for 63.1% of total purchases in fiscal 202
+- **smci-10k-fy26** (second of two suppliers) → Super Micro Computer: rejected: partly_supported_link (verifier) - The context says one unnamed supplier accounted for 63.1% of total purchases in fiscal 202
+- **smci-10k-fy26** Super Micro Computer → (one customer) (headline): the Reader did not return it
+- **smci-10k-fy26** Super Micro Computer → (first of four customers): the Reader did not return it
+- **smci-10k-fy26** Super Micro Computer → (second of four customers): the Reader did not return it
+- **smci-10k-fy26** Super Micro Computer → (third of four customers): the Reader did not return it
+- **smci-10k-fy26** Super Micro Computer → (fourth of four customers): the Reader did not return it
+- **smci-10k-fy26** Super Micro Computer → (one customer): the Reader did not return it
+- **crwv-10k-fy25** CoreWeave → OpenAI (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **crwv-10k-fy25** NVIDIA → CoreWeave (headline): rejected: not_supported (verifier) - The passage never mentions NVIDIA selling to CoreWeave; it only discusses GPUs generally a
+- **crwv-10k-fy25** (largest of three suppliers) → CoreWeave (headline): the Reader did not return it
+- **crwv-10k-fy25** (second of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (third of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (largest of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (second of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (third of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (largest of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (second of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (third of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** CoreWeave → (Customer B): the Reader did not return it
+- **crwv-10k-fy25** CoreWeave → (Customer B): the Reader did not return it
+- **crwv-10k-fy25** CoreWeave → (Customer C): the Reader did not return it
+- **dell-10k-fy26** Dell → (one customer) (headline): rejected: partly_supported_link (verifier) - The 12% share, ISG offerings and fiscal year are stated, but the context identifies the cu
+- **arm-20f-fy26** Arm → Arm China (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **arm-20f-fy26** Arm → Arm China: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **arm-20f-fy26** Arm → Arm China: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **arm-20f-fy26** Arm → Ampere: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **arm-20f-fy26** Ampere → Arm: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **arm-20f-fy26** Linaro → Arm: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **arm-20f-fy26** Arm → Nuvia (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **arm-20f-fy26** Arm China → Arm (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **arm-20f-fy26** Arm → (second largest customer): the Reader did not return it
+- **arm-20f-fy26** Arm → (third largest customer): the Reader did not return it
+- **arm-20f-fy26** Arm → (second largest customer): the Reader did not return it
+- **arm-20f-fy26** Arm → (third largest customer): the Reader did not return it
+- **arm-20f-fy26** Arm → (fourth largest customer): the Reader did not return it
+- **arm-20f-fy26** Arm → (second largest customer): the Reader did not return it
+- **arm-20f-fy26** Arm → (third largest customer): the Reader did not return it
+
+## Wrong links (1)
+
+These match nothing in the truth. Each needs a look: a wrong link, or a true one the annotation missed (then it goes into the file).
+
+- **crwv-10k-fy25** CoreWeave, Inc. ↔ a third-party infrastructure developer (unnamed customer of CoreWeave, Inc., year to 2025-12-31) (partnership, high): For example, in June 2025, we entered into a joint venture with a third-party infrastructure developer, to support the acquisition and development of a multi-phase data center campus in Kenilworth, Ne
+
+## Every known relationship
+
+| Filing | Supplier | Customer | Result | Confidence |
+|---|---|---|---|---|
+| nvda-10k-fy26 | TSMC | NVIDIA | found (headline) | high |
+| nvda-10k-fy26 | Samsung | NVIDIA | found | high |
+| nvda-10k-fy26 | SK hynix | NVIDIA | found (headline) | high |
+| nvda-10k-fy26 | Micron | NVIDIA | found | high |
+| nvda-10k-fy26 | Hon Hai | NVIDIA | found | high |
+| nvda-10k-fy26 | Wistron | NVIDIA | found | high |
+| nvda-10k-fy26 | Fabrinet | NVIDIA | found | high |
+| nvda-10k-fy26 | Groq | NVIDIA | missed (headline) |  |
+| nvda-10k-fy26 | NVIDIA | (one direct customer) | found (headline) | high |
+| nvda-10k-fy26 | NVIDIA | (another direct customer) | found (headline) | high |
+| nvda-10k-fy26 | NVIDIA | (one direct customer) | found | high |
+| nvda-10k-fy26 | NVIDIA | (two direct customers (first)) | missed |  |
+| nvda-10k-fy26 | NVIDIA | (two direct customers (second)) | missed |  |
+| nvda-10k-fy26 | NVIDIA | (one direct customer) | found | high |
+| nvda-8k-2026-08-17 | SB Energy | NVIDIA | found (headline) | high |
+| nvda-8k-2026-08-17 | NVIDIA | OpenAI | missed (headline) |  |
+| amd-10k-fy25 | TSMC | AMD | found (headline) | high |
+| amd-10k-fy25 | GlobalFoundries | AMD | found (headline) | high |
+| amd-10k-fy25 | UMC | AMD | found | high |
+| amd-10k-fy25 | Samsung | AMD | found | high |
+| amd-10k-fy25 | SPIL | AMD | missed |  |
+| amd-10k-fy25 | King Yuan Electronics | AMD | found | high |
+| amd-10k-fy25 | Tongfu Microelectronics | AMD | missed |  |
+| amd-10k-fy25 | Tongfu Microelectronics | AMD | missed |  |
+| amd-10k-fy25 | Higon (THATIC) | AMD | missed |  |
+| amd-10k-fy25 | Sanmina | AMD | missed (headline) |  |
+| amd-10k-fy25 | AMD | OpenAI | missed (headline) |  |
+| amd-10k-fy25 | AMD | (one Client and Gaming segment customer) | found | high |
+| smci-10k-fy26 | Ablecom | Super Micro Computer | missed (headline) |  |
+| smci-10k-fy26 | Compuware | Super Micro Computer | missed (headline) |  |
+| smci-10k-fy26 | Super Micro Computer | Compuware | missed |  |
+| smci-10k-fy26 | Leadtek | Super Micro Computer | found (headline) | high |
+| smci-10k-fy26 | Super Micro Computer | Leadtek | found | high |
+| smci-10k-fy26 | Super Micro Computer | Corporate Venture | found | high |
+| smci-10k-fy26 | Corporate Venture | Super Micro Computer | missed (headline) |  |
+| smci-10k-fy26 | (one supplier) | Super Micro Computer | missed (headline) |  |
+| smci-10k-fy26 | (first of two suppliers) | Super Micro Computer | missed |  |
+| smci-10k-fy26 | (second of two suppliers) | Super Micro Computer | missed |  |
+| smci-10k-fy26 | (first of two suppliers) | Super Micro Computer | missed |  |
+| smci-10k-fy26 | (second of two suppliers) | Super Micro Computer | missed |  |
+| smci-10k-fy26 | Super Micro Computer | (one customer) | missed (headline) |  |
+| smci-10k-fy26 | Super Micro Computer | (first of four customers) | missed |  |
+| smci-10k-fy26 | Super Micro Computer | (second of four customers) | missed |  |
+| smci-10k-fy26 | Super Micro Computer | (third of four customers) | missed |  |
+| smci-10k-fy26 | Super Micro Computer | (fourth of four customers) | missed |  |
+| smci-10k-fy26 | Super Micro Computer | (one customer) | missed |  |
+| crwv-10k-fy25 | CoreWeave | Microsoft | found (headline) | high |
+| crwv-10k-fy25 | CoreWeave | OpenAI | missed (headline) |  |
+| crwv-10k-fy25 | CoreWeave | Meta | found (headline) | high |
+| crwv-10k-fy25 | NVIDIA | CoreWeave | missed (headline) |  |
+| crwv-10k-fy25 | (largest of three suppliers) | CoreWeave | missed (headline) |  |
+| crwv-10k-fy25 | (second of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (third of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (largest of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (second of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (third of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (largest of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (second of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (third of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | CoreWeave | (Customer B) | missed |  |
+| crwv-10k-fy25 | CoreWeave | (Customer B) | missed |  |
+| crwv-10k-fy25 | CoreWeave | (Customer C) | missed |  |
+| crwv-10k-fy25 | NVIDIA | CoreWeave | found | high |
+| amkr-10k-fy25 | Amkor | Apple | found (headline) | high |
+| amkr-10k-fy25 | Amkor | Qualcomm | found (headline) | high |
+| dell-10k-fy26 | VMware | Dell | found (headline) | high |
+| dell-10k-fy26 | Dell | (one customer) | missed (headline) |  |
+| dell-10k-fy26 | VMware | Dell | found | high |
+| dell-10k-fy26 | Dell | VMware | found | high |
+| arm-20f-fy26 | Arm | Arm China | missed (headline) |  |
+| arm-20f-fy26 | Arm | Arm China | missed |  |
+| arm-20f-fy26 | Arm | Arm China | missed |  |
+| arm-20f-fy26 | Arm | Qualcomm | found (headline) | high |
+| arm-20f-fy26 | Arm | SoftBank Group | found | high |
+| arm-20f-fy26 | Arm | Ampere | missed |  |
+| arm-20f-fy26 | Ampere | Arm | missed |  |
+| arm-20f-fy26 | Linaro | Arm | missed |  |
+| arm-20f-fy26 | Arm | Nuvia | missed (headline) |  |
+| arm-20f-fy26 | Arm China | Arm | missed (headline) |  |
+| arm-20f-fy26 | Arm | (second largest customer) | missed |  |
+| arm-20f-fy26 | Arm | (third largest customer) | missed |  |
+| arm-20f-fy26 | Arm | (second largest customer) | missed |  |
+| arm-20f-fy26 | Arm | (third largest customer) | missed |  |
+| arm-20f-fy26 | Arm | (fourth largest customer) | missed |  |
+| arm-20f-fy26 | Arm | (second largest customer) | missed |  |
+| arm-20f-fy26 | Arm | (third largest customer) | missed |  |
