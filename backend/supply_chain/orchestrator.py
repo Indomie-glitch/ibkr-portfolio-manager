@@ -104,6 +104,10 @@ class Reservation:
         self.release()
 
 
+def _usd(value):
+    return f"US${value:.2f}" if value >= 0.1 else f"US${value:.3f}"
+
+
 def reserve(conn, estimate, now=None, settings=None):
     """Asks to make a call expected to cost `estimate` US$. ok: go ahead (use it as a context manager; the reservation counts
     against the allowance until released). Not ok: until / reason say when and why to try again."""
@@ -120,11 +124,11 @@ def reserve(conn, estimate, now=None, settings=None):
         return Reservation(True, estimate, _counter)
     if estimate > p["month_left"]:
         too_big = estimate > p["budget"]
-        text = (f"too big for the budget (needs about US${estimate:.2f}, the monthly budget is US${p['budget']:.2f})" if too_big
-                else f"waiting for next month's budget (needs about US${estimate:.2f}, US${p['month_left']:.2f} left)")
+        text = (f"too big for the budget (needs about {_usd(estimate)}, the monthly budget is {_usd(p['budget'])})" if too_big
+                else f"waiting for next month's budget (needs about {_usd(estimate)}, {_usd(p['month_left'])} left)")
         return Reservation(False, estimate, until=control.next_month_start(now) + DEFER_AFTER, reason=text)
     return Reservation(False, estimate, until=control.next_day_start(now) + DEFER_AFTER,
-                       reason=f"waiting for tomorrow's allowance (needs about US${estimate:.2f}, US${p['allowance']:.2f} left today)")
+                       reason=f"waiting for tomorrow's allowance (needs about {_usd(estimate)}, {_usd(p['allowance'])} left today)")
 
 
 def add_run_now(conn, now=None, settings=None):
