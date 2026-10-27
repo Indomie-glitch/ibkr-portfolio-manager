@@ -83,7 +83,7 @@ def open_graph(path=None):
     """The graph database, created and brought up to date if needed."""
     conn = connect(path)
     applied = migrate(conn)
-    if 6 in applied:  # the merge rules (#127) arrived: score every existing link (XBRL's 0.9, the Verifier's 0 = not scored)
+    if 6 in applied or 8 in applied:  # the merge rules (#127) or the new confidence rule (#333) arrived: score every existing link
         from supply_chain import merge  # here: merge imports graph, which imports this module
         merge.recompute_all(conn)
     return conn

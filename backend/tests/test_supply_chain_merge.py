@@ -127,12 +127,42 @@ class ConfidenceTests(MergeCase):
     def test_a_tier_1_source_is_high(self):
         self.assertEqual(self.confidence(self.evidence("XBRL fact", tier=1)), 0.9)
 
-    def test_verified_tier_2_from_a_filing_is_high(self):
-        self.assertEqual(self.confidence(self.evidence("From the 10-K.")), 0.9)
+    def test_one_verified_quote_from_a_filing_is_medium(self):
+        self.assertEqual(self.confidence(self.evidence("From the 10-K.")), 0.6)
 
-    def test_verified_tier_2_not_from_a_filing_is_medium(self):
+    def test_verified_tier_2_from_a_second_document_is_high(self):
+        self.assertEqual(self.confidence(self.evidence("FY2024 10-K.", stated_on="2024-12-31"), self.evidence("FY2025 10-K.")), 0.9)
+
+    def test_verified_tier_2_from_two_filings_by_another_source_is_high_too(self):
         web = self.document(source="web", url="https://acme.example/suppliers")
-        self.assertEqual(self.confidence(self.evidence("From the company website.", document=web)), 0.6)
+        self.assertEqual(self.confidence(self.evidence("From the company website.", document=web), self.evidence("From the 10-K.")), 0.9)
+
+    def test_two_quotes_from_one_document_are_still_medium(self):
+        doc = self.document()
+        self.assertEqual(self.confidence(self.evidence("Risk factors say so.", document=doc), self.evidence("Note 4 says so too.", document=doc)), 0.6)
+
+    def test_the_same_filing_text_under_two_documents_counts_once(self):
+        a, b = self.document(), self.document()
+        self.conn.execute("UPDATE documents SET content_hash = 'same' WHERE id IN (?, ?)", (a, b))
+        self.assertEqual(self.confidence(self.evidence("Once.", document=a), self.evidence("Again.", document=b)), 0.6)
+
+    def test_an_unverified_second_document_does_not_lift_it(self):
+        self.assertEqual(self.confidence(self.evidence("Checked."), self.evidence("Not checked.", verification="unchecked")), 0.6)
+
+    def test_tier_1_beside_a_verified_quote_is_high(self):
+        self.assertEqual(self.confidence(self.evidence("From the 10-K."), self.evidence("XBRL fact", tier=1)), 0.9)
+
+    def test_unnamed_or_shareless_links_are_not_scored_down(self):
+        placeholder = self.placeholder()
+        rid = graph.add_relationship(self.conn, self.acme, placeholder, self.evidence("One customer was 20%.", supplier_revenue_share=20))
+        shareless = self.link(self.acme, self.beta, "We sell to Beta.")
+        self.assertEqual((self.row(rid)["confidence"], self.row(shareless)["confidence"]), (0.6, 0.6))
+
+    def test_confidence_rises_when_a_second_document_arrives_later(self):
+        rid = self.link(self.acme, self.beta, "FY2024.", stated_on="2024-12-31")
+        self.assertEqual(self.row(rid)["confidence"], 0.6)
+        self.link(self.acme, self.beta, "FY2025.")
+        self.assertEqual(self.row(rid)["confidence"], 0.9)
 
     def test_unverified_tier_2_is_low(self):
         self.assertEqual(self.confidence(self.evidence("Not checked.", verification="unchecked")), 0.3)
@@ -160,10 +190,10 @@ class ConfidenceTests(MergeCase):
             self.conn.execute("UPDATE relationships SET confidence = ? WHERE id = ?", (old, rid))
         self.assertEqual(sum("confidence isn't the one" in p for p in integrity.check(self.conn)), 2)
         merge.recompute_all(self.conn, TODAY)
-        self.assertEqual([self.row(r)["confidence"] for r in (xbrl_link, verified, weak)], [0.9, 0.9, 0.3])
+        self.assertEqual([self.row(r)["confidence"] for r in (xbrl_link, verified, weak)], [0.9, 0.6, 0.3])
         self.assertSound()
 
-    def test_opening_the_database_when_migration_6_arrives_rescores_every_row(self):
+    def test_opening_the_database_when_a_rescoring_migration_arrives_rescores_every_row(self):
         path = Path(self.tmp.name) / "old.sqlite"
         conn = db.connect(path)
         db.migrate(conn, db.MIGRATIONS[:5])
@@ -182,7 +212,7 @@ class ConfidenceTests(MergeCase):
         reopened = open_graph(path)
         self.addCleanup(reopened.close)
         row = reopened.execute("SELECT confidence, last_confirmed FROM relationships").fetchone()
-        self.assertEqual((row["confidence"], row["last_confirmed"]), (0.9, "2025-12-31"))
+        self.assertEqual((row["confidence"], row["last_confirmed"]), (0.6, "2025-12-31"))
         self.assertEqual(integrity.check(reopened), [])
 
 
