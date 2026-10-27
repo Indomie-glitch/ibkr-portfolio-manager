@@ -284,6 +284,7 @@ def upgrade(conn, placeholder_link, named_link, fact):
         conn.execute("INSERT INTO merge_decisions (placeholder_relationship_id, relationship_id, decision, detail, created_at) VALUES (?, ?, 'merged', ?, ?)",
                      (placeholder_link, named_link, f"{fact['measure']} {fact['value']:g}% for {fact['on']}", now()))
     refresh(conn, named_link)
+    refresh(conn, placeholder_link)  # it may have handed on copies it held (#335), which changes its own confidence
 
 
 def upgrade_placeholders(conn):
