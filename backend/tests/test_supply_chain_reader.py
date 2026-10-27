@@ -245,6 +245,38 @@ class PlannedAndLeaseTests(unittest.TestCase):
         self.assertIn("leases of office or data-centre space unless the passage names the other party", " ".join(reader.SYSTEM_PROMPT.split()))
 
 
+class ShareEachTests(PlannedAndLeaseTests):
+    """#341: one unnamed counterparty per stated share, table rows, never a 0 share."""
+    FOUR = "For the fiscal year ended June 30, 2025, sales to four customers represented 20.9%, 11.5%, 11.3%, and 11.1% of total net sales."
+
+    def customer(self, name, quote, unnamed=False, **fields):
+        text = f"Item 8. Notes\n\n{quote}"
+        chunk = chunker.Chunk("tenk.htm", "Item 8", text, 50, 1, 2, numbers=[1, 2])
+        return reader.check(relationship(ACME, party(name, unnamed=unnamed), "customer", quote, **fields), chunk, "Acme Semiconductor Inc.")
+
+    def test_a_numbered_counterparty_is_unnamed_even_when_not_flagged(self):
+        row = self.customer("Customer 2 of 4", self.FOUR, supplier_revenue_share=11.5)
+        self.assertEqual((row["customer_unnamed"], row["customer_name"], row["supplier_revenue_share"]), (1, "Customer 2 of 4", 11.5))
+        self.assertFalse(reader.is_group("Customer 2 of 4"))
+
+    def test_each_numbered_one_needs_its_own_digits_in_the_quote(self):
+        row = self.customer("Customer 2 of 4", self.FOUR, supplier_revenue_share=12.5)
+        self.assertIsNone(row["supplier_revenue_share"])  # 12.5 isn't in the sentence
+
+    def test_a_table_row_with_a_star_never_gives_zero(self):
+        quote = "Customer B | * | 15 % | 17 %"
+        row = self.customer("Customer B", quote, unnamed=True, supplier_revenue_share=0)
+        self.assertIsNone(row["supplier_revenue_share"])
+        self.assertIn("supplier_revenue_share: zero", row["share_dropped"])
+        self.assertEqual(self.customer("Customer B", quote, unnamed=True, supplier_revenue_share=15, stated_on="2024-12-31")["supplier_revenue_share"], 15)
+
+    def test_the_prompt_asks_for_each_share_and_leaves_out_totals(self):
+        text = " ".join(reader.SYSTEM_PROMPT.split())
+        self.assertIn('Name them "Customer 1 of 4", "Customer 2 of 4"', text)
+        self.assertIn("is no one counterparty's share: leave it out and never split it", text)
+        self.assertIn("never 0", text)
+
+
 class CounterpartyTests(ReaderTestCase):
     def test_unnamed_customer_kept_without_a_company_and_not_looked_up(self):
         quote = "Sales to our largest customer, Beta Corp, were 48% of revenue, up from 41% a year ago."

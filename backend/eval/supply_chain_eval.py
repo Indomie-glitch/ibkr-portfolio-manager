@@ -343,7 +343,10 @@ def score(truth, out, ids):
                 for e in link["evidence"]:
                     eq = reader.normalise(e["quote"])
                     if e["eval_doc"] == doc["id"] and eq and (eq in tq or tq in eq):
-                        trap_hits.append((doc["id"], trap, link))
+                        # a trap with shares (a total for several customers, #341) is hit only by a link carrying one of them
+                        stated = [e[c] for c in ("supplier_revenue_share", "customer_supply_share") if e[c] is not None]
+                        if not trap.get("shares") or any(merge.same_share(w, s) for w in trap["shares"] for s in stated):
+                            trap_hits.append((doc["id"], trap, link))
     # the same unnamed customer or supplier more than once: placeholder links of one filer, side and year with one share
     groups = defaultdict(list)
     for link in links:
