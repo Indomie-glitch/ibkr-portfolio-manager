@@ -384,3 +384,149 @@ class JobTests(MergeCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class JoinPlaceholderTests(MergeCase):
+    """Placeholders that are the same unnamed counterparty (#335)."""
+
+    def unnamed(self, label, share=22, tier=2, filer=None, side="customer", period="2025-12-31", **fields):
+        filer = filer or self.acme
+        company = xbrl.placeholder(self.conn, filer, "Filer", {"label": label, "end": period}, side)
+        quote = fields.pop("quote", f"{label} was {share}% [{tier}]")
+        supplier, customer = (filer, company) if side == "customer" else (company, filer)
+        return graph.add_relationship(self.conn, supplier, customer, self.evidence(quote, tier=tier, supplier_revenue_share=share if side == "customer" else None,
+                                                                                   customer_supply_share=share if side == "supplier" else None,
+                                                                                   stated_on=period, **fields)), company
+
+    def joined(self):
+        return merge.recompute_all(self.conn, TODAY)["joined"]
+
+    def merged_links(self):
+        return [r[0] for r in self.conn.execute("SELECT id FROM relationships WHERE merged_into IS NOT NULL ORDER BY id")]
+
+    def test_one_customer_found_three_times_becomes_one_link(self):
+        xbrl_link, xbrl_company = self.unnamed("Customer one", tier=1)
+        direct, direct_company = self.unnamed("a direct customer")
+        one_direct, one_direct_company = self.unnamed("one direct customer")
+        self.assertEqual(self.joined(), 2)
+        self.assertEqual(self.merged_links(), [direct, one_direct])
+        self.assertEqual(self.row(direct)["merged_into"], xbrl_link)  # the one with tier 1 evidence is kept
+        self.assertIsNone(self.row(xbrl_link)["merged_into"])
+        self.assertEqual(self.conn.execute("SELECT merged_into FROM companies WHERE id = ?", (direct_company,)).fetchone()[0], xbrl_company)
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM evidence WHERE relationship_id = ?", (xbrl_link,)).fetchone()[0], 3)
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM evidence WHERE relationship_id = ? AND copied_from IS NOT NULL", (xbrl_link,)).fetchone()[0], 2)
+        self.assertEqual([r[0] for r in self.conn.execute("SELECT decision FROM merge_decisions")], ["merged", "merged"])
+        self.assertEqual(self.row(xbrl_link)["confidence"], 0.9)
+        self.assertSound()
+
+    def test_without_tier_1_the_oldest_link_is_kept(self):
+        first, _ = self.unnamed("a direct customer")
+        second, _ = self.unnamed("one direct customer")
+        self.assertEqual(self.joined(), 1)
+        self.assertEqual(self.row(second)["merged_into"], first)
+
+    def test_the_precision_rule_applies(self):
+        a, _ = self.unnamed("a direct customer", share=22)
+        b, _ = self.unnamed("one direct customer", share=22.4)
+        self.assertEqual(self.joined(), 1)
+        c, _ = self.unnamed("our main customer", share=23.0)
+        self.assertEqual(merge.recompute_all(self.conn, TODAY)["joined"], 0)  # 23.0 isn't 22 at the finer precision: left apart
+        self.assertIsNone(self.row(c)["merged_into"])
+
+    def test_not_a_clique_means_no_merge(self):
+        self.unnamed("a direct customer", share=23)
+        self.unnamed("one direct customer", share=23.4)
+        self.unnamed("our main customer", share=22.6)  # 23.4 and 22.6 aren't the same share
+        self.assertEqual(self.joined(), 0)
+
+    def test_without_a_share_nothing_merges(self):
+        for label in ("a direct customer", "one direct customer"):
+            company = xbrl.placeholder(self.conn, self.acme, "Filer", {"label": label, "end": "2025-12-31"}, "customer")
+            graph.add_relationship(self.conn, self.acme, company, self.evidence(f"{label} buys from us.", stated_on="2025-12-31"))
+        self.assertEqual(self.joined(), 0)
+
+    def test_different_shares_periods_filers_and_sides_stay_apart(self):
+        self.unnamed("a direct customer", share=22)
+        self.unnamed("one direct customer", share=14)
+        self.unnamed("a direct customer", share=22, period="2024-12-31")
+        self.unnamed("a direct customer", share=22, filer=self.gamma)
+        self.unnamed("a direct supplier", share=22, side="supplier")
+        self.assertEqual(self.joined(), 0)
+
+    def test_two_different_customers_with_the_same_share_stay_apart(self):
+        self.unnamed("Customer A", share=12)
+        self.unnamed("Customer B", share=12)
+        self.assertEqual(self.joined(), 0)
+        self.assertEqual(merge.label_identifier("Customer one (unnamed customer of X, year to 2025-12-31)"), "1")
+        self.assertIsNone(merge.label_identifier("a direct customer"))
+
+    def test_a_tier_1_list_naming_both_means_two_counterparties(self):
+        document = self.document()
+        self.unnamed("Customer one", share=12, tier=1, document=document)
+        self.unnamed("the other member", share=12, tier=1, document=document)
+        self.assertEqual(self.joined(), 0)
+
+    def test_one_quote_naming_both_means_two_counterparties(self):
+        quote = "Two direct customers each accounted for 12% of revenue."
+        self.unnamed("a direct customer", share=12, quote=quote)
+        self.unnamed("another direct customer", share=12, quote=quote)
+        self.assertEqual(self.joined(), 0)
+
+    def test_untrusted_figures_dont_count(self):
+        self.unnamed("a direct customer")
+        self.unnamed("one direct customer", verification="unchecked")
+        self.assertEqual(self.joined(), 0)
+
+    def test_a_placeholder_in_two_links_is_left_alone(self):
+        _, company = self.unnamed("a direct customer")
+        self.unnamed("one direct customer")
+        graph.add_relationship(self.conn, self.gamma, company, self.evidence("Gamma sells to it too."))
+        self.assertEqual(self.joined(), 0)
+
+    def test_the_scope_must_agree(self):
+        self.unnamed("a direct supplier", share=95, side="supplier", customer_share_scope="chassis")
+        self.unnamed("one direct supplier", share=95, side="supplier", customer_share_scope="power supplies")
+        self.assertEqual(self.joined(), 0)
+        self.unnamed("our supplier", share=95, side="supplier", customer_share_scope="chassis")
+        self.assertEqual(self.joined(), 1)
+
+    def test_two_placeholders_for_one_named_customer_join_first_and_then_upgrade(self):
+        a, _ = self.unnamed("a direct customer")
+        b, _ = self.unnamed("one direct customer")
+        beta = self.link(self.acme, self.beta, "Beta Corp was 22% of revenue.", supplier_revenue_share=22, stated_on="2025-12-31")
+        first = merge.recompute_all(self.conn, TODAY)
+        self.assertEqual((first["upgraded"], first["joined"]), (0, 1))  # two placeholders match Beta: ambiguous, so they join instead
+        second = merge.recompute_all(self.conn, TODAY)
+        self.assertEqual((second["upgraded"], second["joined"]), (1, 0))  # the one left matches Beta alone
+        self.assertEqual((self.row(a)["merged_into"], self.row(b)["merged_into"]), (beta, beta))  # no chain: b follows a
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM evidence WHERE relationship_id = ?", (beta,)).fetchone()[0], 3)
+        self.assertSound()
+        self.assertEqual(merge.undo(self.conn, b), beta)  # undoing the joined one takes only its own evidence off Beta
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM evidence WHERE relationship_id = ?", (beta,)).fetchone()[0], 2)
+        self.assertSound()
+
+    def test_undo_reverses_a_join_and_it_is_not_redone(self):
+        keep, keep_company = self.unnamed("a direct customer")
+        other, other_company = self.unnamed("one direct customer")
+        self.joined()
+        self.assertEqual(merge.undo(self.conn, other), keep)
+        self.assertIsNone(self.row(other)["merged_into"])
+        self.assertIsNone(self.conn.execute("SELECT merged_into FROM companies WHERE id = ?", (other_company,)).fetchone()[0])
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM evidence WHERE relationship_id = ? AND copied_from IS NOT NULL", (keep,)).fetchone()[0], 0)
+        self.assertEqual(self.joined(), 0)
+        self.assertSound()
+
+    def test_a_later_document_attaches_to_the_kept_counterparty(self):
+        keep, keep_company = self.unnamed("a direct customer")
+        self.unnamed("one direct customer")
+        self.joined()
+        again = xbrl.placeholder(self.conn, self.acme, "Filer", {"label": "one direct customer", "end": "2025-12-31"}, "customer")
+        self.assertEqual(again, keep_company)
+        self.assertEqual(self.joined(), 0)  # nothing left to join
+        self.assertSound()
+
+    def test_running_it_again_changes_nothing(self):
+        self.unnamed("a direct customer")
+        self.unnamed("one direct customer")
+        self.assertEqual(self.joined(), 1)
+        self.assertEqual(self.joined(), 0)
