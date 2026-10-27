@@ -327,6 +327,15 @@ RESCORE = """
 SELECT 1;
 """
 
+PRIVATE = """
+-- Private companies (#334): a counterparty with no ticker that the Verifier has confirmed becomes a company marked private.
+ALTER TABLE companies ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0 CHECK (is_private IN (0, 1));
+-- The Reader keeps a candidate whose name the resolver couldn't match but which may be private; the company is made only
+-- when the Verifier says supported (supplier_id / customer_id stay NULL until then).
+ALTER TABLE candidates ADD COLUMN supplier_private INTEGER NOT NULL DEFAULT 0 CHECK (supplier_private IN (0, 1));
+ALTER TABLE candidates ADD COLUMN customer_private INTEGER NOT NULL DEFAULT 0 CHECK (customer_private IN (0, 1));
+"""
+
 # (version, name, sql). Add new migrations at the end.
 MIGRATIONS = [
     (1, "initial graph schema (#115)", INITIAL),
@@ -337,4 +346,5 @@ MIGRATIONS = [
     (6, "relationship merge: last_confirmed, merged_into, copied evidence, decisions (#127)", MERGE),
     (7, "companies the user holds (#126)", HOLDINGS),
     (8, "rescore confidence: one verified quote is medium (#333)", RESCORE),
+    (9, "private companies without a ticker (#334)", PRIVATE),
 ]

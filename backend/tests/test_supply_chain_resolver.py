@@ -238,12 +238,52 @@ class Resolving(unittest.TestCase):
                          "Hon Hai Precision Industry Co., Ltd.")
 
     def test_every_alias_entry_is_well_formed(self):
-        entries = {e["ticker"] + e["market"]: e for e in resolver.alias_entries().values()}
+        entries = {e["ticker"] + e["market"]: e for e in resolver.alias_entries().values() if not e.get("private")}
         self.assertGreater(len(entries), 15)
         keys = [resolver.name_key(a) for e in entries.values() for a in e["aliases"]]
         self.assertEqual(len(keys), len(set(keys)))  # one meaning per name
         for entry in entries.values():
             self.assertTrue(entry["name"] and entry["ticker"] and entry["market"])
+
+    def test_private_alias_entries_are_never_created_by_the_resolver(self):
+        before = self.conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+        outcome = self.resolve("OpenAI, L.P.")
+        self.assertEqual((outcome["status"], outcome["reason"]), ("skipped", "no_match"))
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0], before)
+
+    def test_what_can_be_private(self):
+        miss = {"status": "skipped", "reason": "no_match"}
+        self.assertTrue(resolver.can_be_private("Ablecom Technology, Inc.", miss))
+        self.assertTrue(resolver.can_be_private("Groq", miss))
+        self.assertTrue(resolver.can_be_private("Arm Technology (China) Co. Limited", miss))  # looks listed, but the alias list says private
+        self.assertFalse(resolver.can_be_private("Tongfu Microelectronics Co., Ltd.", miss))
+        self.assertFalse(resolver.can_be_private("Siemens AG", miss))
+        self.assertFalse(resolver.can_be_private("Acme Holdings (NYSE: ACM)", miss))
+        for other in ({"status": "skipped", "reason": "ambiguous"}, {"status": "skipped", "reason": "possible_subsidiary"},
+                      {"status": "matched", "company_id": 1}, {"status": "unavailable"}):
+            self.assertFalse(resolver.can_be_private("Groq", other))
+
+    def test_a_private_company_is_made_once_whatever_the_spelling(self):
+        first = resolver.private_company(self.conn, "OpenAI")
+        again = resolver.private_company(self.conn, "OpenAI, L.P.")
+        third = resolver.private_company(self.conn, "OpenAI OpCo, LLC")
+        self.assertEqual(first, again)
+        self.assertEqual(first, third)
+        row = self.conn.execute("SELECT name, is_private, is_placeholder FROM companies WHERE id = ?", (first,)).fetchone()
+        self.assertEqual((row["name"], row["is_private"], row["is_placeholder"]), ("OpenAI, Inc.", 1, 0))
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM identifiers WHERE company_id = ? AND scheme IN ('ticker', 'share_class_figi')", (first,)).fetchone()[0], 0)
+
+    def test_after_it_exists_the_resolver_finds_it_and_a_saved_miss_is_replaced(self):
+        self.assertEqual(self.resolve("Ablecom")["reason"], "no_match")  # saved as a miss
+        company = resolver.private_company(self.conn, "Ablecom Technology Inc")
+        found = self.resolve("Ablecom")
+        self.assertEqual((found["status"], found["company_id"]), ("matched", company))
+        self.assertEqual(self.resolve("Ablecom Technology, Inc.")["company_id"], company)
+
+    def test_a_private_company_without_an_alias_entry_is_keyed_by_its_name(self):
+        first = resolver.private_company(self.conn, "Zeta Labs, Inc.")
+        self.assertEqual(resolver.private_company(self.conn, "Zeta Labs"), first)
+        self.assertEqual(self.conn.execute("SELECT name FROM companies WHERE id = ?", (first,)).fetchone()[0], "Zeta Labs, Inc.")
 
     def test_several_listings_of_one_company_pick_the_primary(self):
         lenovo = [figi("LENOVO GROUP LTD", f"992L{i}", "HK" if i == 0 else "XW", "BBG-HK") for i in range(9)] + [

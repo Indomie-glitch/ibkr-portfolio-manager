@@ -20,7 +20,7 @@ export const PIPELINE_EXPLAINERS = {
     title: 'Links',
     what: 'Supplier and customer links found so far. Each one points to the sentence or tagged figure in a filing it came from, so you can always see why it is there.',
     yours: (p) => `${p.links.total.toLocaleString('en-US')} links, ${p.links.week.toLocaleString('en-US')} of them found in the last 7 days, ${p.links.ended.toLocaleString('en-US')} marked as ended.`,
-    consider: 'Many filings name a big customer only as “Customer A”. Those links are kept without a name rather than guessed.',
+    consider: 'Many filings name a big customer only as “Customer A”. Those links are kept without a name rather than guessed. Companies with no stock-market listing, such as OpenAI, are kept as private companies once the second check has confirmed the sentence.',
   },
   attention: {
     title: 'Needs attention',

@@ -22,7 +22,7 @@ import anthropic
 
 import config
 import usage_store
-from supply_chain import chunker, graph, jobs, orchestrator, xbrl
+from supply_chain import chunker, graph, jobs, orchestrator, resolver, xbrl
 from supply_chain.jobs import _iso
 from supply_chain.db import now
 from supply_chain.worker import Permanent, handler
@@ -206,6 +206,8 @@ def counterparty_ids(conn, candidate):
     """(supplier id, customer id), making the placeholder company for an unnamed counterparty as xbrl.py does."""
     ids = {"supplier": candidate["supplier_id"], "customer": candidate["customer_id"]}
     for side in ("supplier", "customer"):
+        if ids[side] is None and candidate[f"{side}_private"]:  # confirmed by the Verifier: now the private company may exist (#334)
+            ids[side] = resolver.private_company(conn, candidate[f"{side}_name"])
         if ids[side] is None and candidate[f"{side}_unnamed"]:
             filer_side = "customer" if side == "supplier" else "supplier"
             filer_id = ids[filer_side]

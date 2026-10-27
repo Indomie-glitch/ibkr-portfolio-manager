@@ -196,6 +196,39 @@ class CounterpartyTests(VerifierTestCase):
         name = self.conn.execute("SELECT name FROM companies WHERE is_placeholder = 1").fetchone()[0]
         self.assertTrue(name.endswith("year to 2026-01-25)"))
 
+    def private_supplier(self, name="Groq", **fields):
+        return self.add_candidate(supplier_name=name, supplier_private=1, supplier_id=None, resolved_by="private_pending",
+                                  quote=f"We rely on {name} to manufacture all of our wafers, and it supplied 100% of our wafers in fiscal 2026.", **fields)
+
+    def test_a_confirmed_private_counterparty_becomes_a_private_company(self):
+        candidate = self.private_supplier("OpenAI, L.P.")
+        self.verify()
+        link = self.relationships()[0]
+        company = self.conn.execute("SELECT * FROM companies WHERE id = ?", (link["supplier_id"],)).fetchone()
+        self.assertEqual((company["name"], company["is_private"], company["is_placeholder"]), ("OpenAI, Inc.", 1, 0))
+        self.assertEqual(self.candidate(candidate)["status"], "linked")
+        self.assertEqual(integrity.check(self.conn), [])
+
+    def test_two_spellings_land_on_one_company_and_one_link(self):
+        self.private_supplier("OpenAI")
+        self.private_supplier("OpenAI, L.P.")
+        self.verify()
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM companies WHERE is_private = 1").fetchone()[0], 1)
+        self.assertEqual(len(self.relationships()), 1)
+
+    def test_a_private_counterparty_the_verifier_rejects_creates_no_company(self):
+        candidate = self.private_supplier("Groq")
+        self.verify(lambda message, request: response([verdict(1, "not_supported")]))
+        self.assertEqual(self.candidate(candidate)["status"], "not_supported")
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM companies WHERE is_private = 1").fetchone()[0], 0)
+        self.assertEqual(self.relationships(), [])
+
+    def test_a_private_counterparty_with_the_link_unsupported_creates_no_company(self):
+        self.private_supplier("Groq")
+        self.verify(lambda message, request: response([verdict(1, "partly_supported", ["supplier"])]))
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM companies WHERE is_private = 1").fetchone()[0], 0)
+        self.assertEqual(self.rejected()[0]["reason"], "partly_supported_link")
+
     def test_the_claim_marks_an_unnamed_counterparty(self):
         self.beta_customer(customer_name="Customer A", customer_id=None, customer_unnamed=1)
         _, client = self.verify()

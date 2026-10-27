@@ -323,10 +323,15 @@ async def _outcomes(conn, found, filer, resolve):
         row["supplier_id" if side == "customer" else "customer_id"] = filer["id"]
         row[f"{side}_id"] = None
         row["resolved_by"] = None
+        row["supplier_private"] = row["customer_private"] = 0
         if not row["unnamed"]:
             match = await resolve(conn, row["counterparty"])
             if match["status"] == "unavailable":
                 raise RuntimeError(f"name lookup unavailable for {row['counterparty']}: {match.get('detail')}")
+            if resolver.can_be_private(row["counterparty"], match):  # kept for the Verifier; the company is made only if it confirms
+                row[f"{side}_private"], row["resolved_by"] = 1, "private_pending"
+                outcomes.append(("candidate", row))
+                continue
             if match["status"] != "matched":
                 outcomes.append(("rejected", "unresolved_company", f"{match.get('reason')}: {match.get('detail') or ''}".strip(": "), answer, row))
                 continue
@@ -339,7 +344,7 @@ async def _outcomes(conn, found, filer, resolve):
 
 
 CANDIDATE_COLUMNS = ("kind", "counterparty_role", "supplier_name", "customer_name", "supplier_is_filer", "customer_is_filer",
-                     "supplier_unnamed", "customer_unnamed", "supplier_id", "customer_id", "resolved_by", "what",
+                     "supplier_unnamed", "customer_unnamed", "supplier_private", "customer_private", "supplier_id", "customer_id", "resolved_by", "what",
                      "supplier_revenue_share", "customer_supply_share", "customer_share_scope", "share_as_written", "share_dropped",
                      "period_as_written", "stated_on", "ended", "quote", "locator", "context")
 

@@ -41,6 +41,10 @@ UNNAMED = re.compile(r"^(?:(?:one|two|three|a|an|our|the|certain|several|major|l
                      r"(?:(?:large|major|significant|key|principal|enterprise|direct|indirect|end|channel|oem|retail)\s+)*"
                      r"(?:customer|customers|distributor|distributors|partner|partners|reseller|resellers|client|clients|supplier|suppliers|"
                      r"licensee|licensees|vendor|vendors)(?:\s+(?:[a-z]|\d+|one|two|three|four|five))?$")
+# A name that ends like a listed company's ("... Co., Ltd.", "... plc", "... AG") or names a stock exchange is not taken for a
+# private one when the resolver finds nothing (#334); seed/aliases.json says otherwise for the ones known to be private.
+LOOKS_LISTED = re.compile(r"(?:\bco\.?,?\s+ltd\.?|\bltd\.?|\blimited|\bplc|\bag|\bs\.?a\.?|\bn\.?v\.?|\bk\.?k\.?|\bspa|\basa|\bpcl|\btbk)\W*$"
+                          r"|\((?:nyse|nasdaq|asx|tse|twse|tpex|hkex|krx|sse|szse|lse|euronext)\b", re.IGNORECASE)
 SAME_COMPANY_CAP_RATIO = 1.01  # share classes report one company market cap
 
 
@@ -73,6 +77,43 @@ def alias_entries(path=None):
         entries = json.loads(path.read_text(encoding="utf-8"))["aliases"]
         _alias_cache[path] = {name_key(alias): entry for entry in entries for alias in entry["aliases"]}
     return _alias_cache[path]
+
+
+def looks_listed(name):
+    return bool(LOOKS_LISTED.search(" ".join(str(name or "").split())))
+
+
+def private_alias(name):
+    """The seed/aliases.json entry marked private that this name belongs to, or None."""
+    entry = alias_entries().get(name_key(name))
+    return entry if entry and entry.get("private") else None
+
+
+def can_be_private(name, match):
+    """Whether a name the resolver couldn't match may be a private company, to be created once the Verifier confirms it
+    (#334): only a plain no_match (not ambiguous, not a subsidiary of a known company), and a name that doesn't look listed
+    unless the alias list says it is private."""
+    return match.get("status") == "skipped" and match.get("reason") == "no_match" and (private_alias(name) is not None or not looks_listed(name))
+
+
+def private_company(conn, name):
+    """The private company for this name, made on first use: keyed by name_key and by the alias list, so "OpenAI" and "OpenAI,
+    L.P." land on one company. Called only for a counterparty the Verifier has confirmed. Returns the company id."""
+    entry = private_alias(name)
+    keys = {name_key(name)} | ({name_key(entry["name"])} | {name_key(a) for a in entry["aliases"]} if entry else set())
+    known = sorted({c for key in keys for c in store_candidates(conn, key)})
+    if known:
+        company_id = known[0]
+    else:
+        company_id = graph.add_company(conn, entry["name"] if entry else " ".join(str(name).split()))
+        conn.execute("UPDATE companies SET is_private = 1 WHERE id = ?", (company_id,))
+    for key in keys:
+        try:
+            graph.add_identifier(conn, company_id, "name", key, source="verified_private")
+        except graph.IdentifierConflict:
+            pass  # that name already belongs to another company: the one found above stays
+        _save(conn, name, key, result("matched", company_id, "verified_private", detail="a private company the Verifier confirmed"))
+    return company_id
 
 
 def result(status, company_id=None, method=None, reason=None, detail=None, cached=False):
@@ -244,7 +285,7 @@ async def resolve(conn, name, index_companies=None, search=None, retry_skipped_d
 
     # 1b. the alias list: stored with the company as a name identifier, so the next time it's the store that answers
     entry = alias_entries().get(key)
-    if entry:
+    if entry and not entry.get("private"):  # a private one is made only when the Verifier has confirmed it (private_company)
         return _matched(conn, name, key, [(entry["ticker"], entry["market"])], entry["name"], "alias_list",
                         f"common name of {entry['name']} ({entry['ticker']}, {entry['market']})")
 

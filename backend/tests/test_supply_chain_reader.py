@@ -237,12 +237,34 @@ class CounterpartyTests(ReaderTestCase):
         self.assertEqual([r["reason"] for r in self.rejected()], ["generic_counterparty", "generic_counterparty"])
         self.assertEqual(self.candidates(), [])
 
-    def test_a_name_the_resolver_cant_match_is_rejected(self):
+    def test_a_listed_looking_name_the_resolver_cant_match_is_rejected(self):
+        self.names.pop("Gamma Foundry Ltd.")
+        self.read({"Item 1A. Risk Factors": [relationship(party("Gamma Foundry Ltd."), ACME, "supplier",
+                                                          "We depend on a single supplier, Gamma Foundry Ltd., for substantially all of our wafers.")]})
+        row = self.rejected()[0]
+        self.assertEqual((row["reason"], row["supplier_name"], row["customer_name"]), ("unresolved_company", "Gamma Foundry Ltd.", "Acme Semiconductor Inc."))
+        self.assertIn("no_match", row["detail"])
+        self.assertEqual(self.candidates(), [])
+
+    def test_a_name_the_resolver_cant_match_waits_for_the_verifier_as_a_possible_private_company(self):
         self.names.pop("Gamma Foundry")
         self.read({"Item 1. Business": [GAMMA_SUPPLIES]})
-        row = self.rejected()[0]
-        self.assertEqual((row["reason"], row["supplier_name"], row["customer_name"]), ("unresolved_company", "Gamma Foundry", "Acme Semiconductor Inc."))
-        self.assertIn("no_match", row["detail"])
+        row = self.candidates()[0]
+        self.assertEqual((row["supplier_name"], row["supplier_private"], row["supplier_id"], row["customer_private"], row["resolved_by"]),
+                         ("Gamma Foundry", 1, None, 0, "private_pending"))
+        self.assertEqual(self.rejected(), [])
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM companies WHERE is_private = 1").fetchone()[0], 0)  # nothing made yet
+
+    def test_ambiguous_and_subsidiary_misses_stay_rejected(self):
+        for reason in ("ambiguous", "possible_subsidiary"):
+            self.names.pop("Gamma Foundry", None)
+
+            async def resolve(conn, name, reason=reason):
+                return {"status": "skipped", "reason": reason, "detail": "x"}
+            totals = run(reader.read_document(self.conn, self.document, client=FakeClient({"Item 1. Business": [GAMMA_SUPPLIES]}), resolve=resolve))
+            self.assertEqual(totals["candidates"], 0)
+            self.conn.execute("DELETE FROM chunk_reads")
+        self.assertEqual({r["reason"] for r in self.rejected()}, {"unresolved_company"})
 
     def test_a_name_that_resolves_to_the_filer_is_rejected(self):
         self.names["Beta Corp"] = self.acme
