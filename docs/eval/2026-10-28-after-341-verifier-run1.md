@@ -1,0 +1,187 @@
+# Supply chain evaluation: after-341-verifier (run 1 of 3)
+
+Run 2026-10-28 00:19 · commit 57e887d + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
+
+## Summary
+
+| | |
+|---|---|
+| Known relationships | 90 (30 headline; 7 added to the file after reviewing the first run) |
+| **Found** (right companies, and for unnamed ones the right share and year) | **69** (77% recall) |
+| Found with the right share but another year | 3 |
+| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 80%) |
+| Headline cases found | 25 of 30 |
+| Missed | 18 |
+| Links in the result | 83 |
+| **Wrong links** (match nothing in the truth; to review below) | **4** (precision 95%) |
+| Wrong numbers on found links | 0 |
+| Ended relationships | 1 of 4 found; 1 of those marked ended |
+| Wrongly ended | 0 |
+| Links made from a trap sentence | 2 |
+| Duplicate unnamed counterparties | 0 extra links in 0 groups |
+| Confidence level of the found links | medium 72 |
+| **Cost** | **US$0.272** (Reader US$0.000, Verifier US$0.272) |
+| Tokens | Reader 0 in / 0 out · Verifier 93,977 in / 8,386 out |
+| Reader answers | 33 from the cache (they cost US$0.109 when first read), 0 read now; cost read afresh US$0.380 |
+
+## Recall by kind of case
+
+| Case | Known | Found |
+|---|---|---|
+| 8k agreement | 2 | 1 |
+| china listed | 2 | 1 |
+| distributor | 1 | 1 |
+| ended | 4 | 1 |
+| named customer | 17 | 15 |
+| named supplier | 24 | 21 |
+| partnership | 5 | 2 |
+| private | 22 | 14 |
+| risk factor | 7 | 6 |
+| unnamed customer | 24 | 20 |
+| unnamed supplier | 14 | 8 |
+
+## Candidates and rejections
+
+Candidates by status: linked 106, not_supported 4, partly_supported 4
+
+| Rejected | Count |
+|---|---|
+| unresolved_company (rule) | 9 |
+| not_supported (verifier) | 4 |
+| partly_supported_link (verifier) | 4 |
+
+## Missed
+
+- **nvda-8k-2026-08-17** NVIDIA → OpenAI (headline): rejected: not_supported (verifier) - Context describes OpenAI as tenant agreeing to reimburse and indemnify NVIDIA, a reimburse
+- **amd-10k-fy25** GlobalFoundries → AMD (headline): the Reader did not return it
+- **amd-10k-fy25** Tongfu Microelectronics → AMD: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **smci-10k-fy26** Corporate Venture → Super Micro Computer (headline): the Reader did not return it
+- **smci-10k-fy26** Ablecom → Super Micro Computer: the Reader did not return it
+- **smci-10k-fy26** Compuware → Super Micro Computer: the Reader did not return it
+- **crwv-10k-fy25** (largest of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (second of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (third of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (largest of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (second of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** (third of three suppliers) → CoreWeave: the Reader did not return it
+- **crwv-10k-fy25** CoreWeave → (Customer B): the Reader did not return it
+- **dell-10k-fy26** VMware → Dell: rejected: partly_supported_link (verifier) - Context says Dell acted as distributor of VMware standalone products and terminated the ag
+- **arm-20f-fy26** Arm → Arm China: the Reader did not return it
+- **arm-20f-fy26** Arm → Arm China: the Reader did not return it
+- **arm-20f-fy26** Arm → Nuvia (headline): rejected: not_supported (verifier) - Arm terminated Nuvia's ALA in March 2022, and the context describes a licensor-licensee di
+- **arm-20f-fy26** Arm China → Arm (headline): the Reader did not return it
+
+## Found with another year
+
+- **nvda-10k-fy26** NVIDIA → (one direct customer) (known: year to 2025-01-26) was made as `Customer 1 of 3 in the 10-K filed 2026-02-25 (unnamed customer of NVIDIA Corporation, year to 2026-01-25)`
+- **nvda-10k-fy26** NVIDIA → (two direct customers (first)) (known: year to 2025-01-26) was made as `Customer 2 of 3 in the 10-K filed 2026-02-25 (unnamed customer of NVIDIA Corporation, year to 2026-01-25)`
+- **nvda-10k-fy26** NVIDIA → (two direct customers (second)) (known: year to 2025-01-26) was made as `Customer 3 of 3 in the 10-K filed 2026-02-25 (unnamed customer of NVIDIA Corporation, year to 2026-01-25)`
+
+## Wrong links (4)
+
+These match nothing in the truth. Each needs a look: a wrong link, or a true one the annotation missed (then it goes into the file).
+
+- **nvda-10k-fy26** NVIDIA Corporation → Customer 1 of 1 in the 10-K filed 2026-02-25 (unnamed customer of NVIDIA Corporation, year to 2026-01-25) (supplies · 13% of revenue, medium): For fiscal year 2024, sales to one direct customer represented 13% of total revenue, and were primarily attributable to the Compute & Networking segment.
+- **crwv-10k-fy25** CoreWeave, Inc. ↔ third-party infrastructure developer in the 10-K filed 2026-03-02 (unnamed customer of CoreWeave, Inc., year to 2025-12-31) (partnership, medium): For example, in June 2025, we entered into a joint venture with a third-party infrastructure developer, to support the acquisition and development of a multi-phase data center campus in Kenilworth, Ne
+- **arm-20f-fy26** Arm Holdings plc ↔ Acorn Computers (partnership, medium): Established in 1990, Arm began as a joint venture between Acorn Computers, Apple Computer, and VLSI Technology.
+- **arm-20f-fy26** Arm Holdings plc ↔ VLSI Technology (partnership, medium): Established in 1990, Arm began as a joint venture between Acorn Computers, Apple Computer, and VLSI Technology.
+
+## Links made from trap sentences
+
+- **arm-20f-fy26** Arm Holdings plc → Acorn Computers: history: how Arm was founded in 1990, not a current relationship
+- **arm-20f-fy26** Arm Holdings plc → VLSI Technology: history: how Arm was founded in 1990, not a current relationship
+
+## Every known relationship
+
+| Filing | Supplier | Customer | Result | Confidence |
+|---|---|---|---|---|
+| nvda-10k-fy26 | TSMC | NVIDIA | found (headline) | medium |
+| nvda-10k-fy26 | Samsung | NVIDIA | found | medium |
+| nvda-10k-fy26 | SK hynix | NVIDIA | found (headline) | medium |
+| nvda-10k-fy26 | Micron | NVIDIA | found | medium |
+| nvda-10k-fy26 | Hon Hai | NVIDIA | found | medium |
+| nvda-10k-fy26 | Wistron | NVIDIA | found | medium |
+| nvda-10k-fy26 | Fabrinet | NVIDIA | found | medium |
+| nvda-10k-fy26 | Groq | NVIDIA | found (headline) | medium |
+| nvda-10k-fy26 | NVIDIA | (one direct customer) | found (headline) | medium |
+| nvda-10k-fy26 | NVIDIA | (another direct customer) | found (headline) | medium |
+| nvda-10k-fy26 | NVIDIA | (one direct customer) | found other year | medium |
+| nvda-10k-fy26 | NVIDIA | (two direct customers (first)) | found other year | medium |
+| nvda-10k-fy26 | NVIDIA | (two direct customers (second)) | found other year | medium |
+| nvda-10k-fy26 | NVIDIA | (one direct customer) | found | medium |
+| nvda-8k-2026-08-17 | SB Energy | NVIDIA | found (headline) | medium |
+| nvda-8k-2026-08-17 | NVIDIA | OpenAI | missed (headline) |  |
+| amd-10k-fy25 | TSMC | AMD | found (headline) | medium |
+| amd-10k-fy25 | GlobalFoundries | AMD | missed (headline) |  |
+| amd-10k-fy25 | UMC | AMD | found | medium |
+| amd-10k-fy25 | Samsung | AMD | found | medium |
+| amd-10k-fy25 | SPIL | AMD | found | medium |
+| amd-10k-fy25 | King Yuan Electronics | AMD | found | medium |
+| amd-10k-fy25 | Tongfu Microelectronics | AMD | found | medium |
+| amd-10k-fy25 | Tongfu Microelectronics | AMD | missed |  |
+| amd-10k-fy25 | Higon (THATIC) | AMD | found | medium |
+| amd-10k-fy25 | Sanmina | AMD | found (headline) | medium |
+| amd-10k-fy25 | AMD | OpenAI | found (headline) | medium |
+| amd-10k-fy25 | AMD | (one Client and Gaming segment customer) | found | medium |
+| amd-10k-fy25 | AMD | Sony | found | medium |
+| smci-10k-fy26 | Ablecom | Super Micro Computer | found (headline) | medium |
+| smci-10k-fy26 | Compuware | Super Micro Computer | found (headline) | medium |
+| smci-10k-fy26 | Super Micro Computer | Compuware | found | medium |
+| smci-10k-fy26 | Leadtek | Super Micro Computer | found (headline) | medium |
+| smci-10k-fy26 | Super Micro Computer | Leadtek | found | medium |
+| smci-10k-fy26 | Super Micro Computer | Corporate Venture | found | medium |
+| smci-10k-fy26 | Corporate Venture | Super Micro Computer | missed (headline) |  |
+| smci-10k-fy26 | (one supplier) | Super Micro Computer | found (headline) | medium |
+| smci-10k-fy26 | (first of two suppliers) | Super Micro Computer | found | medium |
+| smci-10k-fy26 | (second of two suppliers) | Super Micro Computer | found | medium |
+| smci-10k-fy26 | (first of two suppliers) | Super Micro Computer | found | medium |
+| smci-10k-fy26 | (second of two suppliers) | Super Micro Computer | found | medium |
+| smci-10k-fy26 | Super Micro Computer | (one customer) | found (headline) | medium |
+| smci-10k-fy26 | Super Micro Computer | (first of four customers) | found | medium |
+| smci-10k-fy26 | Super Micro Computer | (second of four customers) | found | medium |
+| smci-10k-fy26 | Super Micro Computer | (third of four customers) | found | medium |
+| smci-10k-fy26 | Super Micro Computer | (fourth of four customers) | found | medium |
+| smci-10k-fy26 | Super Micro Computer | (one customer) | found | medium |
+| smci-10k-fy26 | Ablecom | Super Micro Computer | missed |  |
+| smci-10k-fy26 | Compuware | Super Micro Computer | missed |  |
+| crwv-10k-fy25 | CoreWeave | Microsoft | found (headline) | medium |
+| crwv-10k-fy25 | CoreWeave | OpenAI | found (headline) | medium |
+| crwv-10k-fy25 | CoreWeave | Meta | found (headline) | medium |
+| crwv-10k-fy25 | NVIDIA | CoreWeave | found (headline) | medium |
+| crwv-10k-fy25 | (largest of three suppliers) | CoreWeave | found (headline) | medium |
+| crwv-10k-fy25 | (second of three suppliers) | CoreWeave | found | medium |
+| crwv-10k-fy25 | (third of three suppliers) | CoreWeave | found | medium |
+| crwv-10k-fy25 | (largest of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (second of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (third of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (largest of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (second of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | (third of three suppliers) | CoreWeave | missed |  |
+| crwv-10k-fy25 | CoreWeave | (Customer B) | found | medium |
+| crwv-10k-fy25 | CoreWeave | (Customer B) | missed |  |
+| crwv-10k-fy25 | CoreWeave | (Customer C) | found | medium |
+| crwv-10k-fy25 | NVIDIA | CoreWeave | found | medium |
+| crwv-10k-fy25 | CoreWeave | MagAI Ventures | found | medium |
+| amkr-10k-fy25 | Amkor | Apple | found (headline) | medium |
+| amkr-10k-fy25 | Amkor | Qualcomm | found (headline) | medium |
+| dell-10k-fy26 | VMware | Dell | found (headline) | medium |
+| dell-10k-fy26 | Dell | (one customer) | found (headline) | medium |
+| dell-10k-fy26 | VMware | Dell | missed |  |
+| dell-10k-fy26 | Dell | VMware | found | medium |
+| arm-20f-fy26 | Arm | Arm China | found (headline) | medium |
+| arm-20f-fy26 | Arm | Arm China | missed |  |
+| arm-20f-fy26 | Arm | Arm China | missed |  |
+| arm-20f-fy26 | Arm | Qualcomm | found (headline) | medium |
+| arm-20f-fy26 | Arm | SoftBank Group | found | medium |
+| arm-20f-fy26 | Arm | Ampere | found | medium |
+| arm-20f-fy26 | Ampere | Arm | found | medium |
+| arm-20f-fy26 | Linaro | Arm | found | medium |
+| arm-20f-fy26 | Arm | Nuvia | missed (headline) |  |
+| arm-20f-fy26 | Arm China | Arm | missed (headline) |  |
+| arm-20f-fy26 | Arm | (second largest customer) | found | medium |
+| arm-20f-fy26 | Arm | (third largest customer) | found | medium |
+| arm-20f-fy26 | Arm | (second largest customer) | found | medium |
+| arm-20f-fy26 | Arm | (third largest customer) | found | medium |
+| arm-20f-fy26 | Arm | (fourth largest customer) | found | medium |
+| arm-20f-fy26 | Arm | (second largest customer) | found | medium |
+| arm-20f-fy26 | Arm | (third largest customer) | found | medium |

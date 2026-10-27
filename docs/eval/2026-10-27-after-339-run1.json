@@ -46,8 +46,8 @@
   "ended_missed": 0,
   "wrongly_ended": 1,
   "trap_links": 3,
-  "duplicate_groups": 1,
-  "duplicate_links": 1,
+  "duplicate_groups": 0,
+  "duplicate_links": 0,
   "rejected": {
    "unresolved_company (rule)": 7,
    "partly_supported_link (verifier)": 6,

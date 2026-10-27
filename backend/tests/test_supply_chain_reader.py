@@ -242,6 +242,7 @@ class PlannedAndLeaseTests(unittest.TestCase):
             text = " ".join(prompt.split())
             self.assertIn("being finalized", text)
             self.assertIn("there is no assurance that we will enter into", text)
+        self.assertIn("never mark it unsupported for being unnamed", " ".join(verifier.SYSTEM_PROMPT.split()))
         self.assertIn("leases of office or data-centre space unless the passage names the other party", " ".join(reader.SYSTEM_PROMPT.split()))
 
 

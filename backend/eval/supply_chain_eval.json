@@ -2772,6 +2772,56 @@
      "quote": "Customer A | 67 % | 62 % | 35 %",
      "note": "Customer A of that year (the table's own label; the customer may differ between years)",
      "late": true
+    },
+    {
+     "id": "crwv-10k-fy25#24",
+     "headline": false,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "AMD",
+     "customer": "CoreWeave",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "CPUs",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 94,
+     "quote": "CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.",
+     "late": true,
+     "note": "CoreWeave uses their CPUs; who it buys them from is not said"
+    },
+    {
+     "id": "crwv-10k-fy25#25",
+     "headline": false,
+     "categories": [
+      "named_supplier"
+     ],
+     "supplier": "Intel",
+     "customer": "CoreWeave",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "CPUs",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 94,
+     "quote": "CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.",
+     "late": true,
+     "note": "CoreWeave uses their CPUs; who it buys them from is not said"
     }
    ],
    "not_relationships": [

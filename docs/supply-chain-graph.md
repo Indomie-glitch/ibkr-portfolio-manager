@@ -321,6 +321,18 @@ Each decision is saved in `name_resolutions` (matched: `method`; skipped: `reaso
 
 What the misses are (medium): 30 were never returned by the Reader (mostly statements about several unnamed counterparties at once, "sales to four customers represented 20.9%, 11.5%, 11.3% and 11.1%", which its prompt tells it to leave out as groups); 17 were rejected as `unresolved_company` (private companies such as OpenAI, Groq, Ablecom and Compuware, and China- or Taiwan-listed ones such as Tongfu); the others one wrong direction and two "groups". Every found link was "high" confidence whatever the evidence (fixed by #333: after it, all 31 found links in the 27 Oct rerun are "medium", since each filing is one document). The Verifier once dropped a correct stated number (Dell's 12%).
 
+**After the Milestone 11 fixes** (means of 3 runs, truth file of 90 after reviewing each run's extra links; Reader answers cached, so a change that doesn't touch the Reader is measured on the same Reader output):
+
+| | Found | Headline (of 30) | Wrong links | Wrong numbers | Trap links | Cost |
+|---|---|---|---|---|---|---|
+| Baseline (main, 27 Oct) | 32.7 | 14.7 | 0.7 | 0 | 0.3 | US$0.23 |
+| #333 confidence | 32.7 | 15.3 | 0.7 | 0 | 0.3 | US$0.23 |
+| #334 private companies, planned agreements | 47.0 | 22.3 | 3.3 | 0 | 2.3 | US$0.32 |
+| #335 join duplicate placeholders | 48.3 | 23.7 | 3.7 | 0 | 2.3 | US$0.33 |
+| #341 one counterparty per stated share, table rows | 64.0 | 23.7 | 2.3 | 0 | 1.3 | US$0.37 |
+
+The remaining wrong and trap links are Arm's 1990 founding joint venture (history), CoreWeave's joint venture with an unnamed infrastructure developer, and a 13% NVIDIA customer filed under the wrong year. The Verifier is not deterministic either: on identical Reader answers wrong links range 0 to 4.
+
 ## What runs first, and how much it may spend (#126)
 
 `supply_chain/orchestrator.py` sits on top of the job queue and the monthly budget.

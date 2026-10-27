@@ -1,0 +1,47 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 6563,
+    "output_tokens": 292
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 6563,
+    "output_tokens": 245
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[]}"
+    }
+   ]
+  },
+  "2": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 6563,
+    "output_tokens": 330
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[]}"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,585 @@
+{
+ "label": "after-341 (run 2 of 3)",
+ "run": {
+  "reader_cost": 0.1087515,
+  "verifier_cost": 0.252426,
+  "reader_in": 692125,
+  "reader_out": 79078,
+  "verifier_in": 87918,
+  "verifier_out": 7659,
+  "declined": 0,
+  "deferred": 0,
+  "merge": {
+   "relationships": 77,
+   "changed": 0,
+   "partnerships": 0,
+   "upgraded": 4,
+   "joined": 0
+  },
+  "reader_cache": {
+   "hits": 0,
+   "misses": 33,
+   "saved_usd": 0.0
+  },
+  "reader_effort": "medium",
+  "verifier_effort": "medium",
+  "fresh": true,
+  "run_index": 1
+ },
+ "metrics": {
+  "truth": 90,
+  "found": 62,
+  "found_other_year": 4,
+  "found_no_number": 0,
+  "missed": 24,
+  "recall": 0.689,
+  "recall_loose": 0.733,
+  "headline": 30,
+  "headline_found": 22,
+  "links": 73,
+  "wrong_links": 0,
+  "precision": 1.0,
+  "wrong_numbers": 0,
+  "ended_truth": 4,
+  "ended_found": 2,
+  "ended_marked": 2,
+  "ended_missed": 0,
+  "wrongly_ended": 1,
+  "trap_links": 0,
+  "duplicate_groups": 0,
+  "duplicate_links": 0,
+  "rejected": {
+   "partly_supported_link (verifier)": 10,
+   "unresolved_company (rule)": 9,
+   "not_supported (verifier)": 4,
+   "quote_not_found (rule)": 2,
+   "name_not_in_text (rule)": 1,
+   "not_about_filer (rule)": 1,
+   "generic_counterparty (rule)": 1
+  },
+  "candidates": {
+   "linked": 92,
+   "not_supported": 4,
+   "partly_supported": 10
+  },
+  "confidence_levels_of_found": {
+   "medium": 66
+  },
+  "categories": {
+   "8k_agreement": {
+    "truth": 2,
+    "found": 1
+   },
+   "china_listed": {
+    "truth": 2,
+    "found": 1
+   },
+   "distributor": {
+    "truth": 1,
+    "found": 1
+   },
+   "ended": {
+    "truth": 4,
+    "found": 2
+   },
+   "named_customer": {
+    "truth": 17,
+    "found": 15
+   },
+   "named_supplier": {
+    "truth": 24,
+    "found": 19
+   },
+   "partnership": {
+    "truth": 5,
+    "found": 3
+   },
+   "private": {
+    "truth": 22,
+    "found": 16
+   },
+   "risk_factor": {
+    "truth": 7,
+    "found": 5
+   },
+   "unnamed_customer": {
+    "truth": 24,
+    "found": 18
+   },
+   "unnamed_supplier": {
+    "truth": 14,
+    "found": 3
+   }
+  },
+  "per_item": {
+   "nvda-10k-fy26#1": {
+    "result": "found",
+    "link": 1,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#2": {
+    "result": "found",
+    "link": 2,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#3": {
+    "result": "found",
+    "link": 3,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#4": {
+    "result": "found",
+    "link": 4,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#5": {
+    "result": "found",
+    "link": 5,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#6": {
+    "result": "found",
+    "link": 6,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#7": {
+    "result": "found",
+    "link": 7,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#8": {
+    "result": "found",
+    "link": 8,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#9": {
+    "result": "found",
+    "link": 9,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#10": {
+    "result": "found",
+    "link": 10,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#11": {
+    "result": "found_other_year",
+    "link": 11,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#12": {
+    "result": "found_other_year",
+    "link": 12,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#13": {
+    "result": "found_other_year",
+    "link": 13,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-10k-fy26#14": {
+    "result": "found_other_year",
+    "link": 14,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-8k-2026-08-17#1": {
+    "result": "found",
+    "link": 15,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "nvda-8k-2026-08-17#2": {
+    "result": "missed"
+   },
+   "amd-10k-fy25#1": {
+    "result": "missed"
+   },
+   "amd-10k-fy25#2": {
+    "result": "missed"
+   },
+   "amd-10k-fy25#3": {
+    "result": "found",
+    "link": 17,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#4": {
+    "result": "found",
+    "link": 18,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#5": {
+    "result": "found",
+    "link": 19,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#6": {
+    "result": "found",
+    "link": 20,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#7": {
+    "result": "found",
+    "link": 22,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#8": {
+    "result": "missed"
+   },
+   "amd-10k-fy25#9": {
+    "result": "found",
+    "link": 21,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#10": {
+    "result": "missed"
+   },
+   "amd-10k-fy25#11": {
+    "result": "found",
+    "link": 16,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#12": {
+    "result": "found",
+    "link": 23,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amd-10k-fy25#18": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#1": {
+    "result": "found",
+    "link": 24,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#2": {
+    "result": "found",
+    "link": 25,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#3": {
+    "result": "found",
+    "link": 26,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#4": {
+    "result": "found",
+    "link": 33,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#5": {
+    "result": "found",
+    "link": 32,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#6": {
+    "result": "found",
+    "link": 31,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#7": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#8": {
+    "result": "found",
+    "link": 28,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#9": {
+    "result": "found",
+    "link": 29,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#10": {
+    "result": "found",
+    "link": 30,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#11": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#12": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#13": {
+    "result": "found",
+    "link": 34,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#14": {
+    "result": "found",
+    "link": 35,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#15": {
+    "result": "found",
+    "link": 36,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#16": {
+    "result": "found",
+    "link": 37,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#17": {
+    "result": "found",
+    "link": 38,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#18": {
+    "result": "found",
+    "link": 39,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "smci-10k-fy26#25": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#26": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#1": {
+    "result": "found",
+    "link": 43,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#2": {
+    "result": "found",
+    "link": 44,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#3": {
+    "result": "found",
+    "link": 45,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#4": {
+    "result": "found",
+    "link": 42,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#5": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#6": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#7": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#8": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#9": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#10": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#11": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#12": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#13": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#14": {
+    "result": "found",
+    "link": 48,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#15": {
+    "result": "missed"
+   },
+   "crwv-10k-fy25#16": {
+    "result": "found",
+    "link": 49,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#19": {
+    "result": "found",
+    "link": 46,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "crwv-10k-fy25#21": {
+    "result": "found",
+    "link": 50,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amkr-10k-fy25#1": {
+    "result": "found",
+    "link": 51,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amkr-10k-fy25#2": {
+    "result": "found",
+    "link": 52,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "dell-10k-fy26#1": {
+    "result": "found",
+    "link": 55,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "dell-10k-fy26#2": {
+    "result": "missed"
+   },
+   "dell-10k-fy26#3": {
+    "result": "found",
+    "link": 57,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "dell-10k-fy26#4": {
+    "result": "found",
+    "link": 56,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#1": {
+    "result": "found",
+    "link": 58,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#2": {
+    "result": "found",
+    "link": 63,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#3": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#4": {
+    "result": "found",
+    "link": 59,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#5": {
+    "result": "found",
+    "link": 60,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#6": {
+    "result": "found",
+    "link": 64,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#7": {
+    "result": "found",
+    "link": 65,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#8": {
+    "result": "found",
+    "link": 67,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#9": {
+    "result": "found",
+    "link": 62,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#10": {
+    "result": "missed"
+   },
+   "arm-20f-fy26#11": {
+    "result": "found",
+    "link": 69,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#12": {
+    "result": "found",
+    "link": 70,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#13": {
+    "result": "found",
+    "link": 72,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#14": {
+    "result": "found",
+    "link": 73,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#15": {
+    "result": "found",
+    "link": 74,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#16": {
+    "result": "found",
+    "link": 76,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "arm-20f-fy26#17": {
+    "result": "found",
+    "link": 77,
+    "confidence": 0.6,
+    "level": "medium"
+   }
+  }
+ }
+}

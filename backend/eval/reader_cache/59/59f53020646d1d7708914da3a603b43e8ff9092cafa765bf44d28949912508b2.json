@@ -1,0 +1,47 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 3686,
+    "output_tokens": 2219
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"NVIDIA Corporation\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"SB Energy Corp.\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":\"development of the PORTS Technology Campus\",\"quote\":\"On August 17, 2026, NVIDIA Corporation (“NVIDIA”) announced a multi-year partnership with SB Energy Corp. (collectively with its affiliates, “SB Energy”) to advance the development of the PORTS Technology Campus, a large-scale AI data center campus in Pike County, Ohio (the “Portsmouth Site”).\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"August 17, 2026\",\"stated_on\":\"2026-08-17\",\"ended\":false},{\"supplier\":{\"name\":\"NVIDIA Corporation\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"SB Energy Corp.\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":\"residual value guaranties relating to leases at the Portsmouth Site\",\"quote\":\"On August 17, 2026, NVIDIA entered into multiple residual value guaranties (collectively, the “Agreements”) with SB Energy (the “Lessor”) relating to leases for approximately 4.25 gigawatts of IT load in the aggregate at the Portsmouth Site.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"August 17, 2026\",\"stated_on\":\"2026-08-17\",\"ended\":false},{\"supplier\":{\"name\":\"NVIDIA Corporation\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"OpenAI\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":\"reimbursement and indemnification of amounts paid by NVIDIA to the Lessor under the Agreements\",\"quote\":\"OpenAI has agreed to reimburse and indemnify NVIDIA for any and all amounts actually paid by NVIDIA to the Lessor under the Agreements.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"August 17, 2026\",\"stated_on\":\"2026-08-17\",\"ended\":false}]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 3686,
+    "output_tokens": 1379
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"NVIDIA Corporation\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"SB Energy Corp.\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":\"Development of the PORTS Technology Campus, a large-scale AI data center campus in Pike County, Ohio\",\"quote\":\"On August 17, 2026, NVIDIA Corporation (“NVIDIA”) announced a multi-year partnership with SB Energy Corp. (collectively with its affiliates, “SB Energy”) to advance the development of the PORTS Technology Campus, a large-scale AI data center campus in Pike County, Ohio (the “Portsmouth Site”).\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"August 17, 2026\",\"stated_on\":\"2026-08-17\",\"ended\":false}]}"
+    }
+   ]
+  },
+  "2": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 3686,
+    "output_tokens": 1655
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"NVIDIA Corporation\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"SB Energy Corp.\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":\"partnership to advance the development of the PORTS Technology Campus\",\"quote\":\"On August 17, 2026, NVIDIA Corporation (“NVIDIA”) announced a multi-year partnership with SB Energy Corp. (collectively with its affiliates, “SB Energy”) to advance the development of the PORTS Technology Campus, a large-scale AI data center campus in Pike County, Ohio (the “Portsmouth Site”).\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"August 17, 2026\",\"stated_on\":\"2026-08-17\",\"ended\":false},{\"supplier\":{\"name\":\"NVIDIA Corporation\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"SB Energy Corp.\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":\"residual value guaranties relating to leases for approximately 4.25 gigawatts of IT load at the Portsmouth Site\",\"quote\":\"On August 17, 2026, NVIDIA entered into multiple residual value guaranties (collectively, the “Agreements”) with SB Energy (the “Lessor”) relating to leases for approximately 4.25 gigawatts of IT load in the aggregate at the Portsmouth Site.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"August 17, 2026\",\"stated_on\":\"2026-08-17\",\"ended\":false}]}"
+    }
+   ]
+  }
+ }
+}

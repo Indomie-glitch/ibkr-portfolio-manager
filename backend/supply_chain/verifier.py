@@ -55,7 +55,9 @@ For each item give:
 - verdict: "supported" if the context states everything in the claim; "partly_supported" if it states the \
 relationship but not every detail; "not_supported" if it doesn't state this relationship between these companies.
 - unsupported_fields: every field of the claim the context doesn't support:
-  - supplier / customer: the context doesn't name (or, for an unnamed one, describe) that company in that role;
+  - supplier / customer: the context doesn't name (or, for an unnamed one, describe) that company in that role. An \
+unnamed counterparty is supported when the context describes one in that role with the claimed facts; never mark it \
+unsupported for being unnamed, loosely described or of unknown identity, which the claim already says;
   - direction: the context says the other company sells to the first, or doesn't say who sells to whom;
   - kind: a supply relationship is claimed but the context describes a partnership, or the other way round;
   - what: what is supplied isn't what the context says;
