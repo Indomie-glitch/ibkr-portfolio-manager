@@ -1,0 +1,47 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 37985,
+    "output_tokens": 3552
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"Ablecom\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"contract manufacturing services for chassis products\",\"quote\":\"Currently, we purchase contract manufacturing services primarily for our chassis products from Ablecom.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Compuware\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"design activities and manufacturing of subassemblies, particularly power supplies\",\"quote\":\"We outsource to Compuware a portion of our design activities and a significant part of our manufacturing of subassemblies, particularly power supplies.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Compuware\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"customer\",\"what\":\"distribution of our products in Taiwan, China, Australia, Malaysia, and U.S.\",\"quote\":\"In addition, we have appointed Compuware as a nonexclusive authorized distributor of our products in Taiwan, China, Australia, Malaysia, and U.S. in addition to acting as our sales representative.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"One supplier\",\"is_filer\":false,\"unnamed\":true},\"customer\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":null,\"quote\":\"One supplier accounted for a significant portion of our total purchases in fiscal year 2026 of 63.1%\",\"supplier_revenue_share\":null,\"customer_supply_share\":63.1,\"customer_share_scope\":\"total purchases\",\"share_as_written\":\"63.1%\",\"period_as_written\":\"fiscal year 2026\",\"stated_on\":\"2026-06-30\",\"ended\":false}]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 37985,
+    "output_tokens": 3461
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"Ablecom\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"contract design and manufacturing coordination support and warehousing\",\"quote\":\"We use Ablecom, a related party, for contract design and manufacturing coordination support and warehousing, and Compuware, also a related party and an affiliate of Ablecom, for distribution, contract manufacturing and warehousing.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"Our purchases of products from Ablecom and Compuware represented 2.1%, 3.3%, and 4.3% of our cost of sales for fiscal years 2026, 2025, and 2024, respectively.\",\"period_as_written\":\"fiscal years 2026, 2025, and 2024\",\"stated_on\":\"2026-06-30\",\"ended\":false},{\"supplier\":{\"name\":\"Compuware\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"outsourced design activities and manufacturing of subassemblies, particularly power supplies\",\"quote\":\"We outsource to Compuware a portion of our design activities and a significant part of our manufacturing of subassemblies, particularly power supplies.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"Our purchases of products from Ablecom and Compuware represented 2.1%, 3.3%, and 4.3% of our cost of sales for fiscal years 2026, 2025, and 2024, respectively.\",\"period_as_written\":\"fiscal years 2026, 2025, and 2024\",\"stated_on\":\"2026-06-30\",\"ended\":false},{\"supplier\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Compuware\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"customer\",\"what\":\"nonexclusive authorized distributor of our products\",\"quote\":\"In addition, we have appointed Compuware as a nonexclusive authorized distributor of our products in Taiwan, China, Australia, Malaysia, and U.S. in addition to acting as our sales representative.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  },
+  "2": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 37985,
+    "output_tokens": 3791
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"Ablecom\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"contract design and manufacturing coordination support and warehousing\",\"quote\":\"We use Ablecom, a related party, for contract design and manufacturing coordination support and warehousing, and Compuware, also a related party and an affiliate of Ablecom, for distribution, contract manufacturing and warehousing.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"Our purchases of products from Ablecom and Compuware represented 2.1%, 3.3%, and 4.3% of our cost of sales\",\"period_as_written\":\"fiscal years 2026, 2025, and 2024\",\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Compuware\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"distribution, contract manufacturing and warehousing\",\"quote\":\"We use Ablecom, a related party, for contract design and manufacturing coordination support and warehousing, and Compuware, also a related party and an affiliate of Ablecom, for distribution, contract manufacturing and warehousing.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"Our purchases of products from Ablecom and Compuware represented 2.1%, 3.3%, and 4.3% of our cost of sales\",\"period_as_written\":\"fiscal years 2026, 2025, and 2024\",\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Compuware\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"design activities and manufacturing of subassemblies, particularly power supplies\",\"quote\":\"We outsource to Compuware a portion of our design activities and a significant part of our manufacturing of subassemblies, particularly power supplies.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Compuware\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"customer\",\"what\":\"nonexclusive authorized distributor of our products\",\"quote\":\"In addition, we have appointed Compuware as a nonexclusive authorized distributor of our products in Taiwan, China, Australia, Malaysia, and U.S. in addition to acting as our sales representative.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"One supplier\",\"is_filer\":false,\"unnamed\":true},\"customer\":{\"name\":\"Super Micro Computer, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":null,\"quote\":\"One supplier accounted for a significant portion of our total purchases in fiscal year 2026 of 63.1%, and two suppliers accounted for a significant portion of our total purchases in fiscal year 2025 of 64.4% and 5.1%, and 65.4% and 6.3% in fiscal year 2024, respectively.\",\"supplier_revenue_share\":null,\"customer_supply_share\":63.1,\"customer_share_scope\":\"total purchases\",\"share_as_written\":\"a significant portion of our total purchases in fiscal year 2026 of 63.1%\",\"period_as_written\":\"fiscal year 2026\",\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  }
+ }
+}

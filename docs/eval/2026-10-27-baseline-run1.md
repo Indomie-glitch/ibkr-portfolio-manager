@@ -1,17 +1,17 @@
 # Supply chain evaluation: baseline (run 1 of 3)
 
-Run 2026-10-27 19:53 · commit 748d2c9 + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
+Run 2026-10-27 19:53 · commit 59d1bd4 + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
 
 ## Summary
 
 | | |
 |---|---|
-| Known relationships | 86 (30 headline; 3 added to the file after reviewing the first run) |
-| **Found** (right companies, and for unnamed ones the right share and year) | **34** (40% recall) |
+| Known relationships | 90 (30 headline; 7 added to the file after reviewing the first run) |
+| **Found** (right companies, and for unnamed ones the right share and year) | **35** (39% recall) |
 | Found with the right share but another year | 0 |
-| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 40%) |
+| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 39%) |
 | Headline cases found | 16 of 30 |
-| Missed | 52 |
+| Missed | 55 |
 | Links in the result | 43 |
 | **Wrong links** (match nothing in the truth; to review below) | **0** (precision 100%) |
 | Wrong numbers on found links | 0 |
@@ -19,7 +19,7 @@ Run 2026-10-27 19:53 · commit 748d2c9 + uncommitted changes · chunker v1 · Re
 | Wrongly ended | 1 |
 | Links made from a trap sentence | 0 |
 | Duplicate unnamed counterparties | 0 extra links in 0 groups |
-| Confidence level of the found links | high 34 |
+| Confidence level of the found links | high 35 |
 | **Cost** | **US$0.246** (Reader US$0.100, Verifier US$0.146) |
 | Tokens | Reader 670,939 in / 65,011 out · Verifier 49,238 in / 4,772 out |
 | Reader answers | 0 from the cache (they cost US$0.000 when first read), 33 read now (--fresh); cost read afresh US$0.246 |
@@ -32,10 +32,10 @@ Run 2026-10-27 19:53 · commit 748d2c9 + uncommitted changes · chunker v1 · Re
 | china listed | 2 | 0 |
 | distributor | 1 | 0 |
 | ended | 4 | 1 |
-| named customer | 15 | 8 |
-| named supplier | 22 | 14 |
+| named customer | 17 | 9 |
+| named supplier | 24 | 14 |
 | partnership | 5 | 1 |
-| private | 19 | 2 |
+| private | 22 | 2 |
 | risk factor | 7 | 5 |
 | unnamed customer | 24 | 9 |
 | unnamed supplier | 14 | 0 |
@@ -80,6 +80,8 @@ Candidates by status: linked 58, not_supported 4, partly_supported 2
 - **smci-10k-fy26** Super Micro Computer → (third of four customers): the Reader did not return it
 - **smci-10k-fy26** Super Micro Computer → (fourth of four customers): the Reader did not return it
 - **smci-10k-fy26** Super Micro Computer → (one customer): the Reader did not return it
+- **smci-10k-fy26** Ablecom → Super Micro Computer: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **smci-10k-fy26** Compuware → Super Micro Computer: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **crwv-10k-fy25** CoreWeave → Microsoft (headline): rejected: direction_mismatch (rule) - counterparty_role customer disagrees with who is supplier
 - **crwv-10k-fy25** CoreWeave → OpenAI (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **crwv-10k-fy25** (largest of three suppliers) → CoreWeave (headline): the Reader did not return it
@@ -95,6 +97,7 @@ Candidates by status: linked 58, not_supported 4, partly_supported 2
 - **crwv-10k-fy25** CoreWeave → (Customer B): the Reader did not return it
 - **crwv-10k-fy25** CoreWeave → (Customer C): the Reader did not return it
 - **crwv-10k-fy25** NVIDIA → CoreWeave: rejected: not_supported (verifier) - The context says CoreWeave deploys NVIDIA GB200/GB300 NVL72 systems but never says NVIDIA 
+- **crwv-10k-fy25** CoreWeave → MagAI Ventures: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **arm-20f-fy26** Arm → Arm China (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **arm-20f-fy26** Arm → Arm China: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **arm-20f-fy26** Arm → Arm China: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
@@ -151,6 +154,7 @@ These match nothing in the truth. Each needs a look: a wrong link, or a true one
 | amd-10k-fy25 | Sanmina | AMD | missed (headline) |  |
 | amd-10k-fy25 | AMD | OpenAI | missed (headline) |  |
 | amd-10k-fy25 | AMD | (one Client and Gaming segment customer) | found | high |
+| amd-10k-fy25 | AMD | Sony | found | high |
 | smci-10k-fy26 | Ablecom | Super Micro Computer | missed (headline) |  |
 | smci-10k-fy26 | Compuware | Super Micro Computer | missed (headline) |  |
 | smci-10k-fy26 | Super Micro Computer | Compuware | missed |  |
@@ -169,6 +173,8 @@ These match nothing in the truth. Each needs a look: a wrong link, or a true one
 | smci-10k-fy26 | Super Micro Computer | (third of four customers) | missed |  |
 | smci-10k-fy26 | Super Micro Computer | (fourth of four customers) | missed |  |
 | smci-10k-fy26 | Super Micro Computer | (one customer) | missed |  |
+| smci-10k-fy26 | Ablecom | Super Micro Computer | missed |  |
+| smci-10k-fy26 | Compuware | Super Micro Computer | missed |  |
 | crwv-10k-fy25 | CoreWeave | Microsoft | missed (headline) |  |
 | crwv-10k-fy25 | CoreWeave | OpenAI | missed (headline) |  |
 | crwv-10k-fy25 | CoreWeave | Meta | found (headline) | high |
@@ -186,6 +192,7 @@ These match nothing in the truth. Each needs a look: a wrong link, or a true one
 | crwv-10k-fy25 | CoreWeave | (Customer B) | missed |  |
 | crwv-10k-fy25 | CoreWeave | (Customer C) | missed |  |
 | crwv-10k-fy25 | NVIDIA | CoreWeave | missed |  |
+| crwv-10k-fy25 | CoreWeave | MagAI Ventures | missed |  |
 | amkr-10k-fy25 | Amkor | Apple | found (headline) | high |
 | amkr-10k-fy25 | Amkor | Qualcomm | found (headline) | high |
 | dell-10k-fy26 | VMware | Dell | found (headline) | high |
