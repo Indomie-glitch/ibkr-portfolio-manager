@@ -156,7 +156,9 @@
   "Sony": {
    "aliases": [
     "Sony Group Corporation",
-    "Sony"
+    "Sony",
+    "Sony Interactive Entertainment, Inc.",
+    "Sony Interactive Entertainment"
    ],
    "private": false
   },
@@ -533,7 +535,8 @@
      "unnamed": null,
      "kind": "supplies",
      "accept_kinds": [
-      "supplies"
+      "supplies",
+      "partnership"
      ],
      "what": "IP licence",
      "supplier_revenue_share": null,
@@ -543,7 +546,8 @@
      "ended": false,
      "private": true,
      "paragraph": 208,
-     "quote": "We have entered into an intellectual property license arrangement with Groq, Inc., or Groq, that required significant, nonrefundable payments."
+     "quote": "We have entered into an intellectual property license arrangement with Groq, Inc., or Groq, that required significant, nonrefundable payments.",
+     "note": "an IP licence arrangement: a supply or a partnership link both count"
     },
     {
      "id": "nvda-10k-fy26#9",
@@ -801,6 +805,11 @@
      "paragraph": 209,
      "quote": "We entered into multi-year cloud service agreements to support our research and development activities.",
      "why": "unnamed cloud providers"
+    },
+    {
+     "paragraph": 545,
+     "quote": "We are finalizing an investment and partnership agreement with OpenAI. There is no assurance that we will enter into an investment and partnership agreement with OpenAI or that a transaction will be completed.",
+     "why": "not yet agreed: being finalized, with no assurance it will be entered into (the same statement in Item 7)"
     }
    ]
   },
@@ -1177,6 +1186,30 @@
      "private": false,
      "paragraph": 654,
      "quote": "One Client and Gaming segment customer accounted for 18% of consolidated net revenue in fiscal year 2023."
+    },
+    {
+     "id": "amd-10k-fy25#18",
+     "headline": false,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "AMD",
+     "customer": "Sony",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "semi-custom SoCs for the PlayStation 5",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 79,
+     "quote": "AMD semi-custom SoC products power the Sony PlayStation® 5, the Microsoft® Xbox Series S™ and X™ game consoles, as well as the recently revealed Valve Steam Machine PC.",
+     "late": true
     }
    ],
    "optional": [
@@ -1293,6 +1326,57 @@
      "paragraph": 758,
      "quote": "One customer accounted for approximately 11% and another customer accounted for 24% of the total consolidated accounts receivable balance as of December 27, 2025 and December 28, 2024, respectively.",
      "note": "receivable shares only (11% and 24%)"
+    },
+    {
+     "id": "amd-10k-fy25#19",
+     "headline": false,
+     "categories": [
+      "named_customer"
+     ],
+     "supplier": "AMD",
+     "customer": "Microsoft",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "semi-custom SoCs for Xbox",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "paragraph": 79,
+     "quote": "AMD semi-custom SoC products power the Sony PlayStation® 5, the Microsoft® Xbox Series S™ and X™ game consoles, as well as the recently revealed Valve Steam Machine PC.",
+     "late": true,
+     "note": "one sentence names three console makers; counted only if returned"
+    },
+    {
+     "id": "amd-10k-fy25#20",
+     "headline": false,
+     "categories": [
+      "named_customer",
+      "private"
+     ],
+     "supplier": "AMD",
+     "customer": "Valve",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "semi-custom SoC for the Steam Machine",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 79,
+     "quote": "AMD semi-custom SoC products power the Sony PlayStation® 5, the Microsoft® Xbox Series S™ and X™ game consoles, as well as the recently revealed Valve Steam Machine PC.",
+     "late": true,
+     "note": "one sentence names three console makers; counted only if returned"
     }
    ],
    "not_relationships": [
@@ -1779,6 +1863,56 @@
      "private": false,
      "paragraph": 865,
      "quote": "For the fiscal year ended June 30, 2024, sales to one customer represented 20.0% of total net sales."
+    },
+    {
+     "id": "smci-10k-fy26#25",
+     "headline": false,
+     "categories": [
+      "named_supplier",
+      "private"
+     ],
+     "supplier": "Ablecom",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "chassis",
+     "supplier_revenue_share": null,
+     "customer_supply_share": 95.3,
+     "customer_share_scope": "chassis",
+     "stated_on": "2026-06-30",
+     "ended": false,
+     "private": true,
+     "paragraph": 1155,
+     "quote": "Ablecom manufactured approximately 95.3%, 95.4%, and 93.6% of the chassis purchased by us during fiscal years 2026, 2025, and 2024, respectively.",
+     "late": true
+    },
+    {
+     "id": "smci-10k-fy26#26",
+     "headline": false,
+     "categories": [
+      "named_supplier",
+      "private"
+     ],
+     "supplier": "Compuware",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "power supplies",
+     "supplier_revenue_share": null,
+     "customer_supply_share": 94.4,
+     "customer_share_scope": "power supplies",
+     "stated_on": "2026-06-30",
+     "ended": false,
+     "private": true,
+     "paragraph": 1164,
+     "quote": "Compuware manufactured approximately 94.4%, 94.6% and 96.6% of the power supplies purchased by us during the fiscal years ended June 30, 2026, 2025 and 2024, respectively.",
+     "late": true
     }
    ],
    "optional": [
@@ -1934,6 +2068,11 @@
      "paragraph": 951,
      "quote": "On July 16, 2025, we entered into a Receivables Purchase Agreement (as amended, supplemented or otherwise modified from time to time, the “Receivables Purchase Agreement”), by and among, us, as seller and guarantor, MUFG Bank, Ltd. (“MUFG”), Crédit Agricole Corporate and Investment Bank, and certain other entities from time to time party thereto as purchasers (the “Purchasers”), and MUFG as administrative agent (in such capacity, the “Administrative Agent”).",
      "why": "financing"
+    },
+    {
+     "paragraph": 414,
+     "quote": "we executed a long-term data center space from a supplier and concurrently sublicensed all of our rights and obligations related to such data center space to another party.",
+     "why": "a data-centre lease from an unnamed party with no figure: not a supply relationship"
     }
    ]
   },

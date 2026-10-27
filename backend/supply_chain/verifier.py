@@ -22,7 +22,7 @@ import anthropic
 
 import config
 import usage_store
-from supply_chain import chunker, graph, jobs, orchestrator, xbrl
+from supply_chain import chunker, graph, jobs, orchestrator, resolver, xbrl
 from supply_chain.jobs import _iso
 from supply_chain.db import now
 from supply_chain.worker import Permanent, handler
@@ -65,6 +65,9 @@ for a different measure, year or company doesn't count; "substantially all" is n
   - period: the context doesn't say the statement is about that date or period;
   - ended: the claim says the relationship ended (or is ongoing) and the context doesn't say so.
   Empty when supported.
+- An agreement the context describes as planned, proposed, being negotiated or being finalized, or one it says may \
+not happen ("there is no assurance that we will enter into"), is not a relationship: not_supported. Only relationships \
+that exist or existed count.
 - reason: one short sentence saying what the context does or doesn't say."""
 
 SCHEMA = {
@@ -206,6 +209,8 @@ def counterparty_ids(conn, candidate):
     """(supplier id, customer id), making the placeholder company for an unnamed counterparty as xbrl.py does."""
     ids = {"supplier": candidate["supplier_id"], "customer": candidate["customer_id"]}
     for side in ("supplier", "customer"):
+        if ids[side] is None and candidate[f"{side}_private"]:  # confirmed by the Verifier: now the private company may exist (#334)
+            ids[side] = resolver.private_company(conn, candidate[f"{side}_name"])
         if ids[side] is None and candidate[f"{side}_unnamed"]:
             filer_side = "customer" if side == "supplier" else "supplier"
             filer_id = ids[filer_side]

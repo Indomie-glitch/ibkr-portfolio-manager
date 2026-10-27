@@ -305,7 +305,11 @@ def score(truth, out, ids):
             if not item["unnamed"]:
                 for column in ("supplier_revenue_share", "customer_supply_share"):
                     wanted = item[column]
-                    mine = [e[column] for e in link["evidence"] if e["eval_doc"] == doc["id"] and e[column] is not None]
+                    # every figure the file gives this pair in this filing is right (one link, several known statements)
+                    stated = [i[column] for kind in ("relationships", "optional") for i in doc[kind]
+                              if (i["supplier"], i["customer"]) == (item["supplier"], item["customer"]) and i[column] is not None]
+                    mine = [e[column] for e in link["evidence"] if e["eval_doc"] == doc["id"] and e[column] is not None
+                            and not any(merge.same_share(w, e[column]) for w in stated)]
                     if wanted is not None and mine and not any(merge.same_share(wanted, s) for s in mine):
                         wrong_numbers.append((doc["id"], item, column, mine))
                     elif wanted is None and mine:

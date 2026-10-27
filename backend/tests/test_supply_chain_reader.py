@@ -9,7 +9,7 @@ from unittest import mock
 
 import usage_store
 from tests.pipeline_isolation import isolate
-from supply_chain import graph, integrity, jobs, reader, scout
+from supply_chain import chunker, graph, integrity, jobs, reader, scout, verifier
 from supply_chain.db import open_graph
 from supply_chain.worker import Permanent
 
@@ -215,6 +215,36 @@ class ShareTests(ReaderTestCase):
         self.assertFalse(reader.share_in_quote(30, "a third of revenue"))
 
 
+class PlannedAndLeaseTests(unittest.TestCase):
+    """#338: a lease of space from an unnamed party is left out; both prompts say a planned agreement is no relationship."""
+
+    def check(self, counterparty, quote, **fields):
+        text = f"Item 1A. Risk Factors\n\n{quote}"
+        chunk = chunker.Chunk("tenk.htm", "Item 1A. Risk Factors", text, 50, 1, 2, numbers=[1, 2])
+        return reader.check(relationship(counterparty, ACME, "supplier", quote, **fields), chunk, "Acme Semiconductor Inc.")
+
+    def test_an_unnamed_lease_of_space_is_refused(self):
+        quote = "we executed a long-term data center space from a supplier and concurrently sublicensed all of our rights and obligations related to such data center space to another party."
+        with self.assertRaises(reader.Refused) as caught:
+            self.check(party("a supplier", unnamed=True), quote)
+        self.assertEqual(caught.exception.reason, "unnamed_lease")
+        with self.assertRaises(reader.Refused):
+            self.check(party("a landlord", unnamed=True), "We lease office space from a landlord under a ten-year lease.")
+
+    def test_a_named_lease_or_an_unnamed_share_is_kept(self):
+        self.assertEqual(self.check(party("Gamma Foundry"), "We lease office space from Gamma Foundry in Taiwan.")["supplier_name"], "Gamma Foundry")
+        row = self.check(party("one supplier", unnamed=True), "One supplier accounted for 63.1% of purchases, including leased data center space.",
+                         customer_supply_share=63.1, customer_share_scope="purchases")
+        self.assertEqual(row["customer_supply_share"], 63.1)
+
+    def test_both_prompts_leave_out_planned_agreements(self):
+        for prompt in (reader.SYSTEM_PROMPT, verifier.SYSTEM_PROMPT):
+            text = " ".join(prompt.split())
+            self.assertIn("being finalized", text)
+            self.assertIn("there is no assurance that we will enter into", text)
+        self.assertIn("leases of office or data-centre space unless the passage names the other party", " ".join(reader.SYSTEM_PROMPT.split()))
+
+
 class CounterpartyTests(ReaderTestCase):
     def test_unnamed_customer_kept_without_a_company_and_not_looked_up(self):
         quote = "Sales to our largest customer, Beta Corp, were 48% of revenue, up from 41% a year ago."
@@ -237,12 +267,34 @@ class CounterpartyTests(ReaderTestCase):
         self.assertEqual([r["reason"] for r in self.rejected()], ["generic_counterparty", "generic_counterparty"])
         self.assertEqual(self.candidates(), [])
 
-    def test_a_name_the_resolver_cant_match_is_rejected(self):
+    def test_a_listed_looking_name_the_resolver_cant_match_is_rejected(self):
+        self.names.pop("Gamma Foundry Ltd.")
+        self.read({"Item 1A. Risk Factors": [relationship(party("Gamma Foundry Ltd."), ACME, "supplier",
+                                                          "We depend on a single supplier, Gamma Foundry Ltd., for substantially all of our wafers.")]})
+        row = self.rejected()[0]
+        self.assertEqual((row["reason"], row["supplier_name"], row["customer_name"]), ("unresolved_company", "Gamma Foundry Ltd.", "Acme Semiconductor Inc."))
+        self.assertIn("no_match", row["detail"])
+        self.assertEqual(self.candidates(), [])
+
+    def test_a_name_the_resolver_cant_match_waits_for_the_verifier_as_a_possible_private_company(self):
         self.names.pop("Gamma Foundry")
         self.read({"Item 1. Business": [GAMMA_SUPPLIES]})
-        row = self.rejected()[0]
-        self.assertEqual((row["reason"], row["supplier_name"], row["customer_name"]), ("unresolved_company", "Gamma Foundry", "Acme Semiconductor Inc."))
-        self.assertIn("no_match", row["detail"])
+        row = self.candidates()[0]
+        self.assertEqual((row["supplier_name"], row["supplier_private"], row["supplier_id"], row["customer_private"], row["resolved_by"]),
+                         ("Gamma Foundry", 1, None, 0, "private_pending"))
+        self.assertEqual(self.rejected(), [])
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM companies WHERE is_private = 1").fetchone()[0], 0)  # nothing made yet
+
+    def test_ambiguous_and_subsidiary_misses_stay_rejected(self):
+        for reason in ("ambiguous", "possible_subsidiary"):
+            self.names.pop("Gamma Foundry", None)
+
+            async def resolve(conn, name, reason=reason):
+                return {"status": "skipped", "reason": reason, "detail": "x"}
+            totals = run(reader.read_document(self.conn, self.document, client=FakeClient({"Item 1. Business": [GAMMA_SUPPLIES]}), resolve=resolve))
+            self.assertEqual(totals["candidates"], 0)
+            self.conn.execute("DELETE FROM chunk_reads")
+        self.assertEqual({r["reason"] for r in self.rejected()}, {"unresolved_company"})
 
     def test_a_name_that_resolves_to_the_filer_is_rejected(self):
         self.names["Beta Corp"] = self.acme

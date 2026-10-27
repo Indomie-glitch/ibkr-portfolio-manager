@@ -22,6 +22,19 @@
     {"name": "MediaTek Inc.", "ticker": "2454", "market": "TW", "aliases": ["MediaTek"]},
     {"name": "United Microelectronics Corporation", "ticker": "UMC", "market": "US", "aliases": ["UMC"]},
     {"name": "Semiconductor Manufacturing International Corporation", "ticker": "981", "market": "HK", "aliases": ["SMIC"]},
-    {"name": "Samsung Electronics Co., Ltd.", "ticker": "005930", "market": "KR", "aliases": ["Samsung Electronics"]}
+    {"name": "Samsung Electronics Co., Ltd.", "ticker": "005930", "market": "KR", "aliases": ["Samsung Electronics"]},
+    {"name": "Groq, Inc.", "private": true, "aliases": ["Groq, Inc.", "Groq"]},
+    {"name": "Higon Information Technology Co., Ltd.", "private": true, "aliases": ["Higon Information Technology Co., Ltd.", "Higon Information Technology", "THATIC", "Hygon", "Hygon Information Technology Co., Ltd."]},
+    {"name": "OpenAI, Inc.", "private": true, "aliases": ["OpenAI OpCo, LLC", "OpenAI OpCo", "OpenAI, L.P.", "OpenAI Group PBC", "OpenAI"]},
+    {"name": "Valve Corporation", "private": true, "aliases": ["Valve Corporation", "Valve"]},
+    {"name": "Ablecom Technology, Inc.", "private": true, "aliases": ["Ablecom Technology, Inc.", "Ablecom Technology Inc", "Ablecom"]},
+    {"name": "Compuware Technology, Inc.", "private": true, "aliases": ["Compuware Technology, Inc.", "Compuware Technology Inc", "Compuware"]},
+    {"name": "Corporate Venture", "private": true, "aliases": ["Corporate Venture", "the Corporate Venture"]},
+    {"name": "Arm Technology (China) Co. Limited", "private": true, "aliases": ["Arm Technology (China) Co. Limited", "Arm Technology (China) Co. Ltd.", "Arm China"]},
+    {"name": "Ampere Computing LLC", "private": true, "aliases": ["Ampere Computing", "Ampere Computing LLC", "Ampere"]},
+    {"name": "Linaro Limited", "private": true, "aliases": ["Linaro Limited", "Linaro"]},
+    {"name": "Nuvia, Inc.", "private": true, "aliases": ["Nuvia, Inc.", "Nuvia"]},
+    {"name": "SB Energy Corp.", "private": true, "aliases": ["SB Energy Corp.", "SB Energy"]},
+    {"name": "Stargate Project", "private": true, "aliases": ["Stargate Project", "Stargate"]}
   ]
 }

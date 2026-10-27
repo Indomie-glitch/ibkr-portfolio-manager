@@ -28,6 +28,15 @@ later piece follows.
 - **Unnamed customers.** Filings often say "Customer A". These become placeholder companies (`is_placeholder`,
   `placeholder_for` = the company whose filing used the label), hidden by default, so the evidence is kept and a
   resolver can link them to a real company later.
+- **Private companies (#334).** A named counterparty with no listing (OpenAI, Groq, Ablecom, Compuware ...) has no ticker for the
+  name resolver to find. When the resolver finds nothing (`no_match`) and the name does not look listed (no "Co., Ltd.",
+  "plc", "AG", "S.A.", "N.V." ending, no exchange in brackets; the alias list can say a name is private anyway, as for Arm
+  China or Linaro), the Reader keeps the candidate with `supplier_private` / `customer_private` set instead of rejecting it.
+  Only when the Verifier says **supported** is the company made: `companies.is_private = 1`, no market identifiers, a `name`
+  identifier per spelling (`verified_private`), keyed by `resolver.name_key` and the private entries of `seed/aliases.json`
+  (`"private": true`, no ticker) so "OpenAI", "OpenAI, L.P." and "OpenAI OpCo, LLC" are one company. A Reader answer alone never
+  creates one; a rejected or `partly_supported_link` candidate creates nothing. Ambiguous matches and look-alike subsidiaries
+  stay rejected. A saved resolver miss for the name is replaced by the match.
 - **Time.** ISO 8601 text in UTC (`2026-10-25T09:30:00Z`); dates as `2026-10-25`. JSON is stored as text.
 
 ## How the evidence rule is enforced
@@ -69,6 +78,7 @@ erDiagram
         text name
         text country
         int is_placeholder
+        int is_private "no listing; made after the Verifier confirms (#334)"
         int placeholder_for FK }
     identifiers { int company_id FK
         text scheme "ticker, isin, figi, cik, lei, wikidata ..."
@@ -156,7 +166,7 @@ erDiagram
 | Member | What happens |
 |---|---|
 | Unnamed ("Customer A", "Major Customer One", "Undisclosed Customer 1", "Supplier A", "Company A") | A placeholder company for the filer, one per label **and fiscal year** ("Customer A (unnamed customer of CoreWeave, Inc., year to 2025-12-31)"), because this year's Customer A need not be last year's. Never sent to the name lookup. |
-| Named ("Apple, Inc.", "HP Inc.", "Dell Inc.") | The name resolver (#119). A match links the real company; anything else goes to `rejected` (`unresolved_company`), not guessed. |
+| Named ("Apple, Inc.", "HP Inc.", "Dell Inc.") | The name resolver (#119). A match links the real company. A plain miss on a name that doesn't look listed is kept as a possible private company for the Verifier (#334); anything else goes to `rejected` (`unresolved_company`), not guessed. |
 | Group ("Top Ten Customers", "Three Largest Customers", "Ablecom and Compuware") | Left out: not one company. |
 | Narrowed by a region or product line | Left out. A business segment is kept as a note. |
 
@@ -206,6 +216,7 @@ Each `Chunk` has the file name (`document`), the `section`, the `text`, the esti
 | Exactly one side is the filer | `not_about_filer` |
 | The counterparty's role agrees with the direction | `direction_mismatch` |
 | The counterparty is one company, not a group ("our customers", "top ten customers") | `generic_counterparty` |
+| Not a lease of space from or to an unnamed party with no share (#338) | `unnamed_lease` |
 | A named counterparty appears in the chunk | `name_not_in_text` |
 | The name resolver (#119) matches it to a company, and not to the filer | `unresolved_company`, `same_company` |
 
@@ -278,8 +289,8 @@ Each decision is saved in `name_resolutions` (matched: `method`; skipped: `reaso
 ## Evaluation set (#133)
 
 `backend/eval/supply_chain_eval.json` lists what 10 filings state: 5 10-Ks and an Arm 20-F (NVIDIA, AMD, Super Micro, CoreWeave, Amkor, Dell, Arm), NVIDIA's August 2026 8-K (SB Energy, OpenAI), and two bond / preferred-share 8-Ks that state no supply relationship at all.
-- **86 known relationships**, 30 of them the *headline* cases: named customers with percentages (CoreWeave's Microsoft 67%, Amkor's Apple 29.8% and Qualcomm 11.1%, Arm's Arm China 16% and Qualcomm 9%), named critical suppliers in risk factors (AMD's TSMC and GlobalFoundries, Super Micro's Ablecom and Compuware, CoreWeave's NVIDIA), 8-K agreements, unnamed customers and suppliers with shares, four ended relationships (Super Micro's Corporate Venture, Dell's VMware agreement, Arm's Nuvia licence and Arm China services contract) and private counterparties (OpenAI, Groq, SB Energy, Ablecom, Arm China ...).
-- **24 optional** ones the text states ambiguously (receivables shares, "these vendors") count neither for nor against; **18 traps** (a prospective OpenAI deal "with no assurance", a sale of a business, competitors, a relationship between two other companies) must not become links.
+- **89 known relationships**, 30 of them the *headline* cases: named customers with percentages (CoreWeave's Microsoft 67%, Amkor's Apple 29.8% and Qualcomm 11.1%, Arm's Arm China 16% and Qualcomm 9%), named critical suppliers in risk factors (AMD's TSMC and GlobalFoundries, Super Micro's Ablecom and Compuware, CoreWeave's NVIDIA), 8-K agreements, unnamed customers and suppliers with shares, four ended relationships (Super Micro's Corporate Venture, Dell's VMware agreement, Arm's Nuvia licence and Arm China services contract) and private counterparties (OpenAI, Groq, SB Energy, Ablecom, Arm China ...).
+- **26 optional** ones the text states ambiguously (receivables shares, "these vendors") count neither for nor against; **19 traps** (a prospective OpenAI deal "with no assurance", a sale of a business, competitors, a relationship between two other companies) must not become links.
 - Every entry has the filing's quote, cut from the cleaned text (never retyped); `--check` finds each one again, and says which the chunker would not send to the Reader.
 - Scope: what each text states between the filer and a named company (or an unnamed one with a stated figure), within the sections the chunker sends. Not counted: financing, equity stakes alone, leases, litigation, competitors. Entries added after reviewing the first run's extra links are marked `late` and counted in the report.
 
@@ -363,7 +374,7 @@ queued -> running -> done
 | #123 | document chunker (done; `supply_chain/chunker.py`) | `documents.local_path` in, chunks out |
 | #124 | Reader (done; `supply_chain/reader.py`: chunks to candidates with Claude) | `chunk_reads`, `candidates`, `rejected` |
 | #125 | Verifier (done; `supply_chain/verifier.py`: candidates to verified tier 2 links) | `relationships`, `evidence`, `rejected`, placeholder companies |
-| #133 | evaluation set (done; `backend/eval/`: 86 known relationships in 10 filings, `python -m eval.supply_chain_eval`) | reports in `docs/eval/` |
+| #133 | evaluation set (done; `backend/eval/`: 89 known relationships in 10 filings, `python -m eval.supply_chain_eval`) | reports in `docs/eval/` |
 | #126 | orchestrator (done; `supply_chain/orchestrator.py`: holdings first, daily pace, cost estimates, spacing of Claude calls) | `companies.held`, `runs.cost_usd` |
 | #127 | merge (done; `supply_chain/merge.py`: one link per pair, shares, confidence, stale / ended, placeholder upgrades) | `relationships`, `evidence.copied_from`, `merge_decisions` |
 | M12 | graph API and explorer | indexes on both ends of `relationships`; chains of up to three layers by a recursive query |

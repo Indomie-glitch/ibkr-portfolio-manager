@@ -57,7 +57,10 @@ gives a specific fact about that one counterparty (a share, a contract). Set unn
 the name ("Customer A", "a direct customer").
 - Leave out groups and categories: "our customers include hyperscalers and OEMs", "we buy from a limited number of \
 suppliers", "our top ten customers". Also leave out government agencies, regulators, lenders, auditors and the \
-filer's own subsidiaries.
+filer's own subsidiaries, and leases of office or data-centre space unless the passage names the other party.
+- Only relationships that exist or existed. An agreement that is planned, proposed, being negotiated or being \
+finalized, or that may not happen ("we are finalizing an agreement with", "we expect to enter into", "there is no \
+assurance that we will enter into"), is not a relationship: leave it out.
 - supplier_revenue_share: the percentage of the supplier's revenue from this customer, only if the passage gives the \
 number. customer_supply_share: the percentage of what the customer buys (of customer_share_scope, e.g. "wafers", \
 "total purchases") that comes from this supplier, only if the passage gives the number. Never estimate or calculate. \
@@ -140,6 +143,9 @@ def share_in_quote(value, quote):
     return re.search(rf"(?<![\d.]){re.escape(digits)}(?:\.0+)?(?![\d])", normalise(quote).replace(",", "")) is not None
 
 
+LEASE = re.compile(r"\b(?:sub)?(?:lease|leases|leased|leasing|license|licensed|licensing)\b[^.]*\bspace\b|\bspace\b[^.]*\b(?:sub)?(?:lease|leased|license|licensed)\b", re.IGNORECASE)
+
+
 def is_group(name):
     """"our customers", "top ten distributors": a category, not one company."""
     return any(word in GROUP_WORDS for word in re.sub(r"[^a-z0-9 ]+", " ", name.lower()).split())
@@ -199,6 +205,8 @@ def check(answer, chunk, filer_name):
             dropped.append(f"{field}: digits_not_in_quote")
         else:
             shares[field] = float(value)
+    if unnamed and shares["supplier_revenue_share"] is None and shares["customer_supply_share"] is None and LEASE.search(quote):
+        raise Refused("unnamed_lease", "a lease of space from or to an unnamed party, with no share: nothing to link")
 
     pieces = chunk.text.split("\n\n")
     first, last = where
@@ -323,10 +331,15 @@ async def _outcomes(conn, found, filer, resolve):
         row["supplier_id" if side == "customer" else "customer_id"] = filer["id"]
         row[f"{side}_id"] = None
         row["resolved_by"] = None
+        row["supplier_private"] = row["customer_private"] = 0
         if not row["unnamed"]:
             match = await resolve(conn, row["counterparty"])
             if match["status"] == "unavailable":
                 raise RuntimeError(f"name lookup unavailable for {row['counterparty']}: {match.get('detail')}")
+            if resolver.can_be_private(row["counterparty"], match):  # kept for the Verifier; the company is made only if it confirms
+                row[f"{side}_private"], row["resolved_by"] = 1, "private_pending"
+                outcomes.append(("candidate", row))
+                continue
             if match["status"] != "matched":
                 outcomes.append(("rejected", "unresolved_company", f"{match.get('reason')}: {match.get('detail') or ''}".strip(": "), answer, row))
                 continue
@@ -339,7 +352,7 @@ async def _outcomes(conn, found, filer, resolve):
 
 
 CANDIDATE_COLUMNS = ("kind", "counterparty_role", "supplier_name", "customer_name", "supplier_is_filer", "customer_is_filer",
-                     "supplier_unnamed", "customer_unnamed", "supplier_id", "customer_id", "resolved_by", "what",
+                     "supplier_unnamed", "customer_unnamed", "supplier_private", "customer_private", "supplier_id", "customer_id", "resolved_by", "what",
                      "supplier_revenue_share", "customer_supply_share", "customer_share_scope", "share_as_written", "share_dropped",
                      "period_as_written", "stated_on", "ended", "quote", "locator", "context")
 
