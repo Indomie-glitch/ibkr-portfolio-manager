@@ -26,13 +26,13 @@
   "run_index": 1
  },
  "metrics": {
-  "truth": 86,
+  "truth": 90,
   "found": 33,
   "found_other_year": 0,
   "found_no_number": 1,
-  "missed": 52,
-  "recall": 0.384,
-  "recall_loose": 0.395,
+  "missed": 56,
+  "recall": 0.367,
+  "recall_loose": 0.378,
   "headline": 30,
   "headline_found": 15,
   "links": 36,
@@ -82,11 +82,11 @@
     "found": 1
    },
    "named_customer": {
-    "truth": 15,
+    "truth": 17,
     "found": 8
    },
    "named_supplier": {
-    "truth": 22,
+    "truth": 24,
     "found": 14
    },
    "partnership": {
@@ -94,7 +94,7 @@
     "found": 1
    },
    "private": {
-    "truth": 19,
+    "truth": 22,
     "found": 2
    },
    "risk_factor": {
@@ -249,6 +249,9 @@
     "confidence": 0.6,
     "level": "medium"
    },
+   "amd-10k-fy25#18": {
+    "result": "missed"
+   },
    "smci-10k-fy26#1": {
     "result": "missed"
    },
@@ -315,6 +318,12 @@
    "smci-10k-fy26#18": {
     "result": "missed"
    },
+   "smci-10k-fy26#25": {
+    "result": "missed"
+   },
+   "smci-10k-fy26#26": {
+    "result": "missed"
+   },
    "crwv-10k-fy25#1": {
     "result": "missed"
    },
@@ -374,6 +383,9 @@
     "link": 25,
     "confidence": 0.6,
     "level": "medium"
+   },
+   "crwv-10k-fy25#21": {
+    "result": "missed"
    },
    "amkr-10k-fy25#1": {
     "result": "found",

@@ -131,7 +131,8 @@
     "Higon Information Technology",
     "THATIC",
     "Hygon",
-    "Hygon Information Technology Co., Ltd."
+    "Hygon Information Technology Co., Ltd.",
+    "Higon Information Technology Co., Ltd. (THATIC)"
    ],
    "private": true
   },
@@ -346,6 +347,27 @@
     "Arm"
    ],
    "private": false
+  },
+  "MagAI Ventures": {
+   "aliases": [
+    "MagAI Ventures"
+   ],
+   "private": true
+  },
+  "Danantara Indonesia": {
+   "aliases": [
+    "Danantara Indonesia",
+    "Danantara"
+   ],
+   "private": true
+  },
+  "Green Earth Liang's": {
+   "aliases": [
+    "Green Earth Liang's Inc.",
+    "Green Earth Liang’s Inc.",
+    "Green Earth Liang's"
+   ],
+   "private": true
   }
  },
  "documents": [
@@ -2056,6 +2078,98 @@
      "paragraph": 106,
      "quote": "We work closely with NVIDIA, Intel and AMD, among others, to develop products that are compatible with the latest generation of industry-standard technologies under development.",
      "note": "'these vendors': collaboration on compatible products; no purchase is stated"
+    },
+    {
+     "id": "smci-10k-fy26#27",
+     "headline": false,
+     "categories": [],
+     "supplier": "Super Micro Computer",
+     "customer": "Ablecom",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 533,
+     "quote": "We also collaborate on design and development activities with Ablecom and Compuware, where we substantially fund the design costs and retain the intellectual property rights.",
+     "late": true,
+     "note": "co-development with a supplier: a partnership link is fair"
+    },
+    {
+     "id": "smci-10k-fy26#28",
+     "headline": false,
+     "categories": [],
+     "supplier": "Super Micro Computer",
+     "customer": "Compuware",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 533,
+     "quote": "We also collaborate on design and development activities with Ablecom and Compuware, where we substantially fund the design costs and retain the intellectual property rights.",
+     "late": true,
+     "note": "co-development with a supplier: a partnership link is fair"
+    },
+    {
+     "id": "smci-10k-fy26#29",
+     "headline": false,
+     "categories": [],
+     "supplier": "Super Micro Computer",
+     "customer": "Ablecom",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 1156,
+     "quote": "Ablecom purchases most of the materials needed to manufacture the chassis from third parties and we provide certain components used in the manufacturing process (such as power supplies) to Ablecom through consignment or sales transactions.",
+     "late": true,
+     "note": "Super Micro also sells components to Ablecom (and has a resale arrangement and a land-use agreement with it)"
+    },
+    {
+     "id": "smci-10k-fy26#30",
+     "headline": false,
+     "categories": [],
+     "supplier": "Green Earth Liang's",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 1178,
+     "quote": "For the fiscal year ended June 30, 2026, we had no sales to and immaterial purchases from Green Earth Liang’s Inc.",
+     "late": true,
+     "note": "immaterial related-party purchases"
     }
    ],
    "not_relationships": [
@@ -2508,6 +2622,31 @@
      "private": false,
      "paragraph": 441,
      "quote": "For example, in January 2026, we announced that we entered into a collaboration framework with NVIDIA Corporation to expand our long-standing complementary relationship to advance AI adoption at global scale.",
+     "late": true
+    },
+    {
+     "id": "crwv-10k-fy25#21",
+     "headline": false,
+     "categories": [
+      "named_customer",
+      "private"
+     ],
+     "supplier": "CoreWeave",
+     "customer": "MagAI Ventures",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "capacity",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 1398,
+     "quote": "In connection with the MagAI Capacity Agreement with MagAI Ventures, the Company had a deposit from MagAI Ventures of $230 million classified within other current liabilities on the consolidated balance sheets as of December 31, 2024.",
      "late": true
     }
    ],
@@ -3338,6 +3477,29 @@
      "paragraph": 1604,
      "quote": "For the fiscal year ended March 31, 2024, the Company had three customers that collectively represented 42% of total revenue, with the single largest customer accounting for 21% of total revenue, the second largest customer accounting for 11% of total revenue and the third largest customer accounting for 10% of total revenue.",
      "note": "Arm China, said elsewhere to be the largest customer: the unnamed form of the same customer"
+    },
+    {
+     "id": "arm-20f-fy26#24",
+     "headline": false,
+     "categories": [],
+     "supplier": "Arm",
+     "customer": "Danantara Indonesia",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "paragraph": 367,
+     "quote": "For example, we recently entered into a strategic partnership with Danantara Indonesia, the sovereign investment institution of the Republic of Indonesia.",
+     "late": true,
+     "note": "a sovereign investment fund: a partnership, though state-owned"
     }
    ],
    "not_relationships": [
@@ -3350,6 +3512,16 @@
      "paragraph": 325,
      "quote": "On April 18, 2024, Qualcomm brought a new action in Delaware against Arm Holdings plc, asserting claims that were rejected for inclusion in the original action.",
      "why": "litigation about the existing Qualcomm licence"
+    },
+    {
+     "paragraph": 563,
+     "quote": "Established in 1990, Arm began as a joint venture between Acorn Computers, Apple Computer, and VLSI Technology.",
+     "why": "history: how Arm was founded in 1990, not a current relationship"
+    },
+    {
+     "paragraph": 1911,
+     "quote": "In February 2023, the Company entered into an agreement with Linaro to sell certain net assets of the Company that meets the definition of a business in exchange for cash consideration of $4.0 million to be paid in equal annual installments over five years.",
+     "why": "the sale of a business, not a supply relationship"
     }
    ]
   }

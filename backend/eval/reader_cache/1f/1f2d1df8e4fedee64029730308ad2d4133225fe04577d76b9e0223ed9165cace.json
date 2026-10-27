@@ -1,0 +1,47 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 13920,
+    "output_tokens": 2564
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"NVIDIA\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"networking technology (NVIDIA Quantum-X800, Quantum-2 InfiniBand and Spectrum-X)\",\"quote\":\"It integrates state-of-the-art networking technology, including NVIDIA Quantum-X800(XDR) enabling 800Gbps of connectivity, NVIDIA Quantum-2 InfiniBand interconnect and NVIDIA Spectrum-X with RoCE or RDMA over Converged Ethernet for ultra-low-latency connectivity between racks of GPUs.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"AMD\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Intel\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 13920,
+    "output_tokens": 2291
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Intel Corporation\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"NVIDIA Corporation\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"GB200 and GB300 NVL72 systems\",\"quote\":\"Our track record and ability to deploy the industry's most advanced hardware and architectures first—including NVIDIA GB200 and GB300 NVL72 systems for mission-critical AI—gives our customers a measurable edge in performance, efficiency, and scale.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  },
+  "2": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 13920,
+    "output_tokens": 2634
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"NVIDIA\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"GB200 and GB300 NVL72 systems\",\"quote\":\"Our track record and ability to deploy the industry's most advanced hardware and architectures first—including NVIDIA GB200 and GB300 NVL72 systems for mission-critical AI—gives our customers a measurable edge in performance, efficiency, and scale.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"NVIDIA\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"networking technology (Quantum-X800, Quantum-2 InfiniBand, Spectrum-X)\",\"quote\":\"It integrates state-of-the-art networking technology, including NVIDIA Quantum-X800(XDR) enabling 800Gbps of connectivity, NVIDIA Quantum-2 InfiniBand interconnect and NVIDIA Spectrum-X with RoCE or RDMA over Converged Ethernet for ultra-low-latency connectivity between racks of GPUs.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"AMD\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Intel\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  }
+ }
+}

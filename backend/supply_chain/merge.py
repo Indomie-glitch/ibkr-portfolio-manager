@@ -17,7 +17,11 @@ stored with the lower company id first), then refresh() recomputes the link from
 upgrade_placeholders() merges a "Customer A" link into the named link when a document names that customer with the
 same share for the same period; only when exactly one named company and one placeholder match (a wrong merge is worse
 than two links). undo() reverses one. The daily "merge" job (recompute_all) does staleness, upgrades and a full recompute.
+
+join_placeholders() (#335) merges "Customer one", "a direct customer" and "one direct customer" when they are the same filer's
+customer for the same period with the same share: see placeholder_groups() for the conditions. Without a share nothing merges.
 """
+import re
 from datetime import date, datetime, timezone
 from urllib.parse import urlparse
 
@@ -267,9 +271,20 @@ def upgrade(conn, placeholder_link, named_link, fact):
     with transaction(conn):
         conn.execute("UPDATE relationships SET merged_into = ?, updated_at = ? WHERE id = ?", (named_link, now(), placeholder_link))
         conn.execute("UPDATE companies SET merged_into = ?, updated_at = ? WHERE id = ?", (named[f"{side}_id"], now(), link[f"{side}_id"]))
+        # links already merged into this one (#335: duplicates joined into a placeholder that is now itself merged) follow it, so
+        # nothing is merged into a merged link, and the evidence they copied here moves with them (undo still finds it by copied_from)
+        conn.execute("UPDATE relationships SET merged_into = ?, updated_at = ? WHERE merged_into = ?", (named_link, now(), placeholder_link))
+        conn.execute("UPDATE companies SET merged_into = ?, updated_at = ? WHERE merged_into = ?", (named[f"{side}_id"], now(), link[f"{side}_id"]))
+        conn.execute("UPDATE merge_decisions SET relationship_id = ? WHERE relationship_id = ? AND decision = 'merged'", (named_link, placeholder_link))
+        for copy in conn.execute("SELECT id, document_id, quote_hash FROM evidence WHERE relationship_id = ? AND copied_from IS NOT NULL", (placeholder_link,)).fetchall():
+            if conn.execute("SELECT 1 FROM evidence WHERE relationship_id = ? AND document_id = ? AND quote_hash = ?", (named_link, copy["document_id"], copy["quote_hash"])).fetchone():
+                conn.execute("DELETE FROM evidence WHERE id = ?", (copy["id"],))
+            else:
+                conn.execute("UPDATE evidence SET relationship_id = ? WHERE id = ?", (named_link, copy["id"]))
         conn.execute("INSERT INTO merge_decisions (placeholder_relationship_id, relationship_id, decision, detail, created_at) VALUES (?, ?, 'merged', ?, ?)",
                      (placeholder_link, named_link, f"{fact['measure']} {fact['value']:g}% for {fact['on']}", now()))
     refresh(conn, named_link)
+    refresh(conn, placeholder_link)  # it may have handed on copies it held (#335), which changes its own confidence
 
 
 def upgrade_placeholders(conn):
@@ -278,6 +293,106 @@ def upgrade_placeholders(conn):
     for placeholder_link, named_link, fact in upgrade_candidates(conn):
         upgrade(conn, placeholder_link, named_link, fact)
         done.append((placeholder_link, named_link))
+    return done
+
+
+# ---------- Placeholders that are the same unnamed counterparty (#335) ----------
+
+IDENTIFIER = re.compile(r"\b(?:customer|supplier|company|partner|distributor|client|vendor)\s+([a-z]|\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b")
+NUMBER_WORDS = {w: str(n) for n, w in enumerate("one two three four five six seven eight nine ten".split(), 1)}
+
+
+def label_identifier(name):
+    """The letter or number a filing gives an unnamed counterparty ("Customer A" -> "a", "Customer one" -> "1"), or None for
+    "a direct customer". Two labels with different identifiers in one filing are two counterparties."""
+    match = IDENTIFIER.search(str(name).split(" (unnamed", 1)[0].lower())
+    return NUMBER_WORDS.get(match.group(1), match.group(1)) if match else None
+
+
+def _known_different(conn, a, b, names):
+    """Whether two placeholder links are provably two counterparties: different identifiers in their labels (names: the
+    placeholder company's name per link), a structured (tier 1) list of the same document naming both, or one quote naming both."""
+    ids = (label_identifier(names[a]), label_identifier(names[b]))
+    if ids[0] and ids[1] and ids[0] != ids[1]:
+        return True
+    rows = {link: conn.execute("SELECT document_id, tier, quote_hash FROM evidence WHERE relationship_id = ? AND copied_from IS NULL", (link,)).fetchall()
+            for link in (a, b)}
+    for x in rows[a]:
+        for y in rows[b]:
+            if x["quote_hash"] == y["quote_hash"] or (x["document_id"] == y["document_id"] and x["tier"] == 1 and y["tier"] == 1):
+                return True
+    return False
+
+
+def placeholder_groups(conn):
+    """[(links to merge, the shared fact)]: sets of placeholder links that are one unnamed counterparty. Every condition:
+    - each placeholder belongs to the same filer, stands on the same side of a supply link and is in no other link;
+    - each has a trusted figure (tier 1, or verified tier 2; a link without a share is never merged) of the same measure and
+      scope for the same statement date, equal at the precision of the less precise figure (same_share), and every pair in
+      the set matches (23.4 and 23.1 don't, so 23 / 23.4 / 23.1 stays apart);
+    - unique at that share: the set holds every such placeholder of the filer, and none of its pairs is known to be two
+      counterparties (_known_different: "Customer A" and "Customer B", a tier 1 list naming both, one quote naming both);
+    - no pair was undone."""
+    companies = {r["id"]: r for r in conn.execute("SELECT id, name, is_placeholder, placeholder_for, merged_into FROM companies")}
+    facts = _trusted_facts(conn)
+    links = {r["id"]: r for r in conn.execute("SELECT id, supplier_id, customer_id FROM relationships WHERE kind = 'supplies' AND merged_into IS NULL")}
+    by_link = {}
+    for fact in facts:
+        if fact["relationship_id"] in links:
+            by_link.setdefault(fact["relationship_id"], []).append(fact)
+    undone = {frozenset((r["placeholder_relationship_id"], r["relationship_id"]))
+              for r in conn.execute("SELECT * FROM merge_decisions WHERE decision = 'undone'")}
+
+    def placeholder_of(link):
+        for side, other in (("customer", "supplier"), ("supplier", "customer")):
+            company = companies[link[f"{side}_id"]]
+            if company["is_placeholder"] and company["merged_into"] is None and company["placeholder_for"] == link[f"{other}_id"]:
+                return side, link[f"{other}_id"], link[f"{side}_id"]
+        return None
+
+    candidates = {}
+    for link_id, link in links.items():
+        found = placeholder_of(link)
+        if found is None or link_id not in by_link:
+            continue
+        if conn.execute("SELECT COUNT(*) FROM relationships WHERE (supplier_id = ? OR customer_id = ?) AND merged_into IS NULL",
+                        (found[2], found[2])).fetchone()[0] != 1:
+            continue
+        candidates[link_id] = found
+
+    def match(a, b):
+        if candidates[a][:2] != candidates[b][:2]:
+            return None
+        return next((f for f in by_link[a] for g in by_link[b] if _matches(f, g)), None)
+
+    names = {link_id: companies[found[2]]["name"] for link_id, found in candidates.items()}
+    groups, seen = [], set()
+    for link_id in sorted(candidates):
+        if link_id in seen:
+            continue
+        group = [link_id] + [other for other in sorted(candidates) if other != link_id and match(link_id, other)]
+        seen.update(group)
+        if len(group) < 2:
+            continue
+        pairs = [(a, b) for i, a in enumerate(group) for b in group[i + 1:]]
+        if any(match(a, b) is None or frozenset((a, b)) in undone or _known_different(conn, a, b, names) for a, b in pairs):
+            continue  # not one clear counterparty: keep every link
+        groups.append((group, match(group[0], group[1])))
+    return groups
+
+
+def join_placeholders(conn):
+    """Merges each group of placeholder links into one (the one with tier 1 evidence, else the oldest): evidence copied over,
+    the others' links and placeholder companies marked merged_into, a merge_decisions row each (undo reverses one).
+    Returns [(merged link, kept link)]."""
+    done = []
+    for group, fact in placeholder_groups(conn):
+        tier_one = {r[0] for r in conn.execute(f"SELECT DISTINCT relationship_id FROM evidence WHERE tier = 1 AND relationship_id IN ({', '.join('?' * len(group))})", group)}
+        keep = min(group, key=lambda link: (link not in tier_one, link))
+        for other in group:
+            if other != keep:
+                upgrade(conn, other, keep, fact)
+                done.append((other, keep))
     return done
 
 
@@ -310,7 +425,8 @@ def recompute_all(conn, today=None):
     ids = [r["id"] for r in conn.execute("SELECT id FROM relationships ORDER BY id")]
     changed = sum(refresh(conn, rid, today) for rid in ids)
     upgraded = upgrade_placeholders(conn)
-    return {"relationships": len(ids), "changed": changed, "partnerships": partnerships, "upgraded": len(upgraded)}
+    joined = join_placeholders(conn)
+    return {"relationships": len(ids), "changed": changed, "partnerships": partnerships, "upgraded": len(upgraded), "joined": len(joined)}
 
 
 def schedule(conn, today=None):
@@ -326,4 +442,5 @@ def schedule(conn, today=None):
 async def merge_job(job, conn):
     result = recompute_all(conn)
     return {"notes": f"{result['relationships']} links, {result['changed']} updated, {result['upgraded']} placeholders upgraded"
+                     + (f", {result['joined']} duplicate unnamed counterparties joined" if result["joined"] else "")
                      + (f", {result['partnerships']} partnerships reordered" if result["partnerships"] else "")}

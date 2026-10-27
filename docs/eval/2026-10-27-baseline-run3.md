@@ -1,17 +1,17 @@
 # Supply chain evaluation: baseline (run 3 of 3)
 
-Run 2026-10-27 19:53 · commit 748d2c9 + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
+Run 2026-10-27 19:53 · commit 59d1bd4 + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
 
 ## Summary
 
 | | |
 |---|---|
-| Known relationships | 86 (30 headline; 3 added to the file after reviewing the first run) |
-| **Found** (right companies, and for unnamed ones the right share and year) | **31** (36% recall) |
+| Known relationships | 90 (30 headline; 7 added to the file after reviewing the first run) |
+| **Found** (right companies, and for unnamed ones the right share and year) | **31** (34% recall) |
 | Found with the right share but another year | 0 |
-| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 36%) |
+| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 34%) |
 | Headline cases found | 14 of 30 |
-| Missed | 55 |
+| Missed | 59 |
 | Links in the result | 36 |
 | **Wrong links** (match nothing in the truth; to review below) | **1** (precision 97%) |
 | Wrong numbers on found links | 0 |
@@ -32,10 +32,10 @@ Run 2026-10-27 19:53 · commit 748d2c9 + uncommitted changes · chunker v1 · Re
 | china listed | 2 | 0 |
 | distributor | 1 | 0 |
 | ended | 4 | 1 |
-| named customer | 15 | 9 |
-| named supplier | 22 | 13 |
+| named customer | 17 | 9 |
+| named supplier | 24 | 13 |
 | partnership | 5 | 2 |
-| private | 19 | 2 |
+| private | 22 | 2 |
 | risk factor | 7 | 4 |
 | unnamed customer | 24 | 5 |
 | unnamed supplier | 14 | 0 |
@@ -62,9 +62,10 @@ Candidates by status: linked 44, not_supported 2, partly_supported 6
 - **amd-10k-fy25** SPIL → AMD: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **amd-10k-fy25** Tongfu Microelectronics → AMD: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **amd-10k-fy25** Tongfu Microelectronics → AMD: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
-- **amd-10k-fy25** Higon (THATIC) → AMD: the Reader did not return it
+- **amd-10k-fy25** Higon (THATIC) → AMD: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **amd-10k-fy25** Sanmina → AMD (headline): rejected: not_supported (verifier) - AMD sold its ZT manufacturing business to Sanmina and Sanmina is a preferred manufacturing
 - **amd-10k-fy25** AMD → OpenAI (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **amd-10k-fy25** AMD → Sony: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **smci-10k-fy26** Ablecom → Super Micro Computer (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **smci-10k-fy26** Compuware → Super Micro Computer (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **smci-10k-fy26** Super Micro Computer → Compuware: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
@@ -80,6 +81,8 @@ Candidates by status: linked 44, not_supported 2, partly_supported 6
 - **smci-10k-fy26** Super Micro Computer → (third of four customers): the Reader did not return it
 - **smci-10k-fy26** Super Micro Computer → (fourth of four customers): the Reader did not return it
 - **smci-10k-fy26** Super Micro Computer → (one customer): the Reader did not return it
+- **smci-10k-fy26** Ablecom → Super Micro Computer: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **smci-10k-fy26** Compuware → Super Micro Computer: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **crwv-10k-fy25** CoreWeave → OpenAI (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **crwv-10k-fy25** NVIDIA → CoreWeave (headline): rejected: not_supported (verifier) - The passage never mentions NVIDIA selling to CoreWeave; it only discusses GPUs generally a
 - **crwv-10k-fy25** (largest of three suppliers) → CoreWeave (headline): the Reader did not return it
@@ -94,6 +97,7 @@ Candidates by status: linked 44, not_supported 2, partly_supported 6
 - **crwv-10k-fy25** CoreWeave → (Customer B): the Reader did not return it
 - **crwv-10k-fy25** CoreWeave → (Customer B): the Reader did not return it
 - **crwv-10k-fy25** CoreWeave → (Customer C): the Reader did not return it
+- **crwv-10k-fy25** CoreWeave → MagAI Ventures: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **dell-10k-fy26** Dell → (one customer) (headline): rejected: partly_supported_link (verifier) - The 12% share, ISG offerings and fiscal year are stated, but the context identifies the cu
 - **arm-20f-fy26** Arm → Arm China (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **arm-20f-fy26** Arm → Arm China: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
@@ -149,6 +153,7 @@ These match nothing in the truth. Each needs a look: a wrong link, or a true one
 | amd-10k-fy25 | Sanmina | AMD | missed (headline) |  |
 | amd-10k-fy25 | AMD | OpenAI | missed (headline) |  |
 | amd-10k-fy25 | AMD | (one Client and Gaming segment customer) | found | high |
+| amd-10k-fy25 | AMD | Sony | missed |  |
 | smci-10k-fy26 | Ablecom | Super Micro Computer | missed (headline) |  |
 | smci-10k-fy26 | Compuware | Super Micro Computer | missed (headline) |  |
 | smci-10k-fy26 | Super Micro Computer | Compuware | missed |  |
@@ -167,6 +172,8 @@ These match nothing in the truth. Each needs a look: a wrong link, or a true one
 | smci-10k-fy26 | Super Micro Computer | (third of four customers) | missed |  |
 | smci-10k-fy26 | Super Micro Computer | (fourth of four customers) | missed |  |
 | smci-10k-fy26 | Super Micro Computer | (one customer) | missed |  |
+| smci-10k-fy26 | Ablecom | Super Micro Computer | missed |  |
+| smci-10k-fy26 | Compuware | Super Micro Computer | missed |  |
 | crwv-10k-fy25 | CoreWeave | Microsoft | found (headline) | high |
 | crwv-10k-fy25 | CoreWeave | OpenAI | missed (headline) |  |
 | crwv-10k-fy25 | CoreWeave | Meta | found (headline) | high |
@@ -184,6 +191,7 @@ These match nothing in the truth. Each needs a look: a wrong link, or a true one
 | crwv-10k-fy25 | CoreWeave | (Customer B) | missed |  |
 | crwv-10k-fy25 | CoreWeave | (Customer C) | missed |  |
 | crwv-10k-fy25 | NVIDIA | CoreWeave | found | high |
+| crwv-10k-fy25 | CoreWeave | MagAI Ventures | missed |  |
 | amkr-10k-fy25 | Amkor | Apple | found (headline) | high |
 | amkr-10k-fy25 | Amkor | Qualcomm | found (headline) | high |
 | dell-10k-fy26 | VMware | Dell | found (headline) | high |

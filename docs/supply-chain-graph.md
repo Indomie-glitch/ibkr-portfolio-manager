@@ -264,7 +264,15 @@ The same link arrives from many documents: XBRL (tier 1), the Reader (tier 2), s
 
 The upgrade copies the placeholder link's evidence onto the named link (`evidence.copied_from`), marks the link and the placeholder company `merged_into`, and records it in `merge_decisions`. Merged links are left out of counts and the log. Lookups follow `companies.merged_into` (`graph.current_company`: identifier lookups, the name resolver's matches and saved decisions, `add_relationship`, `xbrl.placeholder`), so a later document attaches to the named company, never the retired placeholder. `merge.undo(conn, placeholder_link_id)` reverses an upgrade: the copies are removed, both `merged_into` cleared, and an `undone` decision stops the daily job from redoing it.
 
-**Every row is scored.** `db.open_graph` runs `merge.recompute_all` when migration 6 is first applied, so no link keeps an old placeholder value (XBRL's fixed 0.9, the Verifier's 0). The daily `merge` job (key = the date, priority 20, queued by the scheduler; no AI) runs it again: partnerships in one order, every link recomputed (which is what makes a link stale), then placeholder upgrades. `integrity.check()` also reports a partnership stored the wrong way round, a link merged into a merged link, and a confidence that isn't the one its evidence gives.
+**Duplicate unnamed counterparties (#335).** NVIDIA's largest customer appeared as XBRL's "Customer one" and the Reader's "a direct customer" and "one direct customer" (22% each). `merge.join_placeholders` merges placeholders of the same filer into one when every condition holds:
+- the same side of a supply link, each placeholder in no other link;
+- a trusted figure with a **share** of the same measure and scope for the same statement date, equal at the precision of the less precise figure, for every pair in the set (23, 23.4 and 22.6 don't form a set). Without a share, no merge;
+- unique at that share: the set holds all of the filer's placeholders at it, and no pair is known to be two customers: different identifiers in the labels ("Customer A" and "Customer B"), a tier 1 list of one document naming both, or one quote naming both;
+- the pair was never undone.
+
+The link with tier 1 evidence is kept (else the oldest); the others' evidence is copied onto it, their links and placeholder companies get `merged_into`, each with a `merge_decisions` row, and `merge.undo` reverses one. A kept placeholder that later matches a named company is upgraded like any other, and the links merged into it follow it, so there are no chains. Two placeholders that both match one named company are joined first and upgraded on the next run.
+
+**Every row is scored.** `db.open_graph` runs `merge.recompute_all` when migration 6 is first applied, so no link keeps an old placeholder value (XBRL's fixed 0.9, the Verifier's 0). The daily `merge` job (key = the date, priority 20, queued by the scheduler; no AI) runs it again: partnerships in one order, every link recomputed (which is what makes a link stale), then placeholder upgrades, then duplicate placeholders joined. `integrity.check()` also reports a partnership stored the wrong way round, a link merged into a merged link, and a confidence that isn't the one its evidence gives.
 
 ## Running it and watching it (#122)
 
