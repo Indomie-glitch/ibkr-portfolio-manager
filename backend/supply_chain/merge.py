@@ -305,7 +305,10 @@ NUMBER_WORDS = {w: str(n) for n, w in enumerate("one two three four five six sev
 def label_identifier(name):
     """The letter or number a filing gives an unnamed counterparty ("Customer A" -> "a", "Customer one" -> "1"), or None for
     "a direct customer". Two labels with different identifiers in one filing are two counterparties."""
-    match = IDENTIFIER.search(str(name).split(" (unnamed", 1)[0].lower())
+    label = re.sub(r" in the .* filed \d{4}-\d{2}-\d{2}$", "", str(name).split(" (unnamed", 1)[0]).lower()
+    if re.search(r"\b\d+ of \d+$", label):
+        return None  # the Reader's numbering in the order a sentence lists them (#341), not a label the filing gives
+    match = IDENTIFIER.search(label)
     return NUMBER_WORDS.get(match.group(1), match.group(1)) if match else None
 
 
