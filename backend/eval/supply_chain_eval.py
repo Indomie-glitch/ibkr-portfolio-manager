@@ -3,6 +3,11 @@
     cd backend && python -m eval.supply_chain_eval --check            # every quote still found in its filing (no API; downloads filings if missing)
     cd backend && python -m eval.supply_chain_eval                    # run chunker, Reader, Verifier and merge on the evaluation filings
     cd backend && python -m eval.supply_chain_eval --reader-effort low --label low
+    cd backend && python -m eval.supply_chain_eval --fresh --runs 3      # a Reader prompt change: read again, three times, mean and range
+
+Reader answers are saved in backend/eval/reader_cache/ (eval/reader_cache.py), keyed by the whole Reader request (chunk text, prompt,
+schema, model, effort), one per run number. A run reuses them, so a change to the Verifier, merge or confidence is measured on the same
+Reader output; a changed prompt or chunk reads afresh by itself; --fresh reads everything again and replaces what is saved.
 
 backend/eval/supply_chain_eval.json lists 10 filings and what each states: the relationships known to be true (30 of them the "headline" cases:
 named customers with percentages, named suppliers in risk factors, 8-K agreements, unnamed customers, ended relationships, private counterparties),
@@ -31,7 +36,10 @@ from pathlib import Path
 BACKEND = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND))
 
+import anthropic  # noqa: E402
+
 import config  # noqa: E402
+from eval.reader_cache import CachingClient  # noqa: E402
 from supply_chain import chunker, db, graph, jobs, merge, orchestrator, reader, resolver, themes, verifier  # noqa: E402
 
 TRUTH = Path(__file__).with_name("supply_chain_eval.json")
@@ -138,9 +146,11 @@ def estimate_cost(conn, truth, ids):
 
 # ---------- Running the pipeline ----------
 
-async def run_pipeline(conn, ids, reader_effort="medium", verifier_effort="medium", say=print):
-    """Reader, Verifier and merge on each document. Returns {reader_cost, verifier_cost, tokens...}."""
+async def run_pipeline(conn, ids, reader_effort="medium", verifier_effort="medium", say=print, run_index=0, fresh=False):
+    """Reader, Verifier and merge on each document; the Reader's answers come from the cache when saved (answer number
+    run_index; fresh reads them all again). Returns {reader_cost, verifier_cost, tokens..., reader_cache}."""
     reader.EFFORT, verifier.EFFORT = reader_effort, verifier_effort
+    client = CachingClient(anthropic.AsyncAnthropic(api_key=config.anthropic_api_key(), timeout=reader.TIMEOUT_S), run_index, fresh)
     totals = {"reader_cost": 0.0, "verifier_cost": 0.0, "reader_in": 0, "reader_out": 0, "verifier_in": 0, "verifier_out": 0, "declined": 0, "deferred": 0}
     def start(kind, key):
         """A run row, so what each call costs is on it and the spend cap sees it."""
@@ -150,7 +160,7 @@ async def run_pipeline(conn, ids, reader_effort="medium", verifier_effort="mediu
     for eval_id, document_id in ids.items():
         say(f"  {eval_id}: reading…")
         job = start("read", f"eval-{eval_id}")
-        read = await reader.read_document(conn, document_id, run_id=job["run_id"])
+        read = await reader.read_document(conn, document_id, client=client, run_id=job["run_id"])
         jobs.finish(conn, job)
         for key, name in (("cost_usd", "reader_cost"), ("input_tokens", "reader_in"), ("output_tokens", "reader_out")):
             totals[name] += read[key]
@@ -170,7 +180,13 @@ async def run_pipeline(conn, ids, reader_effort="medium", verifier_effort="mediu
             conn.execute("UPDATE candidates SET verify_after = NULL WHERE document_id = ? AND status = 'pending'", (document_id,))
         say(f"  {eval_id}: {checked['linked']} linked, {checked['rejected']} rejected")
     totals["merge"] = merge.recompute_all(conn)
+    totals["reader_cache"] = {"hits": client.hits, "misses": client.misses, "saved_usd": client.saved_usd}
     return totals
+
+
+def full_cost(run):
+    """What the run would cost read afresh: today's spend plus what the cached Reader answers cost when first read."""
+    return run["reader_cost"] + (run.get("reader_cache") or {}).get("saved_usd", 0.0) + run["verifier_cost"]
 
 
 # ---------- Reading the result ----------
@@ -397,6 +413,14 @@ def money(value):
     return f"US${value:.3f}"
 
 
+def reader_cache_line(run):
+    cache = run.get("reader_cache")
+    if not cache:
+        return []
+    return [f"| Reader answers | {cache['hits']} from the cache (they cost {money(cache['saved_usd'])} when first read), {cache['misses']} read now"
+            f"{' (--fresh)' if run.get('fresh') else ''}; cost read afresh {money(full_cost(run))} |"]
+
+
 def render(truth, ids, out, metrics, run, label, started):
     m = metrics
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, cwd=BACKEND).stdout.strip()
@@ -423,7 +447,8 @@ def render(truth, ids, out, metrics, run, label, started):
              f"| Duplicate unnamed counterparties | {m['duplicate_links']} extra links in {m['duplicate_groups']} groups |",
              f"| Confidence level of the found links | {', '.join(f'{k} {v}' for k, v in sorted(m['confidence_levels_of_found'].items())) or 'none'} |",
              f"| **Cost** | **{money(run['reader_cost'] + run['verifier_cost'])}** (Reader {money(run['reader_cost'])}, Verifier {money(run['verifier_cost'])}) |",
-             f"| Tokens | Reader {run['reader_in']:,} in / {run['reader_out']:,} out · Verifier {run['verifier_in']:,} in / {run['verifier_out']:,} out |", "",
+             f"| Tokens | Reader {run['reader_in']:,} in / {run['reader_out']:,} out · Verifier {run['verifier_in']:,} in / {run['verifier_out']:,} out |",
+             *reader_cache_line(run), "",
              "## Recall by kind of case", "", "| Case | Known | Found |", "|---|---|---|"]
     for cat, v in m["categories"].items():
         lines.append(f"| {cat.replace('_', ' ')} | {v['truth']} | {v['found']} |")
@@ -509,9 +534,25 @@ async def main(argv=None):
     parser.add_argument("--label", help="name of the run in the report (default: reader-<effort>)")
     parser.add_argument("--yes", action="store_true", help="don't ask before spending")
     parser.add_argument("--estimate-only", action="store_true", help="print the estimated cost and stop")
+    parser.add_argument("--fresh", action="store_true", help="read every chunk again instead of using saved Reader answers (and save the new ones)")
+    parser.add_argument("--runs", type=int, default=1, help="run N times (each Reader answer number i is run i's) and report mean and range")
     parser.add_argument("--rescore", metavar="STEM", help="score a saved run again (docs/eval/<STEM>.raw.json) against the current truth file: no API calls")
     args = parser.parse_args(argv)
     truth = load_truth()
+    if args.rescore and not (REPORTS / f"{args.rescore}.raw.json").exists():  # a --runs summary: rescore each run, then the summary
+        summary = json.loads((REPORTS / f"{args.rescore}.json").read_text(encoding="utf-8"))
+        results = []
+        for stem in summary["reports"]:
+            raw = json.loads((REPORTS / f"{stem}.raw.json").read_text(encoding="utf-8"))
+            started = datetime.fromisoformat(raw["started"])
+            metrics, report = build_report(truth, raw["ids"], raw["out"], [tuple(x) for x in raw["outside"]], raw["run"], raw["label"], started)
+            save(stem, report, raw["label"], raw["run"], metrics, raw)
+            results.append((stem, raw["run"], metrics))
+        text = render_runs(summary.get("label") or args.rescore, started, results, truth, raw["ids"])
+        (REPORTS / f"{args.rescore}.md").write_text(text, encoding="utf-8")
+        (REPORTS / f"{args.rescore}.json").write_text(json.dumps({**runs_summary(results), "label": summary.get("label")}, indent=1), encoding="utf-8")
+        print(text)
+        return 0
     if args.rescore:
         raw = json.loads((REPORTS / f"{args.rescore}.raw.json").read_text(encoding="utf-8"))
         started = datetime.fromisoformat(raw["started"])
@@ -539,26 +580,80 @@ async def main(argv=None):
     with tempfile.TemporaryDirectory(prefix="supply-chain-eval-") as folder:
         conn, ids = setup_database(truth, folder, wanted)
         low, high_, chunks = estimate_cost(conn, truth, ids)
-        print(f"\n{len(ids)} filings, {chunks} chunks. Estimated cost about {money(low + high_)} (Reader {money(low)}, Verifier {money(high_)}). The estimate is deliberately high.")
-        if args.estimate_only:
-            return 0
-        if not args.yes and input("Run it with the real Claude API? [y/N] ").strip().lower() != "y":
-            print("Not run.")
-            return 0
-        started = datetime.now(timezone.utc).astimezone()
-        orchestrator.limits.pacing = False
-        orchestrator.limits.run_cap_usd = max(2.0, 4 * (low + high_))
-        orchestrator.limits.run_since = started.astimezone(timezone.utc)
-        run = await run_pipeline(conn, ids, args.reader_effort, args.verifier_effort, say=lambda text: print(text, flush=True))
-        run.update(reader_effort=args.reader_effort, verifier_effort=args.verifier_effort)
-        out = collect(conn, ids)
-        raw = {"label": label, "started": started.isoformat(), "run": run, "ids": ids, "outside": outside, "out": {k: out[k] for k in ("links", "candidates", "rejected")}}
-        metrics, report = build_report(truth, ids, out, outside, run, label, started)
-        save(f"{started:%Y-%m-%d}-{label}", report, label, run, metrics, raw)
-        print("\n" + report)
-        print(f"Saved docs/eval/{started:%Y-%m-%d}-{label}.md, .json and .raw.json")
         conn.close()
+    reading = "every chunk read again" if args.fresh else "Reader answers from the cache where saved (then only the Verifier is paid for)"
+    print(f"\n{len(ids)} filings, {chunks} chunks, {args.runs} run(s), {reading}. Estimated cost at most about {money(args.runs * (low + high_))} "
+          f"(per run: Reader {money(low)}, Verifier {money(high_)}). The estimate is deliberately high.")
+    if args.estimate_only:
+        return 0
+    if not args.yes and input("Run it with the real Claude API? [y/N] ").strip().lower() != "y":
+        print("Not run.")
+        return 0
+    started = datetime.now(timezone.utc).astimezone()
+    orchestrator.limits.pacing = False
+    orchestrator.limits.run_cap_usd = max(2.0, 4 * args.runs * (low + high_))
+    orchestrator.limits.run_since = started.astimezone(timezone.utc)
+    stem = f"{started:%Y-%m-%d}-{label}"
+    results = []
+    for index in range(args.runs):
+        run_stem = f"{stem}-run{index + 1}" if args.runs > 1 else stem
+        run_label = f"{label} (run {index + 1} of {args.runs})" if args.runs > 1 else label
+        with tempfile.TemporaryDirectory(prefix="supply-chain-eval-") as folder:
+            conn, ids = setup_database(truth, folder, wanted)
+            print(f"\nRun {index + 1} of {args.runs}", flush=True)
+            run = await run_pipeline(conn, ids, args.reader_effort, args.verifier_effort, say=lambda text: print(text, flush=True),
+                                     run_index=index, fresh=args.fresh)
+            run.update(reader_effort=args.reader_effort, verifier_effort=args.verifier_effort, fresh=args.fresh, run_index=index)
+            out = collect(conn, ids)
+            conn.close()
+        raw = {"label": run_label, "started": started.isoformat(), "run": run, "ids": ids, "outside": outside, "out": {k: out[k] for k in ("links", "candidates", "rejected")}}
+        metrics, report = build_report(truth, ids, out, outside, run, run_label, started)
+        save(run_stem, report, run_label, run, metrics, raw)
+        results.append((run_stem, run, metrics))
+        if args.runs == 1:
+            print("\n" + report)
+        print(f"Saved docs/eval/{run_stem}.md, .json and .raw.json")
+    if args.runs > 1:
+        summary = render_runs(label, started, results, truth, ids)
+        (REPORTS / f"{stem}.md").write_text(summary, encoding="utf-8")
+        (REPORTS / f"{stem}.json").write_text(json.dumps({**runs_summary(results), "label": label}, indent=1), encoding="utf-8")
+        print("\n" + summary)
+        print(f"Saved docs/eval/{stem}.md and .json")
     return 0
+
+
+RUN_FIGURES = (("found", "Found"), ("headline_found", "Headline cases found"), ("wrong_links", "Wrong links"),
+               ("wrong_numbers", "Wrong numbers"), ("trap_links", "Links made from traps"), ("duplicate_links", "Duplicate placeholder links"))
+
+
+def runs_summary(results):
+    """Mean, lowest and highest of each figure over the runs, and of the cost read afresh."""
+    summary = {}
+    for key, _ in RUN_FIGURES:
+        values = [m[key] for _, _, m in results]
+        summary[key] = {"mean": sum(values) / len(values), "min": min(values), "max": max(values), "runs": values}
+    costs = [full_cost(run) for _, run, _ in results]
+    summary["cost_usd"] = {"mean": sum(costs) / len(costs), "min": min(costs), "max": max(costs), "runs": costs}
+    summary["truth"] = results[0][2]["truth"]
+    summary["reports"] = [stem for stem, _, _ in results]
+    return summary
+
+
+def render_runs(label, started, results, truth, ids):
+    s = runs_summary(results)
+    run = results[0][1]
+    lines = [f"# Supply chain evaluation: {label} ({len(results)} runs)", "",
+             f"Run {started:%Y-%m-%d %H:%M} · Reader {config.READER_MODEL} (effort {run['reader_effort']}) · Verifier {config.VERIFIER_MODEL} "
+             f"(effort {run['verifier_effort']}) · {len(ids)} filings · {'every chunk read again' if run.get('fresh') else 'Reader answers from the cache where saved'}", "",
+             "| | Mean | Lowest | Highest | Each run |", "|---|---|---|---|---|"]
+    for key, name in RUN_FIGURES:
+        v = s[key]
+        name = f"{name} (of {s['truth']})" if key == "found" else name
+        lines.append(f"| {name} | {v['mean']:.1f} | {v['min']} | {v['max']} | {', '.join(map(str, v['runs']))} |")
+    c = s["cost_usd"]
+    lines.append(f"| Cost (read afresh) | {money(c['mean'])} | {money(c['min'])} | {money(c['max'])} | {', '.join(money(x) for x in c['runs'])} |")
+    lines += ["", "Each run's report: " + ", ".join(f"[{stem}]({stem}.md)" for stem in s["reports"]), ""]
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":

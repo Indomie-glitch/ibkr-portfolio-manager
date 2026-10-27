@@ -1,0 +1,47 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 13805,
+    "output_tokens": 1767
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"NVIDIA\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"GB200 and GB300 NVL72 systems\",\"quote\":\"Our track record and ability to deploy the industry's most advanced hardware and architectures first—including NVIDIA GB200 and GB300 NVL72 systems for mission-critical AI—gives our customers a measurable edge in performance, efficiency, and scale.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"AMD\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Intel\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 13805,
+    "output_tokens": 2416
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"NVIDIA\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"NVIDIA GPUs, including GB200, GB300, and RTX Pro 6000 systems\",\"quote\":\"This approach enables our data centers to support and deploy the latest generation of chips at scale and for us to be among the first to bring them to market at scale—with a track record of bringing NVIDIA GPUs to market first, including GB200, GB300, and RTX Pro 6000 systems.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"AMD\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Intel\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  },
+  "2": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 13805,
+    "output_tokens": 1590
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"NVIDIA\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"GPUs\",\"quote\":\"We believe our speed to market with the latest generations of GPUs, proprietary software and orchestration platform, security standards and ability to deliver a highly attractive total cost of ownership all contribute to CoreWeave's rapid growth.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"AMD\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Intel\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"CoreWeave, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"CPUs\",\"quote\":\"CoreWeave clusters also use cutting edge CPUs, including AMD and Intel chips, to power compute-intensive projects and to help our customers get more out of GPU compute.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  }
+ }
+}
