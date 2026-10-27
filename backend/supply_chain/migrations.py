@@ -321,6 +321,12 @@ HOLDINGS = """
 ALTER TABLE companies ADD COLUMN held INTEGER NOT NULL DEFAULT 0 CHECK (held IN (0, 1));
 """
 
+RESCORE = """
+-- No schema change. Confidence is now medium for one verified quote and high for a second document (#333); the rescore
+-- of every existing link runs in db.open_graph when this migration is applied. The checksum records that it ran.
+SELECT 1;
+"""
+
 # (version, name, sql). Add new migrations at the end.
 MIGRATIONS = [
     (1, "initial graph schema (#115)", INITIAL),
@@ -330,4 +336,5 @@ MIGRATIONS = [
     (5, "verify attempts on candidates (#125)", VERIFY_ATTEMPTS),
     (6, "relationship merge: last_confirmed, merged_into, copied evidence, decisions (#127)", MERGE),
     (7, "companies the user holds (#126)", HOLDINGS),
+    (8, "rescore confidence: one verified quote is medium (#333)", RESCORE),
 ]

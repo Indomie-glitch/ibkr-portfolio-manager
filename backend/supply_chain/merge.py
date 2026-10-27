@@ -4,9 +4,10 @@ The same link arrives from many documents (XBRL tier 1, Reader tier 2, several y
 and graph.add_evidence add each statement to the one link (a partnership has no direction: A-B and B-A are one link,
 stored with the lower company id first), then refresh() recomputes the link from all its evidence:
 - shares: per share, the newest statement wins; for the same period, a tier 1 figure beats a tier 2 one;
-- confidence (CONFIDENCE, read through level() by every consumer): high = a tier 1 source, or a verified tier 2 source
-  from a filing; medium = verified tier 2 not from a filing, or tier 3 confirmed by a second independent document;
-  low = one tier 3 source (or unverified tier 2);
+- confidence (CONFIDENCE, read through level() by every consumer): high = a tier 1 source, or verified tier 2 evidence
+  from two different documents (another filing, or another year's); medium = verified tier 2 from one document, or
+  tier 3 confirmed by a second independent document; low = one tier 3 source (or unverified tier 2). Whether the
+  counterparty is named and whether a share is known are separate fields, not part of confidence (#333);
 - first_seen / last_confirmed: the earliest and latest dates the statements are about (stated_on, else the report's
   period end, else its filing date);
 - status: ended when the newest statement says it ended (ended_at = that statement's date); otherwise stale when the
@@ -25,7 +26,6 @@ from supply_chain.db import now, transaction
 from supply_chain.worker import handler
 
 CONFIDENCE = {"high": 0.9, "medium": 0.6, "low": 0.3}
-FILING_SOURCES = {"sec", "mops", "edinet", "dart", "asx"}  # a company's own filings to its regulator or exchange
 STALE_MONTHS = 18
 MERGE_PRIORITY = 20  # no AI and quick: after the pipeline's real work
 SHARES = (("supplier_revenue_share", ()), ("customer_supply_share", ("customer_share_scope",)))
@@ -77,7 +77,9 @@ def confidence_of(rows):
     if any(r["tier"] == 1 for r in rows):
         return CONFIDENCE["high"]
     verified = [r for r in rows if r["tier"] == 2 and r["verification"] == "verified"]
-    if any(r["source"] in FILING_SOURCES for r in verified):
+    # one sentence in one document is medium; a second document (another filing or year) makes it high. A document
+    # is told apart by its text, so the same filing read twice, or evidence copied by a placeholder upgrade, counts once.
+    if len({r["content_hash"] or ("document", r["document_id"]) for r in verified}) >= 2:
         return CONFIDENCE["high"]
     if verified:
         return CONFIDENCE["medium"]

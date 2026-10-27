@@ -128,7 +128,7 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(m["per_item"]["d#4"]["result"], "found")
         self.assertEqual(m["per_item"]["d#5"]["result"], "found_other_year")
         self.assertEqual(m["per_item"]["d#7"]["result"], "found")
-        self.assertEqual(m["per_item"]["d#1"]["level"], "high")
+        self.assertEqual(m["per_item"]["d#1"]["level"], "medium")  # one verified quote (#333)
         self.assertEqual({i["id"] for _, i in m["_missed"]}, {"d#3", "d#6", "d#8", "d#9"})
         self.assertEqual(m["headline_found"], 1)
         self.assertAlmostEqual(m["recall"], 4 / 9, places=3)

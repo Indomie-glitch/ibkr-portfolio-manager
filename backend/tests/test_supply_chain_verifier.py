@@ -118,7 +118,7 @@ class VerdictTests(VerifierTestCase):
         self.assertEqual((relationship["supplier_id"], relationship["customer_id"], relationship["kind"], relationship["tier"]),
                          (self.gamma, self.acme, "supplies", 2))
         self.assertEqual((relationship["customer_supply_share"], relationship["customer_share_scope"], relationship["what"]), (100.0, "wafers", "wafers"))
-        self.assertEqual(relationship["confidence"], 0.9)  # verified tier 2 from a filing: high (merge.py, #127)
+        self.assertEqual(relationship["confidence"], 0.6)  # one verified quote: medium (merge.py, #333)
         evidence, = self.evidence()
         self.assertEqual((evidence["extractor"], evidence["tier"], evidence["verification"], evidence["verified_by"]),
                          ("reader", 2, "verified", "claude-sonnet-5-5"))

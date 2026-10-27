@@ -239,7 +239,7 @@ The same link arrives from many documents: XBRL (tier 1), the Reader (tier 2), s
 | Field | Rule |
 |---|---|
 | Shares | Each share on its own: the newest statement wins; for the same period a tier 1 figure beats a tier 2 one. |
-| `confidence` | high **0.9** = a tier 1 source, or a verified tier 2 source from a filing (sec, mops, edinet, dart, asx); medium **0.6** = verified tier 2 not from a filing, or tier 3 confirmed by a second independent document (another publisher, not the same text); low **0.3** = one tier 3 source, or unverified tier 2. Every consumer reads it through `merge.level(confidence)` (high / medium / low), the one place the thresholds live; low links are never used by the risk rules (Milestone 12). |
+| `confidence` | high **0.9** = a tier 1 source, or verified tier 2 evidence from two different documents (another filing or another year's; the same text twice counts once); medium **0.6** = verified tier 2 from one document, or tier 3 confirmed by a second independent document (another publisher, not the same text); whether the counterparty is named and whether a share is known are separate fields, not part of confidence (#333); low **0.3** = one tier 3 source, or unverified tier 2. Every consumer reads it through `merge.level(confidence)` (high / medium / low), the one place the thresholds live; low links are never used by the risk rules (Milestone 12). |
 | `first_seen` / `last_confirmed` | The earliest and the latest statement dates (`last_seen` stays the last time evidence was written; "new this week" in the pipeline sheet uses `created_at`). |
 | `status`, `ended_at` | **ended** when the newest statement says it ended (`states_ended`; a tie goes to ended), `ended_at` = that statement's date. Otherwise **stale** when `last_confirmed` is over 18 months old, else **active**. A statement dated after `ended_at` revives an ended link; one dated before it (an older 10-K read today) doesn't. A newer statement revives a stale link. Nothing is deleted. |
 
@@ -298,7 +298,7 @@ Each decision is saved in `name_resolutions` (matched: `method`; skipped: `reaso
 | Ended relationships found / marked ended (of 4) | 1 / 1 | 1 / 1 |
 | Cost | US$0.24 | US$0.19 |
 
-What the misses are (medium): 30 were never returned by the Reader (mostly statements about several unnamed counterparties at once, "sales to four customers represented 20.9%, 11.5%, 11.3% and 11.1%", which its prompt tells it to leave out as groups); 17 were rejected as `unresolved_company` (private companies such as OpenAI, Groq, Ablecom and Compuware, and China- or Taiwan-listed ones such as Tongfu); the others one wrong direction and two "groups". Every found link is "high" confidence whatever the evidence. The Verifier once dropped a correct stated number (Dell's 12%).
+What the misses are (medium): 30 were never returned by the Reader (mostly statements about several unnamed counterparties at once, "sales to four customers represented 20.9%, 11.5%, 11.3% and 11.1%", which its prompt tells it to leave out as groups); 17 were rejected as `unresolved_company` (private companies such as OpenAI, Groq, Ablecom and Compuware, and China- or Taiwan-listed ones such as Tongfu); the others one wrong direction and two "groups". Every found link was "high" confidence whatever the evidence (fixed by #333: after it, all 31 found links in the 27 Oct rerun are "medium", since each filing is one document). The Verifier once dropped a correct stated number (Dell's 12%).
 
 ## What runs first, and how much it may spend (#126)
 
