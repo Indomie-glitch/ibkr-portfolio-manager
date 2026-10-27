@@ -9,7 +9,7 @@ from unittest import mock
 
 import usage_store
 from tests.pipeline_isolation import isolate
-from supply_chain import graph, integrity, jobs, reader, scout
+from supply_chain import chunker, graph, integrity, jobs, reader, scout, verifier
 from supply_chain.db import open_graph
 from supply_chain.worker import Permanent
 
@@ -213,6 +213,36 @@ class ShareTests(ReaderTestCase):
         self.assertFalse(reader.share_in_quote(48, "148% growth"))
         self.assertFalse(reader.share_in_quote(48, "1.48 billion"))
         self.assertFalse(reader.share_in_quote(30, "a third of revenue"))
+
+
+class PlannedAndLeaseTests(unittest.TestCase):
+    """#338: a lease of space from an unnamed party is left out; both prompts say a planned agreement is no relationship."""
+
+    def check(self, counterparty, quote, **fields):
+        text = f"Item 1A. Risk Factors\n\n{quote}"
+        chunk = chunker.Chunk("tenk.htm", "Item 1A. Risk Factors", text, 50, 1, 2, numbers=[1, 2])
+        return reader.check(relationship(counterparty, ACME, "supplier", quote, **fields), chunk, "Acme Semiconductor Inc.")
+
+    def test_an_unnamed_lease_of_space_is_refused(self):
+        quote = "we executed a long-term data center space from a supplier and concurrently sublicensed all of our rights and obligations related to such data center space to another party."
+        with self.assertRaises(reader.Refused) as caught:
+            self.check(party("a supplier", unnamed=True), quote)
+        self.assertEqual(caught.exception.reason, "unnamed_lease")
+        with self.assertRaises(reader.Refused):
+            self.check(party("a landlord", unnamed=True), "We lease office space from a landlord under a ten-year lease.")
+
+    def test_a_named_lease_or_an_unnamed_share_is_kept(self):
+        self.assertEqual(self.check(party("Gamma Foundry"), "We lease office space from Gamma Foundry in Taiwan.")["supplier_name"], "Gamma Foundry")
+        row = self.check(party("one supplier", unnamed=True), "One supplier accounted for 63.1% of purchases, including leased data center space.",
+                         customer_supply_share=63.1, customer_share_scope="purchases")
+        self.assertEqual(row["customer_supply_share"], 63.1)
+
+    def test_both_prompts_leave_out_planned_agreements(self):
+        for prompt in (reader.SYSTEM_PROMPT, verifier.SYSTEM_PROMPT):
+            text = " ".join(prompt.split())
+            self.assertIn("being finalized", text)
+            self.assertIn("there is no assurance that we will enter into", text)
+        self.assertIn("leases of office or data-centre space unless the passage names the other party", " ".join(reader.SYSTEM_PROMPT.split()))
 
 
 class CounterpartyTests(ReaderTestCase):

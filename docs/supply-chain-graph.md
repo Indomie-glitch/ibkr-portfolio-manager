@@ -216,6 +216,7 @@ Each `Chunk` has the file name (`document`), the `section`, the `text`, the esti
 | Exactly one side is the filer | `not_about_filer` |
 | The counterparty's role agrees with the direction | `direction_mismatch` |
 | The counterparty is one company, not a group ("our customers", "top ten customers") | `generic_counterparty` |
+| Not a lease of space from or to an unnamed party with no share (#338) | `unnamed_lease` |
 | A named counterparty appears in the chunk | `name_not_in_text` |
 | The name resolver (#119) matches it to a company, and not to the filer | `unresolved_company`, `same_company` |
 

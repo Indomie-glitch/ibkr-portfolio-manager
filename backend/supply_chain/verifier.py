@@ -65,6 +65,9 @@ for a different measure, year or company doesn't count; "substantially all" is n
   - period: the context doesn't say the statement is about that date or period;
   - ended: the claim says the relationship ended (or is ongoing) and the context doesn't say so.
   Empty when supported.
+- An agreement the context describes as planned, proposed, being negotiated or being finalized, or one it says may \
+not happen ("there is no assurance that we will enter into"), is not a relationship: not_supported. Only relationships \
+that exist or existed count.
 - reason: one short sentence saying what the context does or doesn't say."""
 
 SCHEMA = {
