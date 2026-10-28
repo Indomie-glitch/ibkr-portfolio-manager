@@ -93,6 +93,9 @@ number. customer_supply_share: the percentage of what the customer buys (of cust
 "total purchases") that comes from this supplier, only if the passage gives the number. Never estimate or calculate. \
 "Substantially all" or "a significant portion" is not a number: leave the share null and copy the words into \
 share_as_written.
+- A share of accounts receivable ("two customers accounted for 33.4% and 13.6% of our accounts receivable") is not a \
+share of revenue or purchases: never put it in supplier_revenue_share or customer_supply_share; copy it into \
+share_as_written.
 - period_as_written: the date or period the statement refers to ("fiscal year 2026", "as of January 25, 2026"); \
 stated_on: that date as YYYY-MM-DD when it is a specific day or period end, else null.
 - ended: true only if the passage says the relationship has ended or will end (terminated, not renewed, expired, \
@@ -170,6 +173,20 @@ def share_in_quote(value, quote):
     return re.search(rf"(?<![\d.]){re.escape(digits)}(?:\.0+)?(?![\d])", normalise(quote).replace(",", "")) is not None
 
 
+def receivables_share(value, quote, scope=None):
+    """True when the number is a share of accounts receivable, not of revenue or purchases: "two customers accounted for
+    33.4% and 13.6% of our accounts receivable balance". As in xbrl.py, such a share is only a note (#345). Read from the
+    first "of ..." after the number, up to the next number or the end of the clause."""
+    if scope and "receivable" in scope.lower():
+        return True
+    text = normalise(quote).replace(",", "")
+    for found in re.finditer(rf"(?<![\d.]){re.escape(f'{value:g}')}(?:\.0+)?(?![\d])", text):
+        measure = re.search(r"\bof\b([^\d;.]{0,60})", text[found.end():])
+        if measure and "receivable" in measure.group(1).lower():
+            return True
+    return False
+
+
 LEASE = re.compile(r"\b(?:sub)?(?:lease|leases|leased|leasing|license|licensed|licensing)\b[^.]*\bspace\b|\bspace\b[^.]*\b(?:sub)?(?:lease|leased|license|licensed)\b", re.IGNORECASE)
 
 
@@ -222,7 +239,7 @@ def check(answer, chunk, filer_name):
     if not unnamed and normalise(name).lower() not in normalise(chunk.text).lower():
         raise Refused("name_not_in_text", f"{name!r} isn't in the passage")
 
-    shares, dropped = {}, []
+    shares, dropped, receivables = {}, [], []
     for field in ("supplier_revenue_share", "customer_supply_share"):
         value = answer.get(field)
         if value is None:
@@ -233,8 +250,15 @@ def check(answer, chunk, filer_name):
         elif not share_in_quote(value, quote):
             shares[field] = None
             dropped.append(f"{field}: digits_not_in_quote")
+        elif receivables_share(value, quote, answer.get("customer_share_scope") if field == "customer_supply_share" else None):
+            shares[field] = None
+            dropped.append(f"{field}: receivables")
+            receivables.append(f"{value:g}% of accounts receivable")
         else:
             shares[field] = float(value)
+    receivables_written = "receivable" in str(answer.get("share_as_written") or "").lower()
+    if unnamed and (receivables or receivables_written) and shares["supplier_revenue_share"] is None and shares["customer_supply_share"] is None:
+        raise Refused("receivables_only", "an unnamed counterparty whose only figure is a share of accounts receivable: nothing to link")
     if unnamed and shares["supplier_revenue_share"] is None and shares["customer_supply_share"] is None and LEASE.search(quote):
         raise Refused("unnamed_lease", "a lease of space from or to an unnamed party, with no share: nothing to link")
     if unnamed and role == "partner" and shares["supplier_revenue_share"] is None and shares["customer_supply_share"] is None:
@@ -255,7 +279,7 @@ def check(answer, chunk, filer_name):
         "supplier_revenue_share": shares["supplier_revenue_share"],
         "customer_supply_share": shares["customer_supply_share"],
         "customer_share_scope": (answer.get("customer_share_scope") or None) if shares["customer_supply_share"] is not None else None,
-        "share_as_written": answer.get("share_as_written") or None,
+        "share_as_written": answer.get("share_as_written") or ("; ".join(receivables) or None),
         "share_dropped": "; ".join(dropped) or None,
         "period_as_written": answer.get("period_as_written") or None,
         "stated_on": _date(answer.get("stated_on")),

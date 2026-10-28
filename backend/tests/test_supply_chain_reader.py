@@ -320,6 +320,35 @@ class PeriodAndHistoryTests(PlannedAndLeaseTests):
         self.assertEqual(reader.check(named, chunk, "Acme Semiconductor Inc.")["kind"], "partnership")
 
 
+class ReceivablesTests(ShareEachTests):
+    """A share of accounts receivable is a note, never a supply share; on its own it gives no link (#345)."""
+    SMCI = "As of June 30, 2025, two customers accounted for 33.4% and 13.6% of our accounts receivable balance."
+    MIXED = "Sales to Beta Corp accounted for 30% of net sales and 25% of accounts receivable."
+
+    def test_an_unnamed_customer_with_only_a_receivables_share_is_refused(self):
+        with self.assertRaises(reader.Refused) as caught:
+            self.customer("Customer 1 of 2", self.SMCI, supplier_revenue_share=33.4)
+        self.assertEqual(caught.exception.reason, "receivables_only")
+        with self.assertRaises(reader.Refused):  # the Reader followed the prompt: no number, the words in share_as_written
+            self.customer("Customer 2 of 2", self.SMCI, share_as_written="13.6% of accounts receivable")
+
+    def test_a_named_customer_keeps_the_link_and_the_receivables_share_as_a_note(self):
+        quote = "Beta Corp accounted for 25% of our accounts receivable."
+        row = self.customer("Beta Corp", quote, supplier_revenue_share=25)
+        self.assertIsNone(row["supplier_revenue_share"])
+        self.assertEqual(row["share_as_written"], "25% of accounts receivable")
+        self.assertIn("supplier_revenue_share: receivables", row["share_dropped"])
+
+    def test_the_revenue_share_beside_a_receivables_share_is_kept(self):
+        self.assertEqual(self.customer("Beta Corp", self.MIXED, supplier_revenue_share=30)["supplier_revenue_share"], 30)
+        self.assertTrue(reader.receivables_share(25, self.MIXED))
+        self.assertFalse(reader.receivables_share(30, self.MIXED))
+        self.assertTrue(reader.receivables_share(40, "x", scope="Accounts receivable"))
+
+    def test_the_prompt_says_receivables_are_no_supply_share(self):
+        self.assertIn("A share of accounts receivable", " ".join(reader.SYSTEM_PROMPT.split()))
+
+
 class PeriodFillTests(ReaderTestCase):
     def test_a_year_without_a_date_is_stored_with_its_end(self):
         quote = "Sales to our largest customer, Beta Corp, were 48% of revenue, up from 41% a year ago."
