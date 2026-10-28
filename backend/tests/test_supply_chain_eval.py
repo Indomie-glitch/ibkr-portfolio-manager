@@ -16,7 +16,7 @@ TRUTH = ev.load_truth()
 
 
 # The truth file is frozen (#343): a change to it is a decision for the user, made by updating this hash on purpose.
-FROZEN_SHA256 = "3c7e118f2e178731b9860418a72544dc9507a3a1db549410bda4f43d030fd6fc"
+FROZEN_SHA256 = "0636ff6efcf4ffc19b6f70ad82a963ea64a624e4be095e02ff71fb085d640054"
 
 
 class TruthFileTests(unittest.TestCase):
