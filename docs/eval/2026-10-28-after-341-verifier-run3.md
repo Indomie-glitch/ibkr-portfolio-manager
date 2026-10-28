@@ -1,17 +1,17 @@
 # Supply chain evaluation: after-341-verifier (run 3 of 3)
 
-Run 2026-10-28 00:19 · commit 57e887d + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
+Run 2026-10-28 00:19 · commit 096548e + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
 
 ## Summary
 
 | | |
 |---|---|
-| Known relationships | 90 (30 headline; 7 added to the file after reviewing the first run) |
-| **Found** (right companies, and for unnamed ones the right share and year) | **58** (64% recall) |
+| Known relationships | 93 (30 headline; 7 added after reviewing the first runs; file frozen 2026-10-28) |
+| **Found** (right companies, and for unnamed ones the right share and year) | **58** (62% recall) |
 | Found with the right share but another year | 4 |
-| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 69%) |
+| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 67%) |
 | Headline cases found | 22 of 30 |
-| Missed | 28 |
+| Missed | 31 |
 | Links in the result | 71 |
 | **Wrong links** (match nothing in the truth; to review below) | **3** (precision 96%) |
 | Wrong numbers on found links | 0 |
@@ -37,7 +37,7 @@ Run 2026-10-28 00:19 · commit 57e887d + uncommitted changes · chunker v1 · Re
 | partnership | 5 | 1 |
 | private | 22 | 11 |
 | risk factor | 7 | 5 |
-| unnamed customer | 24 | 18 |
+| unnamed customer | 27 | 18 |
 | unnamed supplier | 14 | 5 |
 
 ## Candidates and rejections
@@ -77,6 +77,9 @@ Candidates by status: linked 93, not_supported 8, partly_supported 10
 - **crwv-10k-fy25** (second of three suppliers) → CoreWeave: the Reader did not return it
 - **crwv-10k-fy25** (third of three suppliers) → CoreWeave: the Reader did not return it
 - **crwv-10k-fy25** CoreWeave → (Customer B): the Reader did not return it
+- **amkr-10k-fy25** Amkor → (one customer (2024)): the Reader did not return it
+- **amkr-10k-fy25** Amkor → (one customer (2023)): the Reader did not return it
+- **amkr-10k-fy25** Amkor → (a second customer (2024)): the Reader did not return it
 - **dell-10k-fy26** VMware → Dell: rejected: partly_supported_link (verifier) - Joint marketing, sales and branding arrangements are described, but context does not clear
 - **arm-20f-fy26** Arm → Arm China: the Reader did not return it
 - **arm-20f-fy26** Arm → Arm China: the Reader did not return it
@@ -97,7 +100,7 @@ Candidates by status: linked 93, not_supported 8, partly_supported 10
 
 ## Wrong links (3)
 
-These match nothing in the truth. Each needs a look: a wrong link, or a true one the annotation missed (then it goes into the file).
+These match nothing in the truth. Each needs a look: a wrong link, or a true one the annotation missed. The truth file is frozen, so a true one is listed as possibly missing from truth for a decision, not added to the file.
 
 - **crwv-10k-fy25** CoreWeave, Inc. ↔ third-party infrastructure developer (Kenilworth, New Jersey joint venture partner) in the 10-K filed 2026-03-02 (unnamed customer of CoreWeave, Inc., year to 2025-12-31) (partnership, medium): For example, in June 2025, we entered into a joint venture with a third-party infrastructure developer, to support the acquisition and development of a multi-phase data center campus in Kenilworth, Ne
 - **arm-20f-fy26** Arm Holdings plc ↔ Acorn Computers (partnership, medium): Established in 1990, Arm began as a joint venture between Acorn Computers, Apple Computer, and VLSI Technology.
@@ -181,6 +184,9 @@ These match nothing in the truth. Each needs a look: a wrong link, or a true one
 | crwv-10k-fy25 | CoreWeave | MagAI Ventures | found | medium |
 | amkr-10k-fy25 | Amkor | Apple | found (headline) | medium |
 | amkr-10k-fy25 | Amkor | Qualcomm | found (headline) | medium |
+| amkr-10k-fy25 | Amkor | (one customer (2024)) | missed |  |
+| amkr-10k-fy25 | Amkor | (one customer (2023)) | missed |  |
+| amkr-10k-fy25 | Amkor | (a second customer (2024)) | missed |  |
 | dell-10k-fy26 | VMware | Dell | found (headline) | medium |
 | dell-10k-fy26 | Dell | (one customer) | found (headline) | medium |
 | dell-10k-fy26 | VMware | Dell | missed |  |

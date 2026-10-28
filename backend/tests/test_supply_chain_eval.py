@@ -16,7 +16,7 @@ TRUTH = ev.load_truth()
 
 
 # The truth file is frozen (#343): a change to it is a decision for the user, made by updating this hash on purpose.
-FROZEN_SHA256 = "a77f069719087de6bd132c38caefde68285d29781909bbae53b388ddbff72d3b"
+FROZEN_SHA256 = "0636ff6efcf4ffc19b6f70ad82a963ea64a624e4be095e02ff71fb085d640054"
 
 
 class TruthFileTests(unittest.TestCase):
@@ -326,3 +326,25 @@ class SpendTests(unittest.TestCase):
             finally:
                 ev.SPEND = original
 
+
+
+class OutOfCreditsTests(unittest.TestCase):
+    def test_the_eval_stops_cleanly_and_says_so(self):
+        from tests.test_supply_chain_account import NO_CREDITS, api_error
+        with tempfile.TemporaryDirectory() as folder:
+            original, ev.SPEND = ev.SPEND, Path(folder) / "spend.json"
+            try:
+                limits = ev.orchestrator.limits  # main() switches pacing off for its runs: put it back afterwards
+                with unittest.mock.patch.object(limits, "pacing", limits.pacing), unittest.mock.patch.object(limits, "run_cap_usd", limits.run_cap_usd), \
+                        unittest.mock.patch.object(limits, "run_since", limits.run_since), \
+                        unittest.mock.patch.object(ev.config, "anthropic_api_key", return_value="test"), \
+                        unittest.mock.patch("builtins.print") as printed, \
+                        unittest.mock.patch.object(ev, "ensure_downloaded", new=unittest.mock.AsyncMock()), \
+                        unittest.mock.patch.object(ev, "check_quotes", return_value=([], [])), \
+                        unittest.mock.patch.object(ev, "estimate_cost", return_value=(0.1, 0.4, 33)), \
+                        unittest.mock.patch.object(ev, "run_pipeline", new=unittest.mock.AsyncMock(side_effect=api_error(400, NO_CREDITS))):
+                    self.assertEqual(asyncio.run(ev.main(["--yes", "--runs", "3"])), 2)
+                text = " ".join(str(c.args[0]) for c in printed.call_args_list if c.args)
+                self.assertIn("Stopped in run 1: Anthropic credits used up", text)
+            finally:
+                ev.SPEND = original

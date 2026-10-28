@@ -1,17 +1,17 @@
 # Supply chain evaluation: baseline (run 1 of 3)
 
-Run 2026-10-27 19:53 · commit 57e887d + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
+Run 2026-10-27 19:53 · commit 096548e + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
 
 ## Summary
 
 | | |
 |---|---|
-| Known relationships | 90 (30 headline; 7 added to the file after reviewing the first run) |
-| **Found** (right companies, and for unnamed ones the right share and year) | **35** (39% recall) |
+| Known relationships | 93 (30 headline; 7 added after reviewing the first runs; file frozen 2026-10-28) |
+| **Found** (right companies, and for unnamed ones the right share and year) | **35** (38% recall) |
 | Found with the right share but another year | 0 |
-| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 39%) |
+| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 38%) |
 | Headline cases found | 16 of 30 |
-| Missed | 55 |
+| Missed | 58 |
 | Links in the result | 43 |
 | **Wrong links** (match nothing in the truth; to review below) | **0** (precision 100%) |
 | Wrong numbers on found links | 0 |
@@ -37,7 +37,7 @@ Run 2026-10-27 19:53 · commit 57e887d + uncommitted changes · chunker v1 · Re
 | partnership | 5 | 1 |
 | private | 22 | 2 |
 | risk factor | 7 | 5 |
-| unnamed customer | 24 | 9 |
+| unnamed customer | 27 | 9 |
 | unnamed supplier | 14 | 0 |
 
 ## Candidates and rejections
@@ -98,6 +98,9 @@ Candidates by status: linked 58, not_supported 4, partly_supported 2
 - **crwv-10k-fy25** CoreWeave → (Customer C): the Reader did not return it
 - **crwv-10k-fy25** NVIDIA → CoreWeave: rejected: not_supported (verifier) - The context says CoreWeave deploys NVIDIA GB200/GB300 NVL72 systems but never says NVIDIA 
 - **crwv-10k-fy25** CoreWeave → MagAI Ventures: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **amkr-10k-fy25** Amkor → (one customer (2024)): the Reader did not return it
+- **amkr-10k-fy25** Amkor → (one customer (2023)): the Reader did not return it
+- **amkr-10k-fy25** Amkor → (a second customer (2024)): the Reader did not return it
 - **arm-20f-fy26** Arm → Arm China (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **arm-20f-fy26** Arm → Arm China: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **arm-20f-fy26** Arm → Arm China: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
@@ -118,7 +121,7 @@ Candidates by status: linked 58, not_supported 4, partly_supported 2
 
 ## Wrong links (0)
 
-These match nothing in the truth. Each needs a look: a wrong link, or a true one the annotation missed (then it goes into the file).
+These match nothing in the truth. Each needs a look: a wrong link, or a true one the annotation missed. The truth file is frozen, so a true one is listed as possibly missing from truth for a decision, not added to the file.
 
 - none
 
@@ -195,6 +198,9 @@ These match nothing in the truth. Each needs a look: a wrong link, or a true one
 | crwv-10k-fy25 | CoreWeave | MagAI Ventures | missed |  |
 | amkr-10k-fy25 | Amkor | Apple | found (headline) | high |
 | amkr-10k-fy25 | Amkor | Qualcomm | found (headline) | high |
+| amkr-10k-fy25 | Amkor | (one customer (2024)) | missed |  |
+| amkr-10k-fy25 | Amkor | (one customer (2023)) | missed |  |
+| amkr-10k-fy25 | Amkor | (a second customer (2024)) | missed |  |
 | dell-10k-fy26 | VMware | Dell | found (headline) | high |
 | dell-10k-fy26 | Dell | (one customer) | found (headline) | high |
 | dell-10k-fy26 | VMware | Dell | found | high |

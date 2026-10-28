@@ -278,6 +278,85 @@ class ShareEachTests(PlannedAndLeaseTests):
         self.assertIn("never 0", text)
 
 
+class PeriodAndHistoryTests(PlannedAndLeaseTests):
+    """One relationship per counterparty per period, its year's end from the filing, history and unnamed partners left out."""
+    NVIDIA = ["Year Ended Jan 25, 2026 | Jan 26, 2025 | Jan 28, 2024", "In fiscal year 2026, revenue grew.",
+              "As of January 26, 2025 and Feb 1, 2025 and August 25, 2023 ..."]
+
+    def test_fiscal_year_ends_come_from_the_filing(self):
+        ends = reader.fiscal_year_ends(self.NVIDIA, "2026-01-25")
+        self.assertEqual(ends, {2026: "2026-01-25", 2025: "2025-01-26", 2024: "2024-01-28"})  # August is no year end
+        self.assertEqual(reader.period_ends_on("fiscal year 2024", "2026-01-25", ends), "2024-01-28")
+        self.assertEqual(reader.period_ends_on("fiscal 2025", "2026-01-25", ends), "2025-01-26")
+        self.assertIsNone(reader.period_ends_on("fiscal year 2022", "2026-01-25", ends))  # not written in the filing
+        self.assertIsNone(reader.period_ends_on("fiscal years 2025 and 2024", "2026-01-25", ends))
+        self.assertIsNone(reader.period_ends_on("as of June 2025", "2026-01-25", ends))
+
+    def test_a_filing_that_names_its_year_otherwise_gives_no_earlier_ends(self):
+        # "fiscal 2025" for the year to January 2026 (a retailer's way): the years can't be read as the year they end in
+        ends = reader.fiscal_year_ends(["In fiscal 2025, revenue grew. Year Ended Jan 31, 2026 | Feb 1, 2025"], "2026-01-31")
+        self.assertEqual(ends, {2026: "2026-01-31"})
+
+    def test_a_calendar_year_ends_on_31_december(self):
+        self.assertEqual(reader.period_ends_on("2023", "2025-12-31", {}), "2023-12-31")
+
+    def test_the_prompt_asks_for_each_period_and_leaves_out_history(self):
+        text = " ".join(reader.SYSTEM_PROMPT.split())
+        self.assertIn("return one relationship per counterparty per period", text)
+        self.assertIn("never the first period named or the filing's", text)
+        self.assertIn("leave out relationships the passage describes only as the company's past or origin", text)
+        self.assertIn('("we terminated our agreement with X in 2025"), with ended true', text)
+
+    def test_an_unnamed_partner_without_a_share_is_refused(self):
+        quote = "For example, in June 2025, we entered into a joint venture with a third-party infrastructure developer, to support the acquisition and development of a multi-phase data center campus in Kenilworth, New Jersey."
+        text = f"Item 7\n\n{quote}"
+        chunk = chunker.Chunk("tenk.htm", "Item 7", text, 50, 1, 2, numbers=[1, 2])
+        answer = relationship(ACME, party("third-party infrastructure developer", unnamed=True), "partner", quote)
+        with self.assertRaises(reader.Refused) as caught:
+            reader.check(answer, chunk, "Acme Semiconductor Inc.")
+        self.assertEqual(caught.exception.reason, "unnamed_partner")
+        named = relationship(ACME, party("Gamma Foundry"), "partner", "We formed a joint venture with Gamma Foundry.")
+        chunk = chunker.Chunk("tenk.htm", "Item 7", "Item 7\n\nWe formed a joint venture with Gamma Foundry.", 50, 1, 2, numbers=[1, 2])
+        self.assertEqual(reader.check(named, chunk, "Acme Semiconductor Inc.")["kind"], "partnership")
+
+
+class ReceivablesTests(ShareEachTests):
+    """A share of accounts receivable is a note, never a supply share; on its own it gives no link (#345)."""
+    SMCI = "As of June 30, 2025, two customers accounted for 33.4% and 13.6% of our accounts receivable balance."
+    MIXED = "Sales to Beta Corp accounted for 30% of net sales and 25% of accounts receivable."
+
+    def test_an_unnamed_customer_with_only_a_receivables_share_is_refused(self):
+        with self.assertRaises(reader.Refused) as caught:
+            self.customer("Customer 1 of 2", self.SMCI, supplier_revenue_share=33.4)
+        self.assertEqual(caught.exception.reason, "receivables_only")
+        with self.assertRaises(reader.Refused):  # the Reader followed the prompt: no number, the words in share_as_written
+            self.customer("Customer 2 of 2", self.SMCI, share_as_written="13.6% of accounts receivable")
+
+    def test_a_named_customer_keeps_the_link_and_the_receivables_share_as_a_note(self):
+        quote = "Beta Corp accounted for 25% of our accounts receivable."
+        row = self.customer("Beta Corp", quote, supplier_revenue_share=25)
+        self.assertIsNone(row["supplier_revenue_share"])
+        self.assertEqual(row["share_as_written"], "25% of accounts receivable")
+        self.assertIn("supplier_revenue_share: receivables", row["share_dropped"])
+
+    def test_the_revenue_share_beside_a_receivables_share_is_kept(self):
+        self.assertEqual(self.customer("Beta Corp", self.MIXED, supplier_revenue_share=30)["supplier_revenue_share"], 30)
+        self.assertTrue(reader.receivables_share(25, self.MIXED))
+        self.assertFalse(reader.receivables_share(30, self.MIXED))
+        self.assertTrue(reader.receivables_share(40, "x", scope="Accounts receivable"))
+
+    def test_the_prompt_says_receivables_are_no_supply_share(self):
+        self.assertIn("A share of accounts receivable", " ".join(reader.SYSTEM_PROMPT.split()))
+
+
+class PeriodFillTests(ReaderTestCase):
+    def test_a_year_without_a_date_is_stored_with_its_end(self):
+        quote = "Sales to our largest customer, Beta Corp, were 48% of revenue, up from 41% a year ago."
+        self.read({"Item 7": [relationship(ACME, party("Beta Corp"), "customer", quote, supplier_revenue_share=48,
+                                           period_as_written="fiscal year 2026")]})
+        self.assertEqual(self.candidates()[0]["stated_on"], "2026-01-25")  # the filing's own year
+
+
 class CounterpartyTests(ReaderTestCase):
     def test_unnamed_customer_kept_without_a_company_and_not_looked_up(self):
         quote = "Sales to our largest customer, Beta Corp, were 48% of revenue, up from 41% a year ago."

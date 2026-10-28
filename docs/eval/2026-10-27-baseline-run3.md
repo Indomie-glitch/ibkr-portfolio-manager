@@ -1,17 +1,17 @@
 # Supply chain evaluation: baseline (run 3 of 3)
 
-Run 2026-10-27 19:53 · commit 57e887d + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
+Run 2026-10-27 19:53 · commit 096548e + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
 
 ## Summary
 
 | | |
 |---|---|
-| Known relationships | 90 (30 headline; 7 added to the file after reviewing the first run) |
-| **Found** (right companies, and for unnamed ones the right share and year) | **31** (34% recall) |
+| Known relationships | 93 (30 headline; 7 added after reviewing the first runs; file frozen 2026-10-28) |
+| **Found** (right companies, and for unnamed ones the right share and year) | **31** (33% recall) |
 | Found with the right share but another year | 0 |
-| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 34%) |
+| Found, but the number was lost (the customer and passage are right) | 0 (recall counting these two: 33%) |
 | Headline cases found | 14 of 30 |
-| Missed | 59 |
+| Missed | 62 |
 | Links in the result | 36 |
 | **Wrong links** (match nothing in the truth; to review below) | **1** (precision 97%) |
 | Wrong numbers on found links | 0 |
@@ -37,7 +37,7 @@ Run 2026-10-27 19:53 · commit 57e887d + uncommitted changes · chunker v1 · Re
 | partnership | 5 | 2 |
 | private | 22 | 2 |
 | risk factor | 7 | 4 |
-| unnamed customer | 24 | 5 |
+| unnamed customer | 27 | 5 |
 | unnamed supplier | 14 | 0 |
 
 ## Candidates and rejections
@@ -98,6 +98,9 @@ Candidates by status: linked 44, not_supported 2, partly_supported 6
 - **crwv-10k-fy25** CoreWeave → (Customer B): the Reader did not return it
 - **crwv-10k-fy25** CoreWeave → (Customer C): the Reader did not return it
 - **crwv-10k-fy25** CoreWeave → MagAI Ventures: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
+- **amkr-10k-fy25** Amkor → (one customer (2024)): the Reader did not return it
+- **amkr-10k-fy25** Amkor → (one customer (2023)): the Reader did not return it
+- **amkr-10k-fy25** Amkor → (a second customer (2024)): the Reader did not return it
 - **dell-10k-fy26** Dell → (one customer) (headline): rejected: partly_supported_link (verifier) - The 12% share, ISG offerings and fiscal year are stated, but the context identifies the cu
 - **arm-20f-fy26** Arm → Arm China (headline): rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
 - **arm-20f-fy26** Arm → Arm China: rejected: unresolved_company (rule) - no_match: not a known company, an index member or an OpenFIGI equity
@@ -117,7 +120,7 @@ Candidates by status: linked 44, not_supported 2, partly_supported 6
 
 ## Wrong links (1)
 
-These match nothing in the truth. Each needs a look: a wrong link, or a true one the annotation missed (then it goes into the file).
+These match nothing in the truth. Each needs a look: a wrong link, or a true one the annotation missed. The truth file is frozen, so a true one is listed as possibly missing from truth for a decision, not added to the file.
 
 - **crwv-10k-fy25** CoreWeave, Inc. ↔ a third-party infrastructure developer (unnamed customer of CoreWeave, Inc., year to 2025-12-31) (partnership, high): For example, in June 2025, we entered into a joint venture with a third-party infrastructure developer, to support the acquisition and development of a multi-phase data center campus in Kenilworth, Ne
 
@@ -194,6 +197,9 @@ These match nothing in the truth. Each needs a look: a wrong link, or a true one
 | crwv-10k-fy25 | CoreWeave | MagAI Ventures | missed |  |
 | amkr-10k-fy25 | Amkor | Apple | found (headline) | high |
 | amkr-10k-fy25 | Amkor | Qualcomm | found (headline) | high |
+| amkr-10k-fy25 | Amkor | (one customer (2024)) | missed |  |
+| amkr-10k-fy25 | Amkor | (one customer (2023)) | missed |  |
+| amkr-10k-fy25 | Amkor | (a second customer (2024)) | missed |  |
 | dell-10k-fy26 | VMware | Dell | found (headline) | high |
 | dell-10k-fy26 | Dell | (one customer) | missed (headline) |  |
 | dell-10k-fy26 | VMware | Dell | found | high |
