@@ -1,0 +1,33 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 3980,
+    "output_tokens": 1785
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"NVIDIA Corporation\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"SB Energy Corp.\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":null,\"quote\":\"On August 17, 2026, NVIDIA Corporation (“NVIDIA”) announced a multi-year partnership with SB Energy Corp. (collectively with its affiliates, “SB Energy”) to advance the development of the PORTS Technology Campus, a large-scale AI data center campus in Pike County, Ohio (the “Portsmouth Site”).\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"August 17, 2026\",\"stated_on\":\"2026-08-17\",\"ended\":false},{\"supplier\":{\"name\":\"NVIDIA Corporation\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"OpenAI\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"customer\",\"what\":\"NVIDIA’s full-stack DSX AI factory platform\",\"quote\":\"OpenAI, as the tenant, will utilize capacity at the Portsmouth Site supporting approximately 4.25 gigawatts of IT load to deploy NVIDIA’s full-stack DSX AI factory platform, subject to limited exceptions.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"August 17, 2026\",\"stated_on\":\"2026-08-17\",\"ended\":false}]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 3980,
+    "output_tokens": 1276
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"NVIDIA Corporation\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"SB Energy Corp.\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":\"multi-year partnership to advance the development of the PORTS Technology Campus\",\"quote\":\"On August 17, 2026, NVIDIA Corporation (“NVIDIA”) announced a multi-year partnership with SB Energy Corp. (collectively with its affiliates, “SB Energy”) to advance the development of the PORTS Technology Campus, a large-scale AI data center campus in Pike County, Ohio (the “Portsmouth Site”).\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"August 17, 2026\",\"stated_on\":\"2026-08-17\",\"ended\":false}]}"
+    }
+   ]
+  }
+ }
+}

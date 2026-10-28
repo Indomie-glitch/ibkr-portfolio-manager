@@ -1,0 +1,19 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 16949,
+    "output_tokens": 90
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\": []}"
+    }
+   ]
+  }
+ }
+}
