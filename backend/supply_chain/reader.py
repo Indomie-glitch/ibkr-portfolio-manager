@@ -9,6 +9,8 @@ One Claude call per chunk (config.READER_MODEL, structured output). After the ca
 - a share must be 0-100 and its digits must be in the quote, else only the share is dropped (share_dropped says why);
 - the counterparty's name is matched with resolver.resolve; one that can't be matched is rejected (unresolved_company).
   An unnamed one ("Customer A") is kept without a company: the Verifier creates its placeholder.
+- an unnamed lease of space, or an unnamed partner, with no share is rejected (unnamed_lease / unnamed_partner);
+- a period named without a date ("fiscal year 2024") gets its end date from the filing (period_ends_on).
 
 Job kind "read" (key = document id), queued when a download finishes for 10-Ks, 20-Fs and 8-Ks with Item 1.01 / 1.02.
 Every chunk read is recorded in chunk_reads, so a job retried after a failure only pays for the chunks it hadn't read.
@@ -16,6 +18,7 @@ Every chunk read is recorded in chunk_reads, so a job retried after a failure on
 import asyncio
 import json
 import re
+from collections import Counter
 from datetime import date
 from pathlib import Path
 
@@ -53,7 +56,8 @@ the filer the customer. "Sales to Apple were 23% of revenue" means the filer sup
 other company's role for the filer: supplier, customer or partner (a joint venture, co-development or licensing deal \
 where neither side simply sells to the other; then put the filer as supplier).
 - Unnamed counterparties ("Customer A", "one distributor", "a major customer"): include them only when the passage \
-gives a specific fact about that one counterparty (a share, a contract). Set unnamed and use the passage's label as \
+gives a specific fact about that one counterparty (a share, a contract). An unnamed joint venture partner or other \
+partner with no share is left out. Set unnamed and use the passage's label as \
 the name ("Customer A", "a direct customer").
 - Several unnamed counterparties with a share each: when a sentence gives a separate share for each of several \
 unnamed counterparties ("sales to four customers represented 20.9%, 11.5%, 11.3% and 11.1%", "three suppliers \
@@ -70,6 +74,14 @@ column. Return one relationship per column that has a number, each quoting the r
 cell's share and that column's period from the header in the passage (period_as_written "2024"; stated_on the \
 period end when the passage gives it, e.g. "Year Ended December 31," means 2024-12-31). "*", "-", an empty cell or \
 "less than 10%" means the passage gives no share for that column: return nothing for it, never 0.
+- Several periods: when a sentence or table gives shares for several periods ("for 2025, three suppliers accounted \
+for 23%, 20% and 17%; for 2024, 46%, 16% and 14%"), return one relationship per counterparty per period, numbered \
+within its own period ("Supplier 1 of 3" for 2025 and again for 2024). Each share's period is the one written next to \
+it: the words just before it in the sentence, or its column's header, never the first period named or the filing's.
+- History: leave out relationships the passage describes only as the company's past or origin ("Arm began as a joint \
+venture between Acorn Computers, Apple Computer and VLSI Technology in 1990", "we were spun off from"). Keep a \
+relationship said to have ended in the periods the filing reports on ("we terminated our agreement with X in 2025"), \
+with ended true.
 - Leave out groups and categories: "our customers include hyperscalers and OEMs", "we buy from a limited number of \
 suppliers", "our top ten customers". Also leave out government agencies, regulators, lenders, auditors and the \
 filer's own subsidiaries, and leases of office or data-centre space unless the passage names the other party.
@@ -225,6 +237,8 @@ def check(answer, chunk, filer_name):
             shares[field] = float(value)
     if unnamed and shares["supplier_revenue_share"] is None and shares["customer_supply_share"] is None and LEASE.search(quote):
         raise Refused("unnamed_lease", "a lease of space from or to an unnamed party, with no share: nothing to link")
+    if unnamed and role == "partner" and shares["supplier_revenue_share"] is None and shares["customer_supply_share"] is None:
+        raise Refused("unnamed_partner", "a joint venture or partnership with an unnamed party, with no share: nothing to link")
 
     pieces = chunk.text.split("\n\n")
     first, last = where
@@ -250,6 +264,55 @@ def check(answer, chunk, filer_name):
         "locator": chunker.locator_for(chunk.section, numbers[first], numbers[last]),
         "context": "\n\n".join(pieces[max(0, first - 1):last + 2]),
     }
+
+
+# ---------- Periods ----------
+
+MONTHS = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
+WRITTEN_DATE = re.compile(r"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2}),\s+((?:19|20)\d{2})\b")
+YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
+MONTH_WORD = re.compile(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b", re.IGNORECASE)
+NEAR_DAYS = 10  # a 52/53-week fiscal year ends within a few days of the same date each year
+
+
+def fiscal_year_ends(texts, period_end):
+    """{year: the fiscal year's last day} as the filing writes them ("Jan 28, 2024" in NVIDIA's 10-K for the year to
+    2026-01-25): dates within NEAR_DAYS of the anniversary of the filing's period end, the most written one per year. Only
+    when the filing calls its own year by the year it ends in ("fiscal year 2026"), so "fiscal 2024" can be read as the
+    year ending in 2024. A calendar year needs none of this (period_ends_on)."""
+    if not period_end:
+        return {}
+    end = date.fromisoformat(period_end)
+    text = "\n".join(texts)
+    if not re.search(rf"\b(?:fiscal(?: year)?|FY)\s*{end.year}\b", text, re.IGNORECASE):
+        return {end.year: end.isoformat()}
+    seen = Counter()
+    for month, day, year in WRITTEN_DATE.findall(text):
+        try:
+            written = date(int(year), MONTHS[month[:3].lower()], int(day))
+            anniversary = end.replace(year=int(year))
+        except ValueError:  # 30 February, or the 29th in another year
+            continue
+        if abs((written - anniversary).days) <= NEAR_DAYS:
+            seen[written] += 1
+    ends = {}
+    for written, _ in seen.most_common():
+        ends.setdefault(written.year, written.isoformat())
+    ends[end.year] = end.isoformat()
+    return ends
+
+
+def period_ends_on(period_as_written, period_end, ends):
+    """stated_on for a period the Reader named without a date ("fiscal year 2024", "2024"): Y-12-31 for a calendar-year
+    filer, else that year's end as the filing writes it (fiscal_year_ends); None when it can't tell. Before this, such a
+    statement fell back to the filing's own period, so a 2024 share was kept as the latest year's."""
+    years = set(YEAR.findall(period_as_written or ""))
+    if len(years) != 1 or MONTH_WORD.search(period_as_written) or not period_end:
+        return None
+    year = int(years.pop())
+    if period_end[5:] == "12-31":
+        return f"{year}-12-31"
+    return ends.get(year)
 
 
 # ---------- Calling Claude ----------
@@ -334,13 +397,14 @@ def _already_read(conn, document_id, chunk):
     return row is not None and row["text_hash"] == graph.text_hash(chunk.text)
 
 
-async def _outcomes(conn, found, filer, resolve):
+async def _outcomes(conn, found, filer, resolve, period_end=None, ends=None):
     """Each relationship checked and its counterparty matched: [("candidate", row) or ("rejected", reason, detail, answer)].
     Raises when the name lookup is unavailable (the job is retried; chunks already saved aren't read again)."""
     outcomes = []
     for answer, piece in found:
         try:
             row = check(answer, piece, filer["name"])
+            row["stated_on"] = row["stated_on"] or period_ends_on(row["period_as_written"], period_end, ends or {})
         except (Refused, KeyError, TypeError) as exc:
             reason, detail = (exc.reason, exc.detail) if isinstance(exc, Refused) else ("malformed", f"{exc.__class__.__name__}")
             outcomes.append(("rejected", reason, detail, answer))
@@ -421,6 +485,7 @@ async def read_document(conn, document_id, client=None, resolve=None, run_id=Non
     chunks = await asyncio.to_thread(chunker.chunk_filing, path.parent, document["kind"], path.name, document["source"])
     filer = filer_of(conn, document["company_id"])
     resolve = resolve or resolver.resolve
+    ends = fiscal_year_ends([c.text for c in chunks], document["period_end"])
     totals = {"chunks": len(chunks), "skipped": 0, "candidates": 0, "rejected": 0, "declined": 0, "deferred": None,
               "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
     for chunk in chunks:
@@ -444,7 +509,7 @@ async def read_document(conn, document_id, client=None, resolve=None, run_id=Non
         totals["output_tokens"] += sum(u["output_tokens"] for u in usage)
         totals["cost_usd"] += _cost(usage)
         totals["declined"] += any(u["outcome"] == "refusal" for u in usage)
-        outcomes = await _outcomes(conn, found, filer, resolve)
+        outcomes = await _outcomes(conn, found, filer, resolve, document["period_end"], ends)
         added, rejected = _save(conn, document_id, chunk, outcomes, usage, len(found), run_id)
         totals["candidates"] += added
         totals["rejected"] += rejected
