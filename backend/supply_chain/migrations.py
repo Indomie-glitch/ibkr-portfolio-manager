@@ -336,6 +336,26 @@ ALTER TABLE candidates ADD COLUMN supplier_private INTEGER NOT NULL DEFAULT 0 CH
 ALTER TABLE candidates ADD COLUMN customer_private INTEGER NOT NULL DEFAULT 0 CHECK (customer_private IN (0, 1));
 """
 
+EXHIBITS = """
+-- 8-K exhibits (#322): each exhibit file of a filing the exhibits job looked at, and what it decided.
+CREATE TABLE document_files (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL REFERENCES documents (id),
+    file_name TEXT NOT NULL,
+    label TEXT NOT NULL,                -- Exhibit 10.1
+    description TEXT,                   -- from the 8-K's Item 9.01 table, else the filing index
+    decision TEXT NOT NULL CHECK (decision IN ('read', 'partial', 'skipped')),
+    reason TEXT,                        -- why skipped, or what a partial read leaves out
+    tokens INTEGER,                     -- estimated tokens of the whole file, when downloaded
+    content_hash TEXT,
+    size_bytes INTEGER,
+    created_at TEXT NOT NULL,
+    UNIQUE (document_id, file_name)
+);
+-- The 8-K's own sentence when it says the agreement will be filed with a later 10-Q / 10-K (not read yet: backlog)
+ALTER TABLE documents ADD COLUMN filed_later TEXT;
+"""
+
 # (version, name, sql). Add new migrations at the end.
 MIGRATIONS = [
     (1, "initial graph schema (#115)", INITIAL),
@@ -347,4 +367,5 @@ MIGRATIONS = [
     (7, "companies the user holds (#126)", HOLDINGS),
     (8, "rescore confidence: one verified quote is medium (#333)", RESCORE),
     (9, "private companies without a ticker (#334)", PRIVATE),
+    (10, "8-K exhibit files (#322)", EXHIBITS),
 ]

@@ -1,0 +1,396 @@
+{
+ "version": 1,
+ "created": "2026-10-28",
+ "scope": "8-K exhibits (#322): real material agreements of the theme companies, read with the exhibits switch on and scored on their own, apart from the frozen main set. Each exhibit is read or skipped by the production rules (exhibits.decide on the Item 9.01 description, the 30,000 token limit for unclear ones). Known: the supplier / customer the agreement states between the filer and its counterparty. Redacted values ([*], [***], [ ]) are never numbers: a share on these links is a wrong number. Leases of data-centre space are optional, as in the main set. The credit agreement is a trap: skipped as financing, and its lenders must not become links.",
+ "companies": {
+  "CoreWeave": {
+   "aliases": [
+    "CoreWeave, Inc.",
+    "CoreWeave"
+   ],
+   "private": false
+  },
+  "Meta": {
+   "aliases": [
+    "Meta Platforms, Inc.",
+    "Meta Platforms",
+    "Meta"
+   ],
+   "private": false
+  },
+  "OpenAI": {
+   "aliases": [
+    "OpenAI OpCo, LLC",
+    "OpenAI OpCo",
+    "OpenAI, Inc.",
+    "OpenAI"
+   ],
+   "private": true
+  },
+  "Bloom Energy": {
+   "aliases": [
+    "Bloom Energy Corporation",
+    "Bloom Corp",
+    "Bloom Energy"
+   ],
+   "private": false
+  },
+  "SK ecoplant": {
+   "aliases": [
+    "SK ecoplant Co., Ltd.",
+    "SK Engineering & Construction Co., Ltd.",
+    "SK ecoplant"
+   ],
+   "private": true
+  },
+  "Bloom SK Fuel Cell": {
+   "aliases": [
+    "Bloom SK Fuel Cell, LLC",
+    "JV"
+   ],
+   "private": true
+  },
+  "Super Micro Computer": {
+   "aliases": [
+    "Super Micro Computer, Inc.",
+    "Supermicro",
+    "Super Micro"
+   ],
+   "private": false
+  },
+  "4701 Santa Fe": {
+   "aliases": [
+    "4701 SANTA FE, LLC",
+    "4701 Santa Fe, LLC"
+   ],
+   "private": true
+  },
+  "Lambda": {
+   "aliases": [
+    "Lambda, Inc.",
+    "LAMBDA, INC.",
+    "Lambda"
+   ],
+   "private": true
+  }
+ },
+ "documents": [
+  {
+   "id": "crwv-8k-2025-09-30",
+   "company": "CoreWeave, Inc.",
+   "ticker": "CRWV",
+   "market": "US",
+   "form": "8-K",
+   "cik": 1769628,
+   "accession": "0001769628-25-000050",
+   "primary_document": "crwv-20250925.htm",
+   "filed": "2025-09-30",
+   "period_end": "2025-09-30",
+   "items": [
+    "1.01",
+    "9.01"
+   ],
+   "exhibits": [
+    {
+     "file": "redactedmetamsa929finald.htm",
+     "label": "Exhibit 10.1",
+     "description": "Master Services Agreement between CoreWeave, Inc. and Meta Platforms, Inc., dated December 10, 2023."
+    }
+   ],
+   "relationships": [
+    {
+     "id": "crwv-8k-2025-09-30#1",
+     "headline": true,
+     "categories": [
+      "exhibit_agreement",
+      "redacted"
+     ],
+     "supplier": "CoreWeave",
+     "customer": "Meta",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "cloud computing services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "file": "redactedmetamsa929finald.htm",
+     "paragraph": 2,
+     "quote": "This Master Services Agreement, including all Exhibits attached hereto (“Agreement”), is between CoreWeave, Inc., a Delaware corporation, (“CoreWeave”) and the customer named above and its Affiliates (collectively, “Customer”).",
+     "note": "prices, liability caps and notice periods are redacted as [*]: any share or number on this link is wrong"
+    }
+   ],
+   "optional": [],
+   "not_relationships": []
+  },
+  {
+   "id": "crwv-8k-2025-09-25",
+   "company": "CoreWeave, Inc.",
+   "ticker": "CRWV",
+   "market": "US",
+   "form": "8-K",
+   "cik": 1769628,
+   "accession": "0001193125-25-216497",
+   "primary_document": "d17274d8k.htm",
+   "filed": "2025-09-25",
+   "period_end": "2025-09-25",
+   "items": [
+    "1.01",
+    "9.01"
+   ],
+   "exhibits": [
+    {
+     "file": "d17274dex101.htm",
+     "label": "Exhibit 10.1",
+     "description": "Master Services Agreement between CoreWeave, Inc. and OpenAI OpCo, LLC, dated May 8, 2025."
+    }
+   ],
+   "relationships": [
+    {
+     "id": "crwv-8k-2025-09-25#1",
+     "headline": true,
+     "categories": [
+      "exhibit_agreement",
+      "redacted",
+      "private_counterparty"
+     ],
+     "supplier": "CoreWeave",
+     "customer": "OpenAI",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "reserved compute instances (bare metal cloud)",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "file": "d17274dex101.htm",
+     "paragraph": 9,
+     "quote": "This Master Services Agreement, including all Exhibits attached hereto, (“Agreement”) is between CoreWeave, Inc."
+    }
+   ],
+   "optional": [],
+   "not_relationships": []
+  },
+  {
+   "id": "be-8k-2023-12-22",
+   "company": "Bloom Energy Corporation",
+   "ticker": "BE",
+   "market": "US",
+   "form": "8-K",
+   "cik": 1664703,
+   "accession": "0001628280-23-042553",
+   "primary_document": "be-20231221.htm",
+   "filed": "2023-12-22",
+   "period_end": "2023-12-22",
+   "items": [
+    "1.01",
+    "9.01"
+   ],
+   "exhibits": [
+    {
+     "file": "ex101.htm",
+     "label": "Exhibit 10.1",
+     "description": "First Amendment to the Amended and Restated Preferred Distributor Agreement dated September 29, 2023"
+    },
+    {
+     "file": "ex102.htm",
+     "label": "Exhibit 10.2",
+     "description": "Second Amendment to the Amended and Restated Preferred Distributor Agreement dated December 21, 2023"
+    }
+   ],
+   "relationships": [
+    {
+     "id": "be-8k-2023-12-22#1",
+     "headline": true,
+     "categories": [
+      "exhibit_agreement",
+      "redacted"
+     ],
+     "supplier": "Bloom Energy",
+     "customer": "SK ecoplant",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "Energy Servers",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "file": "ex102.htm",
+     "paragraph": 23,
+     "quote": "(1) Distributor shall purchase, on a firm basis, the following volume of Energy Servers for each of the calendar years set forth below (with respect to each calendar year, the quantity indicated below for such year, the “Yearly Quantity”):",
+     "note": "the yearly volumes are redacted as [***]: no share"
+    }
+   ],
+   "optional": [
+    {
+     "id": "be-8k-2023-12-22#2",
+     "headline": false,
+     "categories": [
+      "exhibit_agreement"
+     ],
+     "supplier": "Bloom Energy",
+     "customer": "Bloom SK Fuel Cell",
+     "unnamed": null,
+     "kind": "partnership",
+     "accept_kinds": [
+      "partnership"
+     ],
+     "what": null,
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": false,
+     "file": "ex102.htm",
+     "paragraph": 5,
+     "quote": "This Second Amendment to the Amended and Restated Preferred Distributor Agreement (this “Second Amendment”) is entered into as of December 21, 2023 (the “Second Amendment Effective Date”) by and among Bloom Energy Corporation (“Bloom Corp”), a corporation established under the laws of the State of Delaware, United States of America, Bloom SK Fuel Cell, LLC (“JV”), a limited liability company organized under the laws of the Republic of Korea, and SK ecoplant Co., Ltd.",
+     "note": "Bloom's joint venture with SK ecoplant, a party to the agreement"
+    }
+   ],
+   "not_relationships": []
+  },
+  {
+   "id": "smci-8k-2024-06-21",
+   "company": "Super Micro Computer, Inc.",
+   "ticker": "SMCI",
+   "market": "US",
+   "form": "8-K",
+   "cik": 1375365,
+   "accession": "0001375365-24-000026",
+   "primary_document": "smci-20240614.htm",
+   "filed": "2024-06-21",
+   "period_end": "2024-06-21",
+   "items": [
+    "1.01",
+    "2.03",
+    "9.01"
+   ],
+   "exhibits": [
+    {
+     "file": "prime-supermicroxmcsaxco.htm",
+     "label": "Exhibit 10.1",
+     "description": "Master Colocation Services Agreement, dated June 14, 2024, by and between Super Micro Computer, Inc. and 4701 Santa Fe, LLC"
+    },
+    {
+     "file": "pdcvernon-supermicrolamb.htm",
+     "label": "Exhibit 10.2",
+     "description": "Service Order MCSA-001, dated June 14, 2024, by and between Super Micro Computer, Inc. and 4701 Santa Fe, LLC"
+    },
+    {
+     "file": "sublicense-supermicroxla.htm",
+     "label": "Exhibit 10.3",
+     "description": "Sublicense, dated June 14, 2024, by and between Super Micro Computer, Inc. and Lambda, Inc."
+    }
+   ],
+   "relationships": [],
+   "optional": [
+    {
+     "id": "smci-8k-2024-06-21#1",
+     "headline": false,
+     "categories": [
+      "exhibit_agreement"
+     ],
+     "supplier": "4701 Santa Fe",
+     "customer": "Super Micro Computer",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "data center colocation services",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "file": "prime-supermicroxmcsaxco.htm",
+     "paragraph": 2,
+     "quote": "This Master Colocation Services Agreement (“MCSA”) is entered into by and between Super Micro Computer, Inc., a Delaware corporation with offices at 980 Rock Avenue, San Jose, California 95131 (“Customer”) and 4701 SANTA FE, LLC, a Delaware limited liability (“Supplier”) effective as of the latest of the Parties’ respective dates of execution set forth on the signature page below (the “MCSA Effective Date”) and governs Supplier’s performance, and Customer’s purchase, of Services at the Facility.",
+     "note": "a lease of data centre space in effect (out of the main set's scope), named, so optional"
+    },
+    {
+     "id": "smci-8k-2024-06-21#2",
+     "headline": false,
+     "categories": [
+      "exhibit_agreement"
+     ],
+     "supplier": "Super Micro Computer",
+     "customer": "Lambda",
+     "unnamed": null,
+     "kind": "supplies",
+     "accept_kinds": [
+      "supplies"
+     ],
+     "what": "a sublicense of the data center space",
+     "supplier_revenue_share": null,
+     "customer_supply_share": null,
+     "customer_share_scope": null,
+     "stated_on": null,
+     "ended": false,
+     "private": true,
+     "file": "sublicense-supermicroxla.htm",
+     "paragraph": 2,
+     "quote": "THIS SUBLICENSE (this “Sublicense”) is entered into this 14th day of June 2024 by and between SUPER MICRO COMPUTER, INC., a Delaware corporation (“Sublicensor”) and LAMBDA, INC., a Delaware corporation (“Sublicensee”).",
+     "note": "a sublicense of space"
+    }
+   ],
+   "not_relationships": []
+  },
+  {
+   "id": "crwv-8k-2025-10-02",
+   "company": "CoreWeave, Inc.",
+   "ticker": "CRWV",
+   "market": "US",
+   "form": "8-K",
+   "cik": 1769628,
+   "accession": "0001193125-25-227562",
+   "primary_document": "d910811d8k.htm",
+   "filed": "2025-10-02",
+   "period_end": "2025-10-02",
+   "items": [
+    "1.01",
+    "2.03",
+    "9.01"
+   ],
+   "exhibits": [
+    {
+     "file": "d910811dex101.htm",
+     "label": "Exhibit 10.1",
+     "description": "Fifth Amendment to Credit Agreement between CoreWeave Compute Acquisition Co., IV, LLC, CoreWeave, Inc., U.S. Bank National Association, as depository bank, U.S. Bank Trust Company, National Association as administrative agent and collateral agent, and other lenders party thereto, dated September 29, 2025."
+    }
+   ],
+   "relationships": [],
+   "optional": [],
+   "not_relationships": [
+    {
+     "file": "d910811dex101.htm",
+     "paragraph": 4,
+     "quote": "This FIFTH AMENDMENT TO CREDIT AGREEMENT, dated as of September 29, 2025 (this “Fifth Amendment”), is by and among CoreWeave Compute Acquisition Co., IV, LLC (the “Borrower”), CoreWeave, Inc.",
+     "why": "a credit agreement: lenders and agents, not suppliers (the exhibit is skipped as financing)"
+    },
+    {
+     "paragraph": 26,
+     "quote": "On September 29, 2025, CoreWeave Compute Acquisition Co., IV, LLC (“CCAC IV”), a Delaware limited liability company and a direct subsidiary of CoreWeave, Inc., a Delaware Corporation (the “Parent”) entered into an amendment (the “Fifth Amendment”) to amend that certain Credit Agreement, dated as of May 16, 2024 (the “DDTL 2.0 Credit Agreement”), by and among CCAC IV, as borrower, with U.S.",
+     "why": "a loan from lenders, with U.S. Bank as agent: financing"
+    }
+   ]
+  }
+ ]
+}

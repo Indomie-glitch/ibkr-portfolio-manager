@@ -16,7 +16,7 @@ from supply_chain import control, jobs, orchestrator, verifier
 WEEK = timedelta(days=7)
 LOG_LIMIT = 150
 LINK_LIMIT = 80
-VERBS = {"scout": "scout", "download": "fetch", "xbrl": "read"}
+VERBS = {"scout": "scout", "download": "fetch", "exhibits": "fetch exhibits", "xbrl": "read"}
 
 
 def _iso(moment):
