@@ -1,18 +1,34 @@
+import asyncio
+import hashlib
+import json
 import tempfile
 import unittest
+import unittest.mock
 from datetime import datetime
 from pathlib import Path
 
 from eval import supply_chain_eval as ev
+from eval.resolver_cache import CachingSearch
 from supply_chain import graph, xbrl
 from supply_chain.db import open_graph
 
 TRUTH = ev.load_truth()
 
 
+# The truth file is frozen (#343): a change to it is a decision for the user, made by updating this hash on purpose.
+FROZEN_SHA256 = "a77f069719087de6bd132c38caefde68285d29781909bbae53b388ddbff72d3b"
+
+
 class TruthFileTests(unittest.TestCase):
     def items(self):
         return [(d, r) for d in TRUTH["documents"] for r in d["relationships"]]
+
+    def test_the_file_is_frozen(self):
+        self.assertEqual(hashlib.sha256(ev.TRUTH.read_bytes()).hexdigest(), FROZEN_SHA256)
+        frozen = TRUTH["frozen"]
+        self.assertEqual(len(self.items()), frozen["relationships"])
+        self.assertEqual(sum(len(d["optional"]) for d in TRUTH["documents"]), frozen["optional"])
+        self.assertEqual(sum(len(d["not_relationships"]) for d in TRUTH["documents"]), frozen["traps"])
 
     def test_thirty_headline_cases_with_the_required_mix(self):
         headline = [r for _, r in self.items() if r["headline"]]
@@ -252,3 +268,61 @@ class ScoringTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ResolverCacheTests(unittest.TestCase):
+    def test_a_lookup_is_asked_once_and_shared_by_the_next_run(self):
+        asked = []
+
+        async def search(name):
+            asked.append(name)
+            return [{"name": "WISTRON CORP", "ticker": "3231", "exchCode": "TT"}]
+
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "lookups.json"
+            first = CachingSearch(search, path)
+            self.assertEqual(asyncio.run(first("wistron"))[0]["ticker"], "3231")
+            second = CachingSearch(search, path)  # the next run, with its own database
+            asyncio.run(second("wistron"))
+            self.assertEqual(asked, ["wistron"])
+            self.assertEqual((first.misses, second.hits), (1, 1))
+
+    def test_openfigi_being_down_is_not_saved(self):
+        async def search(name):
+            raise ev.openfigi.OpenFigiUnavailable("503")
+
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "lookups.json"
+            with self.assertRaises(ev.openfigi.OpenFigiUnavailable):
+                asyncio.run(CachingSearch(search, path)("lenovo group"))
+            self.assertFalse(path.exists())
+
+
+class SpendTests(unittest.TestCase):
+    def test_spending_adds_up_per_day(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "spend.json"
+            self.assertEqual(ev.spent_today(path), 0.0)
+            ev.add_spend(0.25, path)
+            ev.add_spend(0.5, path)
+            self.assertAlmostEqual(ev.spent_today(path), 0.75)
+            path.write_text(json.dumps({"2000-01-01": 9.0, ev.today(): 1.0}))
+            self.assertEqual(ev.spent_today(path), 1.0)  # other days don't count
+
+    def test_a_run_over_the_cap_is_refused_before_any_call(self):
+        with tempfile.TemporaryDirectory() as folder:
+            spend = Path(folder) / "spend.json"
+            spend.write_text(json.dumps({ev.today(): 2.95}))
+            original, ev.SPEND = ev.SPEND, spend
+            try:
+                with unittest.mock.patch.object(ev.config, "anthropic_api_key", return_value="test"), \
+                        unittest.mock.patch("builtins.print"), \
+                        unittest.mock.patch.object(ev, "ensure_downloaded", new=unittest.mock.AsyncMock()), \
+                        unittest.mock.patch.object(ev, "check_quotes", return_value=([], [])), \
+                        unittest.mock.patch.object(ev, "estimate_cost", return_value=(0.1, 0.4, 33)), \
+                        unittest.mock.patch.object(ev, "run_pipeline", new=unittest.mock.AsyncMock()) as pipeline:
+                    self.assertEqual(asyncio.run(ev.main(["--yes"])), 1)
+                    pipeline.assert_not_called()
+            finally:
+                ev.SPEND = original
+
