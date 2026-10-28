@@ -60,7 +60,7 @@ class Base(unittest.TestCase):
 
 class Settings(Base):
     def test_defaults_follow_the_environment_until_chosen(self):
-        self.assertEqual(control.load_settings(), {"enabled": False, "paused": False, "budget_usd": 10.0, "run_now": {}})
+        self.assertEqual(control.load_settings(), {"enabled": False, "paused": False, "budget_usd": 10.0, "run_now": {}, "account_problem": None})
         with mock.patch.object(config, "pipeline_enabled", lambda: True):
             self.assertTrue(control.load_settings()["enabled"])
             control.save_settings(enabled=False)  # a choice in the app wins over .env
@@ -69,7 +69,7 @@ class Settings(Base):
     def test_saved_and_kept_between_loads(self):
         control.save_settings(enabled=True, budget_usd=25)
         control.save_settings(paused=True)
-        self.assertEqual(control.load_settings(), {"enabled": True, "paused": True, "budget_usd": 25.0, "run_now": {}})
+        self.assertEqual(control.load_settings(), {"enabled": True, "paused": True, "budget_usd": 25.0, "run_now": {}, "account_problem": None})
         self.assertTrue((Path(self.tmp.name) / "pipeline_settings.json").exists())
 
     def test_nonsense_budgets_are_refused(self):

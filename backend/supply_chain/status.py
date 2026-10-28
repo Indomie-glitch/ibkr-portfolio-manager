@@ -198,6 +198,7 @@ def overview(conn, now=None):
     return {
         "status": control.status_word(conn, settings, now),
         "enabled": settings["enabled"], "paused": settings["paused"], "workers": control.active_workers,
+        "account_problem": {k: settings["account_problem"][k] for k in ("kind", "message", "since", "checked_at")} if settings["account_problem"] else None,
         "themes": theme_names(conn), "watched": len(rows),
         "coverage": {"read": read, "total": len(rows), "not_on_edgar": counts["not on EDGAR"], "waiting_for_asx": counts["waiting for ASX source"]},
         "links": {"total": link_total or 0, "week": link_week or 0, "ended": link_ended or 0},
