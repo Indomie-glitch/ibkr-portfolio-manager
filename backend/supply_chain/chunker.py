@@ -81,15 +81,19 @@ class Chunk:
     overlap: int = 0
     number: int = 0  # position in the list chunk_filing / chunk_paragraphs returned
     numbers: list = field(default_factory=list)  # the paragraph number of each piece of `text` (pieces split by "\n\n")
+    headings: list = field(default_factory=list)  # an exhibit's section heading for each piece ("Section 4.2"), or None (#322)
     locator: str = field(init=False)
 
     def __post_init__(self):
         self.locator = locator_for(self.section, self.first_paragraph, self.last_paragraph)
 
 
-def locator_for(section, first, last):
+def locator_for(section, first, last, heading=None):
+    """"Item 1A. Risk Factors, paragraphs 7-10 [chunker v1]"; in an exhibit, its section heading too: "Exhibit 10.1,
+    Section 4.2, paragraph 57 [chunker v1]" (the paragraph numbers are the exhibit file's own)."""
     where = f"paragraph {first}" if first == last else f"paragraphs {first}-{last}"
-    return f"{section}, {where} [chunker v{CHUNKER_VERSION}]"
+    within = f"{heading}, " if heading else ""
+    return f"{section}, {within}{where} [chunker v{CHUNKER_VERSION}]"
 
 
 # ---------- Text ----------
@@ -536,12 +540,13 @@ def pack(units, limit, overlap):
     return chunks
 
 
-def _section_chunks(paragraphs, section, document, max_tokens, overlap_tokens):
+def _section_chunks(paragraphs, section, document, max_tokens, overlap_tokens, headings=None):
     chunks = []
     for units, repeated in pack(_units(paragraphs, section.paragraphs, max_tokens), max_tokens, overlap_tokens):
         text = "\n\n".join(u.text for u in units)
         chunks.append(Chunk(document, section.name, text, estimate_tokens(text), units[0].number, units[-1].number, repeated,
-                            numbers=[u.number for u in units]))
+                            numbers=[u.number for u in units],
+                            headings=[headings[u.number - 1] for u in units] if headings else []))
     return chunks
 
 
@@ -570,17 +575,91 @@ def exhibit_label(filename):
     return f"Exhibit 10.{m.group(1)}" if m and m.group(1) else ("Exhibit 10" if m else None)
 
 
-def chunk_filing(folder, form, primary_document, source="sec", max_tokens=MAX_CHUNK_TOKENS, overlap_tokens=OVERLAP_TOKENS):
+# ---------- Exhibits (#322) ----------
+
+# A heading in an agreement: "Section 4.2 Term.", "4.2 Term.", "4. TERM AND TERMINATION", "ARTICLE IV PRICING"
+AGREEMENT_HEADING = re.compile(
+    r"^(?:(?:Section|SECTION)\s+(\d+(?:\.\d+)*)|(?:ARTICLE|Article)\s+([IVXLC]+|\d+)\b|(\d{1,2}(?:\.\d{1,2})+|\d{1,2}\.)(?=\s+[A-Z]))"
+    r"\s*[.:\-–—]?\s*([^.]{0,80})")
+# What a very large agreement is read for: the commercial terms, not the boilerplate
+KEPT_HEADINGS = re.compile(r"\bterm\b|terminat|exclusiv|minimum purchase|purchase commitment|minimum (?:order|volume)|volume|capacity|"
+                           r"pricing|\bprices?\b|most[- ]favou?red", re.I)
+PARTY_DEFINITION = re.compile(r"^[\"“]?(?:the )?[\"“]?[A-Z][\w&.,' -]{0,60}[\"”]\s+(?:means|shall mean|has the meaning|refers to)", re.I)
+OPENING_END = re.compile(r"now,? therefore|agree as follows|hereby agree", re.I)
+EXHIBIT_FULL_TOKENS = 150_000  # over this an exhibit is read only for its parties and commercial terms
+OPENING_MAX_PARAGRAPHS = 60
+
+
+def agreement_headings(paragraphs):
+    """The section heading each paragraph of an agreement falls under ("Section 4.2", "Article IV"), or None before the
+    first, and {index: title} for the paragraphs that are headings."""
+    current, under, titles = None, [], {}
+    for i, text in enumerate(paragraphs):
+        m = AGREEMENT_HEADING.match(text.strip())
+        if m:
+            number = m.group(1) or m.group(3)
+            current = f"Section {number.rstrip('.')}" if number else f"Article {m.group(2)}"
+            titles[i] = m.group(4).strip()
+        under.append(current)
+    return under, titles
+
+
+def exhibit_plan(paragraphs, label):
+    """(Section to read, note or None). An exhibit up to EXHIBIT_FULL_TOKENS is read whole. A bigger one only for its
+    opening (parties and recitals, up to the first heading or "NOW, THEREFORE"), the definitions of the parties, and the
+    sections whose headings are about term, termination, exclusivity, minimum purchases, volume, capacity, pricing or
+    most favoured customer terms; the note says what was left out."""
+    everything = list(range(len(paragraphs)))
+    total = estimate_tokens("\n\n".join(paragraphs))
+    if total <= EXHIBIT_FULL_TOKENS:
+        return Section(label, everything), None
+    under, titles = agreement_headings(paragraphs)
+    keep = set()
+    for i, text in enumerate(paragraphs[:OPENING_MAX_PARAGRAPHS]):
+        if under[i] is not None:
+            break
+        keep.add(i)
+        if OPENING_END.search(text):
+            break
+    keep |= {i for i, text in enumerate(paragraphs) if PARTY_DEFINITION.match(text.strip())}
+    kept_titles = []
+    for start, title in titles.items():
+        if KEPT_HEADINGS.search(title):
+            kept_titles.append(f"{under[start]} {title}".strip())
+            end = next((j for j in sorted(titles) if j > start), len(paragraphs))
+            keep |= set(range(start, end))
+    indexes = sorted(keep)
+    read = estimate_tokens("\n\n".join(paragraphs[i] for i in indexes))
+    sections = len(titles)
+    note = (f"{label}: about {total:,} tokens, over {EXHIBIT_FULL_TOKENS:,}; read the opening, the party definitions and "
+            f"{len(kept_titles)} of {sections} sections ({'; '.join(kept_titles[:8]) or 'none matched'}), about {read:,} tokens; "
+            f"left out {len(paragraphs) - len(indexes)} paragraphs, about {total - read:,} tokens")
+    return Section(label, indexes), note
+
+
+def chunk_filing(folder, form, primary_document, source="sec", max_tokens=MAX_CHUNK_TOKENS, overlap_tokens=OVERLAP_TOKENS,
+                 exhibits=None, notes=None):
     """The chunks of a downloaded filing (data/filings/<cik>/<accession>/): the main document by its sections and, for an
-    8-K, every exhibit 10.x agreement in the folder as a whole. Chunks are numbered in order."""
+    8-K, its exhibit 10.x agreements (exhibit_plan: whole, or only the commercial terms of a very large one). exhibits:
+    [(file name, label)] to read (the exhibits job's choice, #322), None for every exhibit 10.x file in the folder by its
+    name, or False for none (the frozen evaluation set). Notes about what was left out are appended to `notes`.
+    Chunks are numbered in order: the main document's first, so a filing read before its exhibits keeps its numbers."""
     folder = Path(folder)
     chunks = chunk_file(folder / primary_document, source, form, max_tokens=max_tokens, overlap_tokens=overlap_tokens)
-    if form == "8-K":
-        for path in sorted(folder.iterdir()):
-            label = exhibit_label(path.name)
-            if label and path.name != primary_document:
-                paragraphs = load_paragraphs(path)
-                chunks.extend(_section_chunks(paragraphs, Section(label, list(range(len(paragraphs)))), path.name, max_tokens, overlap_tokens))
+    if form == "8-K" and exhibits is not False:
+        if exhibits is None:
+            exhibits = [(path.name, exhibit_label(path.name)) for path in sorted(folder.iterdir())
+                        if exhibit_label(path.name) and path.name != primary_document]
+        for name, label in exhibits:
+            path = folder / name
+            if not path.exists():
+                continue
+            paragraphs = load_paragraphs(path)
+            section, note = exhibit_plan(paragraphs, label)
+            if note and notes is not None:
+                notes.append(note)
+            headings = agreement_headings(paragraphs)[0]
+            chunks.extend(_section_chunks(paragraphs, section, path.name, max_tokens, overlap_tokens, headings))
     for number, chunk in enumerate(chunks, 1):
         chunk.number = number
     return chunks
