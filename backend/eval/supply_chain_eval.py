@@ -218,7 +218,9 @@ def name_matches(truth, canonical, name):
     if " (unnamed " in name:
         label = f" {resolver.name_key(label_of(name))} "
         return any(f" {key} " in label for key in alias_keys(truth, canonical))
-    return resolver.name_key(name) in alias_keys(truth, canonical)
+    # "Siliconware Precision Industries Ltd. (SPIL)": the filing's short form in brackets is not part of the name
+    keys = alias_keys(truth, canonical)
+    return resolver.name_key(name) in keys or resolver.name_key(re.sub(r"\s*\([^)]*\)\s*$", "", name)) in keys
 
 
 def placeholder_year(name):
@@ -343,7 +345,10 @@ def score(truth, out, ids):
                 for e in link["evidence"]:
                     eq = reader.normalise(e["quote"])
                     if e["eval_doc"] == doc["id"] and eq and (eq in tq or tq in eq):
-                        trap_hits.append((doc["id"], trap, link))
+                        # a trap with shares (a total for several customers, #341) is hit only by a link carrying one of them
+                        stated = [e[c] for c in ("supplier_revenue_share", "customer_supply_share") if e[c] is not None]
+                        if not trap.get("shares") or any(merge.same_share(w, s) for w in trap["shares"] for s in stated):
+                            trap_hits.append((doc["id"], trap, link))
     # the same unnamed customer or supplier more than once: placeholder links of one filer, side and year with one share
     groups = defaultdict(list)
     for link in links:
@@ -352,7 +357,10 @@ def score(truth, out, ids):
                 filer = link["customer_id"] if side == "supplier" else link["supplier_id"]
                 share = link["supplier_revenue_share"] if side == "customer" else link["customer_supply_share"]
                 groups[(filer, side, placeholder_year(link[f"{side}_name"]), share)].append(link["id"])
-    duplicates = {k: v for k, v in groups.items() if len(v) > 1 and k[3] is not None}
+    # links from one sentence that gives several the same share ("two direct customers each represented 11%") are two counterparties
+    quotes = {link["id"]: {reader.normalise(e["quote"]) for e in link["evidence"]} for link in links}
+    duplicates = {k: v for k, v in groups.items() if len(v) > 1 and k[3] is not None
+                  and any(not (quotes[a] & quotes[b]) for i, a in enumerate(v) for b in v[i + 1:])}
     # truth items per category
     categories = defaultdict(lambda: [0, 0])
     for doc in truth["documents"]:

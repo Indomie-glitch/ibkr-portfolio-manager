@@ -1,0 +1,47 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 13573,
+    "output_tokens": 3547
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"ATMP JV\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"assembly, test, mark and packaging (ATMP) services\",\"quote\":\"The ATMP JV provides assembly, test, mark and packaging (ATMP) services to the Company.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Tongfu Microelectronics Co., Ltd\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":null,\"quote\":\"The Company holds a 15% equity interest in two joint ventures (collectively, the ATMP JV) with affiliates of Tongfu Microelectronics Co., Ltd, a Chinese joint stock company.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Customer 1 of 2\",\"is_filer\":false,\"unnamed\":true},\"counterparty_role\":\"customer\",\"what\":null,\"quote\":\"One customer accounted for approximately 11% and another customer accounted for 24% of the total consolidated accounts receivable balance as of December 27, 2025 and December 28, 2024, respectively.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"approximately 11% of the total consolidated accounts receivable balance\",\"period_as_written\":\"as of December 27, 2025\",\"stated_on\":\"2025-12-27\",\"ended\":false},{\"supplier\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"Customer 2 of 2\",\"is_filer\":false,\"unnamed\":true},\"counterparty_role\":\"customer\",\"what\":null,\"quote\":\"One customer accounted for approximately 11% and another customer accounted for 24% of the total consolidated accounts receivable balance as of December 27, 2025 and December 28, 2024, respectively.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"24% of the total consolidated accounts receivable balance\",\"period_as_written\":\"as of December 28, 2024\",\"stated_on\":\"2024-12-28\",\"ended\":false},{\"supplier\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"One Client and Gaming segment customer\",\"is_filer\":false,\"unnamed\":true},\"counterparty_role\":\"customer\",\"what\":null,\"quote\":\"One Client and Gaming segment customer accounted for 18% of consolidated net revenue in fiscal year 2023.\",\"supplier_revenue_share\":18,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"18%\",\"period_as_written\":\"fiscal year 2023\",\"stated_on\":\"2023-12-30\",\"ended\":false}]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 13573,
+    "output_tokens": 2411
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"ATMP JV\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"assembly, test, mark and packaging (ATMP) services\",\"quote\":\"The ATMP JV provides assembly, test, mark and packaging (ATMP) services to the Company.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"2025 and 2024\",\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"affiliates of Tongfu Microelectronics Co., Ltd\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"partner\",\"what\":null,\"quote\":\"The Company holds a 15% equity interest in two joint ventures (collectively, the ATMP JV) with affiliates of Tongfu Microelectronics Co., Ltd, a Chinese joint stock company.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"15% equity interest\",\"period_as_written\":null,\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"One Client and Gaming segment customer\",\"is_filer\":false,\"unnamed\":true},\"counterparty_role\":\"customer\",\"what\":null,\"quote\":\"One Client and Gaming segment customer accounted for 18% of consolidated net revenue in fiscal year 2023.\",\"supplier_revenue_share\":18,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":\"18%\",\"period_as_written\":\"fiscal year 2023\",\"stated_on\":\"2023-12-30\",\"ended\":false}]}"
+    }
+   ]
+  },
+  "2": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 13573,
+    "output_tokens": 887
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"ATMP JV\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"assembly, test, mark and packaging (ATMP) services\",\"quote\":\"The ATMP JV provides assembly, test, mark and packaging (ATMP) services to the Company.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"2025\",\"stated_on\":\"2025-12-27\",\"ended\":false}]}"
+    }
+   ]
+  }
+ }
+}

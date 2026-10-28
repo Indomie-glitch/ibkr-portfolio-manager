@@ -459,6 +459,8 @@ class JoinPlaceholderTests(MergeCase):
         self.assertEqual(self.joined(), 0)
         self.assertEqual(merge.label_identifier("Customer one (unnamed customer of X, year to 2025-12-31)"), "1")
         self.assertIsNone(merge.label_identifier("a direct customer"))
+        self.assertIsNone(merge.label_identifier("Customer 2 of 4 in the 10-K filed 2026-08-31 (unnamed customer of X, year to 2025-06-30)"))
+        self.assertEqual(merge.label_identifier("Customer B in the 10-K filed 2026-02-27 (unnamed customer of X, year to 2024-12-31)"), "b")
 
     def test_a_tier_1_list_naming_both_means_two_counterparties(self):
         document = self.document()

@@ -1,6 +1,6 @@
 # Supply chain evaluation: baseline (run 3 of 3)
 
-Run 2026-10-27 19:53 · commit 59d1bd4 + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
+Run 2026-10-27 19:53 · commit 57e887d + uncommitted changes · chunker v1 · Reader claude-haiku-5-5 (effort medium) · Verifier claude-sonnet-5-5 (effort medium) · 10 filings
 
 ## Summary
 

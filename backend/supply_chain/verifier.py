@@ -22,7 +22,7 @@ import anthropic
 
 import config
 import usage_store
-from supply_chain import chunker, graph, jobs, orchestrator, resolver, xbrl
+from supply_chain import chunker, graph, jobs, orchestrator, reader, resolver, xbrl
 from supply_chain.jobs import _iso
 from supply_chain.db import now
 from supply_chain.worker import Permanent, handler
@@ -55,7 +55,9 @@ For each item give:
 - verdict: "supported" if the context states everything in the claim; "partly_supported" if it states the \
 relationship but not every detail; "not_supported" if it doesn't state this relationship between these companies.
 - unsupported_fields: every field of the claim the context doesn't support:
-  - supplier / customer: the context doesn't name (or, for an unnamed one, describe) that company in that role;
+  - supplier / customer: the context doesn't name (or, for an unnamed one, describe) that company in that role. An \
+unnamed counterparty is supported when the context describes one in that role with the claimed facts; never mark it \
+unsupported for being unnamed, loosely described or of unknown identity, which the claim already says;
   - direction: the context says the other company sells to the first, or doesn't say who sells to whom;
   - kind: a supply relationship is claimed but the context describes a partnership, or the other way round;
   - what: what is supplied isn't what the context says;
@@ -65,6 +67,9 @@ for a different measure, year or company doesn't count; "substantially all" is n
   - period: the context doesn't say the statement is about that date or period;
   - ended: the claim says the relationship ended (or is ongoing) and the context doesn't say so.
   Empty when supported.
+- "Customer 2 of 4" means the second of the unnamed counterparties the context lists, in its order. Its share must be \
+the one the context gives that counterparty alone; a total for several together ("top three customers were 40%") \
+supports no single one, so the share is unsupported. For a table row, the period is the column's header.
 - An agreement the context describes as planned, proposed, being negotiated or being finalized, or one it says may \
 not happen ("there is no assurance that we will enter into"), is not a relationship: not_supported. Only relationships \
 that exist or existed count.
@@ -92,6 +97,10 @@ SCHEMA = {
 
 def _party(candidate, side):
     name = candidate[f"{side}_name"]
+    numbered = reader.NUMBERED.match(name) if candidate[f"{side}_unnamed"] else None
+    if numbered:  # "Customer 2 of 4": the Reader's numbering of a sentence that gives a share for each (#341)
+        number, count = name.split()[1], name.split()[3]
+        return f"{name} (unnamed: number {number} of the {count} unnamed counterparties the passage gives a share for, in its order)"
     return f"{name} (unnamed in the passage)" if candidate[f"{side}_unnamed"] else name
 
 
@@ -205,6 +214,16 @@ def _period_end(conn, candidate):
     return candidate["stated_on"] or document["period_end"] or document["filed_at"]
 
 
+def placeholder_label(conn, candidate, side):
+    """The label a Reader placeholder is kept under: the filing's own words plus the filing (#341). Labels are per filing
+    and period only: "Customer 1 of 4" or "Customer B" in the 2025 10-K and in the 2024 10-K are not taken for the same
+    company (CoreWeave: "the customer references of A through D may represent different customers than those reported in a
+    previous period"); two that are the same can still be joined by their share (merge.join_placeholders)."""
+    document = conn.execute("SELECT kind, filed_at FROM documents WHERE id = ?", (candidate["document_id"],)).fetchone()
+    filing = " ".join(p for p in (document["kind"], f"filed {document['filed_at']}" if document["filed_at"] else None) if p)
+    return f"{candidate[f'{side}_name']} in the {filing}" if filing else candidate[f"{side}_name"]
+
+
 def counterparty_ids(conn, candidate):
     """(supplier id, customer id), making the placeholder company for an unnamed counterparty as xbrl.py does."""
     ids = {"supplier": candidate["supplier_id"], "customer": candidate["customer_id"]}
@@ -215,7 +234,7 @@ def counterparty_ids(conn, candidate):
             filer_side = "customer" if side == "supplier" else "supplier"
             filer_id = ids[filer_side]
             filer_name = conn.execute("SELECT name FROM companies WHERE id = ?", (filer_id,)).fetchone()["name"]
-            ids[side] = xbrl.placeholder(conn, filer_id, filer_name, {"label": candidate[f"{side}_name"], "end": _period_end(conn, candidate)}, side)
+            ids[side] = xbrl.placeholder(conn, filer_id, filer_name, {"label": placeholder_label(conn, candidate, side), "end": _period_end(conn, candidate)}, side)
     return ids["supplier"], ids["customer"]
 
 
@@ -245,12 +264,29 @@ def link(conn, candidate, verdict, model, run_id=None):
     return relationship_id
 
 
+IDENTITY_FIELDS = {"supplier_revenue_share", "customer_supply_share", "period"}
+
+
+def _unsupported_identity(candidate, verdict):
+    """For an unnamed counterparty, its stated share and period are all that tell it apart ("Supplier 2 of 3, 17% in
+    2025"), so an unsupported one of those rejects the candidate instead of linking it without them."""
+    if not (candidate["supplier_unnamed"] or candidate["customer_unnamed"]):
+        return set()
+    claimed = {f for f in ("supplier_revenue_share", "customer_supply_share") if candidate[f] is not None}
+    if candidate["stated_on"] or candidate["period_as_written"]:
+        claimed.add("period")
+    return IDENTITY_FIELDS & claimed & set(verdict["unsupported_fields"])
+
+
 def apply(conn, candidate, verdict, model, run_id=None):
     """Links, or rejects, one candidate by its verdict; returns "linked" or "rejected"."""
     stored = json.dumps({**verdict, "model": model})
     unsupported_link = LINK_FIELDS & set(verdict["unsupported_fields"])
-    if verdict["verdict"] == "not_supported" or unsupported_link:
-        reason = "not_supported" if verdict["verdict"] == "not_supported" else "partly_supported_link"
+    unsupported_unnamed = _unsupported_identity(candidate, verdict)
+    if verdict["verdict"] == "not_supported" or unsupported_link or unsupported_unnamed:
+        reason = ("not_supported" if verdict["verdict"] == "not_supported"
+                  else "partly_supported_link" if unsupported_link else "partly_supported_unnamed")
+        unsupported_link = unsupported_link or unsupported_unnamed
         detail = verdict["reason"] + (f" (unsupported: {', '.join(sorted(unsupported_link))})" if unsupported_link else "")
         graph.reject(conn, candidate["document_id"], candidate["quote"], reason, "verifier",
                      supplier_name=candidate["supplier_name"], customer_name=candidate["customer_name"],

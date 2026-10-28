@@ -55,6 +55,21 @@ where neither side simply sells to the other; then put the filer as supplier).
 - Unnamed counterparties ("Customer A", "one distributor", "a major customer"): include them only when the passage \
 gives a specific fact about that one counterparty (a share, a contract). Set unnamed and use the passage's label as \
 the name ("Customer A", "a direct customer").
+- Several unnamed counterparties with a share each: when a sentence gives a separate share for each of several \
+unnamed counterparties ("sales to four customers represented 20.9%, 11.5%, 11.3% and 11.1%", "three suppliers \
+accounted for 23%, 20% and 17% of total purchases", "two direct customers each represented 11%", "the single largest \
+customer accounted for 16%, the second largest 14%"), return one relationship for each, in the order written, each \
+with its own share and the same quote (the whole sentence). Name them "Customer 1 of 4", "Customer 2 of 4" ... (or \
+"Supplier 1 of 3" ...) and set unnamed, unless the passage gives each its own label ("Customer A", "the second \
+largest customer"), which is then the name.
+- A share for several counterparties together ("our top three customers were 40%", "three customers collectively \
+represented 42%", "our ten largest customers accounted for 72%") is no one counterparty's share: leave it out and \
+never split it. When a sentence gives both, return only the individual shares.
+- Tables: a row such as "Customer B | * | 15 % | 17 %" under the header "2025 | 2024 | 2023" gives one share per \
+column. Return one relationship per column that has a number, each quoting the row exactly as written, with that \
+cell's share and that column's period from the header in the passage (period_as_written "2024"; stated_on the \
+period end when the passage gives it, e.g. "Year Ended December 31," means 2024-12-31). "*", "-", an empty cell or \
+"less than 10%" means the passage gives no share for that column: return nothing for it, never 0.
 - Leave out groups and categories: "our customers include hyperscalers and OEMs", "we buy from a limited number of \
 suppliers", "our top ten customers". Also leave out government agencies, regulators, lenders, auditors and the \
 filer's own subsidiaries, and leases of office or data-centre space unless the passage names the other party.
@@ -146,6 +161,9 @@ def share_in_quote(value, quote):
 LEASE = re.compile(r"\b(?:sub)?(?:lease|leases|leased|leasing|license|licensed|licensing)\b[^.]*\bspace\b|\bspace\b[^.]*\b(?:sub)?(?:lease|leased|license|licensed)\b", re.IGNORECASE)
 
 
+NUMBERED = re.compile(r"^(?:customer|supplier|distributor|vendor|client|partner) \d+ of \d+$", re.IGNORECASE)  # our numbering, not the filing's
+
+
 def is_group(name):
     """"our customers", "top ten distributors": a category, not one company."""
     return any(word in GROUP_WORDS for word in re.sub(r"[^a-z0-9 ]+", " ", name.lower()).split())
@@ -188,7 +206,7 @@ def check(answer, chunk, filer_name):
         raise Refused("no_name", "the counterparty has no name")
     if is_group(name):  # before the unnamed test: "our customers" would pass as an unnamed customer
         raise Refused("generic_counterparty", f"{name!r} is a group, not one company")
-    unnamed = bool(counterparty["unnamed"]) or resolver.is_unnamed(name)
+    unnamed = bool(counterparty["unnamed"]) or resolver.is_unnamed(name) or bool(NUMBERED.match(name))
     if not unnamed and normalise(name).lower() not in normalise(chunk.text).lower():
         raise Refused("name_not_in_text", f"{name!r} isn't in the passage")
 
@@ -197,9 +215,9 @@ def check(answer, chunk, filer_name):
         value = answer.get(field)
         if value is None:
             shares[field] = None
-        elif not 0 <= value <= 100:
+        elif not 0 < value <= 100:  # 0 is no share: a table's "*" or "less than 10%" cell read as a number (#341)
             shares[field] = None
-            dropped.append(f"{field}: out_of_range")
+            dropped.append(f"{field}: {'zero' if value == 0 else 'out_of_range'}")
         elif not share_in_quote(value, quote):
             shares[field] = None
             dropped.append(f"{field}: digits_not_in_quote")

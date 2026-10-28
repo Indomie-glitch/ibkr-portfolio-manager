@@ -1,0 +1,79 @@
+{
+ "found": {
+  "mean": 64.0,
+  "min": 58,
+  "max": 69,
+  "runs": [
+   69,
+   65,
+   58
+  ]
+ },
+ "headline_found": {
+  "mean": 23.666666666666668,
+  "min": 22,
+  "max": 25,
+  "runs": [
+   25,
+   24,
+   22
+  ]
+ },
+ "wrong_links": {
+  "mean": 2.3333333333333335,
+  "min": 0,
+  "max": 4,
+  "runs": [
+   4,
+   0,
+   3
+  ]
+ },
+ "wrong_numbers": {
+  "mean": 0.0,
+  "min": 0,
+  "max": 0,
+  "runs": [
+   0,
+   0,
+   0
+  ]
+ },
+ "trap_links": {
+  "mean": 1.3333333333333333,
+  "min": 0,
+  "max": 2,
+  "runs": [
+   2,
+   0,
+   2
+  ]
+ },
+ "duplicate_links": {
+  "mean": 0.0,
+  "min": 0,
+  "max": 0,
+  "runs": [
+   0,
+   0,
+   0
+  ]
+ },
+ "cost_usd": {
+  "mean": 0.37073616666666664,
+  "min": 0.3624275,
+  "max": 0.380394,
+  "runs": [
+   0.380394,
+   0.3624275,
+   0.369387
+  ]
+ },
+ "truth": 90,
+ "reports": [
+  "2026-10-28-after-341-verifier-run1",
+  "2026-10-28-after-341-verifier-run2",
+  "2026-10-28-after-341-verifier-run3"
+ ],
+ "label": "after-341-verifier"
+}

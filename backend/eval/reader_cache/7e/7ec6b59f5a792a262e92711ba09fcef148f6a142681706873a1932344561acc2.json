@@ -1,0 +1,47 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 17332,
+    "output_tokens": 632
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"VMware\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Dell Technologies Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"VMware standalone products and services\",\"quote\":\"On March 25, 2024, we terminated our Commercial Framework Agreement with VMware, whereby we acted as a distributor of VMware standalone products and services.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"March 25, 2024\",\"stated_on\":\"2024-03-25\",\"ended\":true}]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 17332,
+    "output_tokens": 865
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"VMware LLC\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Dell Technologies Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"VMware standalone products and services\",\"quote\":\"On March 25, 2024, we terminated our Commercial Framework Agreement with VMware, whereby we acted as a distributor of VMware standalone products and services.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"March 25, 2024\",\"stated_on\":\"2024-03-25\",\"ended\":true}]}"
+    }
+   ]
+  },
+  "2": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 17332,
+    "output_tokens": 873
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"VMware LLC\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Dell Technologies Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"VMware standalone products and services\",\"quote\":\"On March 25, 2024, we terminated our Commercial Framework Agreement with VMware, whereby we acted as a distributor of VMware standalone products and services.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"March 25, 2024\",\"stated_on\":\"2024-03-25\",\"ended\":true}]}"
+    }
+   ]
+  }
+ }
+}

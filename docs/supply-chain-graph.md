@@ -165,9 +165,11 @@ erDiagram
 
 | Member | What happens |
 |---|---|
-| Unnamed ("Customer A", "Major Customer One", "Undisclosed Customer 1", "Supplier A", "Company A") | A placeholder company for the filer, one per label **and fiscal year** ("Customer A (unnamed customer of CoreWeave, Inc., year to 2025-12-31)"), because this year's Customer A need not be last year's. Never sent to the name lookup. |
+| Unnamed ("Customer A", "Major Customer One", "Undisclosed Customer 1", "Supplier A", "Company A") | A placeholder company for the filer, one per label, **filing** (#341: the Reader's labels are kept per filing, "Customer B in the 10-K filed 2026-02-27", because a filing's "Customer B" need not be the previous filing's) **and fiscal year** ("Customer A (unnamed customer of CoreWeave, Inc., year to 2025-12-31)"), because this year's Customer A need not be last year's. Never sent to the name lookup. |
 | Named ("Apple, Inc.", "HP Inc.", "Dell Inc.") | The name resolver (#119). A match links the real company. A plain miss on a name that doesn't look listed is kept as a possible private company for the Verifier (#334); anything else goes to `rejected` (`unresolved_company`), not guessed. |
 | Group ("Top Ten Customers", "Three Largest Customers", "Ablecom and Compuware") | Left out: not one company. |
+| Several unnamed counterparties with a share each ("sales to four customers represented 20.9%, 11.5%, 11.3% and 11.1%", "two direct customers each represented 11%"; #341) | The Reader returns one per share, in the order written, as "Customer 1 of 4", "Customer 2 of 4" ... (`reader.NUMBERED`, always unnamed), each with its own share and the same quote; the Verifier's claim says it is number 2 of the 4 the passage gives a share for. A share for several together ("our ten largest customers accounted for 72%", "collectively 42%") is left out, never split. |
+| Table rows ("Customer B \| * \| 15 % \| 17 %", #341) | One relationship per column with a number, quoting the row, with the column's period from the header in the same chunk. "*", "-", an empty cell or "less than 10%" is no share: a 0 share is dropped (`share_dropped: zero`). |
 | Narrowed by a region or product line | Left out. A business segment is kept as a note. |
 
 Benchmarks: a revenue share fills `supplier_revenue_share` (the filer supplies the counterparty); a purchases share means the counterparty is the filer's **supplier** and fills `customer_supply_share` with the benchmark as scope ("Supplier A: 63.1% of purchases, total" for Super Micro); a receivables share is kept as a `share_note` on the evidence only. Revenue and receivables figures of the same label and year are one relationship. Other benchmarks ("Manufacturer Concentration") are left out. The same figure tagged twice keeps the more precise one. The merge rules (`merge.refresh`, #127) set a relationship's shares from all its evidence, so an older filing loaded later doesn't overwrite a newer figure.
@@ -231,7 +233,7 @@ A share outside 0-100, or whose digits aren't in the quote, doesn't reject the c
 | Verdict | What happens |
 |---|---|
 | supported | `graph.add_relationship` writes the link and its evidence: tier 2, extractor `reader`, verification `verified`, `verified_by` the model that answered, the candidate's locator and `stated_on`, `states_ended` when the passage says it ended. A link that already exists (from XBRL, or another filing) gets the evidence added instead. The candidate becomes `linked`. |
-| partly_supported | If the supplier, customer, direction or kind is unsupported, the link itself is, so it goes to `rejected` (`partly_supported_link`). Otherwise it is written with only the supported fields; the evidence's `share_note` lists what was left out. |
+| partly_supported | If the supplier, customer, direction or kind is unsupported, the link itself is, so it goes to `rejected` (`partly_supported_link`). For an unnamed counterparty ("Supplier 2 of 3"), its claimed share and period are what identify it, so either unsupported also rejects it (`partly_supported_unnamed`). Otherwise it is written with only the supported fields; the evidence's `share_note` lists what was left out. |
 | not_supported | `rejected` with the reason, `rejected_by` `verifier`. |
 
 An unnamed counterparty becomes a placeholder company exactly as the XBRL import makes them: one per filer, label and period ("Customer A (unnamed customer of Acme Semiconductor Inc., year to 2026-01-25)"), so XBRL and the Reader share it and the merge (#127) can later upgrade it. A candidate whose share the Reader dropped is still checked for the link itself (the claim then has no share). Shares, confidence, dates and status are then set by the merge rules below.
@@ -318,6 +320,18 @@ Each decision is saved in `name_resolutions` (matched: `method`; skipped: `reaso
 | Cost | US$0.24 | US$0.19 |
 
 What the misses are (medium): 30 were never returned by the Reader (mostly statements about several unnamed counterparties at once, "sales to four customers represented 20.9%, 11.5%, 11.3% and 11.1%", which its prompt tells it to leave out as groups); 17 were rejected as `unresolved_company` (private companies such as OpenAI, Groq, Ablecom and Compuware, and China- or Taiwan-listed ones such as Tongfu); the others one wrong direction and two "groups". Every found link was "high" confidence whatever the evidence (fixed by #333: after it, all 31 found links in the 27 Oct rerun are "medium", since each filing is one document). The Verifier once dropped a correct stated number (Dell's 12%).
+
+**After the Milestone 11 fixes** (means of 3 runs, truth file of 90 after reviewing each run's extra links; Reader answers cached, so a change that doesn't touch the Reader is measured on the same Reader output):
+
+| | Found | Headline (of 30) | Wrong links | Wrong numbers | Trap links | Cost |
+|---|---|---|---|---|---|---|
+| Baseline (main, 27 Oct) | 32.7 | 14.7 | 0.7 | 0 | 0.3 | US$0.23 |
+| #333 confidence | 32.7 | 15.3 | 0.7 | 0 | 0.3 | US$0.23 |
+| #334 private companies, planned agreements | 47.0 | 22.3 | 3.3 | 0 | 2.3 | US$0.32 |
+| #335 join duplicate placeholders | 48.3 | 23.7 | 3.7 | 0 | 2.3 | US$0.33 |
+| #341 one counterparty per stated share, table rows | 64.0 | 23.7 | 2.3 | 0 | 1.3 | US$0.37 |
+
+The remaining wrong and trap links are Arm's 1990 founding joint venture (history), CoreWeave's joint venture with an unnamed infrastructure developer, and a 13% NVIDIA customer filed under the wrong year. The Verifier is not deterministic either: on identical Reader answers wrong links range 0 to 4.
 
 ## What runs first, and how much it may spend (#126)
 
