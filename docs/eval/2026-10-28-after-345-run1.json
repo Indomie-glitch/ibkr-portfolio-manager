@@ -31,25 +31,25 @@
   "run_index": 0
  },
  "metrics": {
-  "truth": 90,
-  "found": 63,
+  "truth": 93,
+  "found": 66,
   "found_other_year": 0,
   "found_no_number": 0,
   "missed": 27,
-  "recall": 0.7,
-  "recall_loose": 0.7,
+  "recall": 0.71,
+  "recall_loose": 0.71,
   "headline": 30,
   "headline_found": 24,
   "links": 82,
-  "wrong_links": 5,
-  "precision": 0.939,
+  "wrong_links": 2,
+  "precision": 0.976,
   "wrong_numbers": 0,
   "ended_truth": 4,
   "ended_found": 1,
   "ended_marked": 1,
   "ended_missed": 0,
   "wrongly_ended": 1,
-  "trap_links": 0,
+  "trap_links": 2,
   "duplicate_groups": 0,
   "duplicate_links": 0,
   "rejected": {
@@ -63,7 +63,7 @@
    "partly_supported": 5
   },
   "confidence_levels_of_found": {
-   "medium": 63
+   "medium": 66
   },
   "categories": {
    "8k_agreement": {
@@ -103,8 +103,8 @@
     "found": 6
    },
    "unnamed_customer": {
-    "truth": 24,
-    "found": 23
+    "truth": 27,
+    "found": 26
    },
    "unnamed_supplier": {
     "truth": 14,
@@ -466,6 +466,24 @@
    "amkr-10k-fy25#2": {
     "result": "found",
     "link": 64,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amkr-10k-fy25#3": {
+    "result": "found",
+    "link": 67,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amkr-10k-fy25#4": {
+    "result": "found",
+    "link": 69,
+    "confidence": 0.6,
+    "level": "medium"
+   },
+   "amkr-10k-fy25#5": {
+    "result": "found",
+    "link": 68,
     "confidence": 0.6,
     "level": "medium"
    },

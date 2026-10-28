@@ -27,13 +27,13 @@
   "run_index": 1
  },
  "metrics": {
-  "truth": 90,
+  "truth": 93,
   "found": 62,
   "found_other_year": 4,
   "found_no_number": 0,
-  "missed": 24,
-  "recall": 0.689,
-  "recall_loose": 0.733,
+  "missed": 27,
+  "recall": 0.667,
+  "recall_loose": 0.71,
   "headline": 30,
   "headline_found": 22,
   "links": 73,
@@ -103,7 +103,7 @@
     "found": 5
    },
    "unnamed_customer": {
-    "truth": 24,
+    "truth": 27,
     "found": 18
    },
    "unnamed_supplier": {
@@ -462,6 +462,15 @@
     "link": 52,
     "confidence": 0.6,
     "level": "medium"
+   },
+   "amkr-10k-fy25#3": {
+    "result": "missed"
+   },
+   "amkr-10k-fy25#4": {
+    "result": "missed"
+   },
+   "amkr-10k-fy25#5": {
+    "result": "missed"
    },
    "dell-10k-fy26#1": {
     "result": "found",
