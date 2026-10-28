@@ -9,7 +9,7 @@ from pathlib import Path
 
 from eval import supply_chain_eval as ev
 from eval.resolver_cache import CachingSearch
-from supply_chain import graph, xbrl
+from supply_chain import exhibits, graph, xbrl
 from supply_chain.db import open_graph
 
 TRUTH = ev.load_truth()
@@ -326,3 +326,30 @@ class SpendTests(unittest.TestCase):
             finally:
                 ev.SPEND = original
 
+
+
+class ExhibitSetTests(unittest.TestCase):
+    """The 8-K exhibit set (#322): separate from the frozen file, real agreements, a redacted one and a financing trap."""
+    EXHIBITS = ev.load_truth(ev.EXHIBIT_TRUTH)
+
+    def test_its_shape(self):
+        docs = self.EXHIBITS["documents"]
+        self.assertTrue(3 <= sum(len(d["relationships"]) for d in docs) <= 5)
+        self.assertTrue(all(d["form"] == "8-K" and d["exhibits"] for d in docs))
+        self.assertTrue(any("redacted" in r["categories"] for d in docs for r in d["relationships"]))
+        for d in docs:
+            files = {x["file"] for x in d["exhibits"]} | {d["primary_document"]}
+            for r in d["relationships"] + d["optional"] + d["not_relationships"]:
+                self.assertIn(r.get("file", d["primary_document"]), files)
+                for side in ("supplier", "customer"):
+                    if r.get(side):
+                        self.assertIn(r[side], self.EXHIBITS["companies"])
+
+    def test_the_production_rules_skip_the_financing_exhibit_and_read_the_agreements(self):
+        decisions = {x["file"]: exhibits.decide(x["description"])[0] for d in self.EXHIBITS["documents"] for x in d["exhibits"]}
+        self.assertEqual(decisions["d910811dex101.htm"], "skip")
+        for name in ("redactedmetamsa929finald.htm", "d17274dex101.htm", "ex102.htm", "prime-supermicroxmcsaxco.htm"):
+            self.assertEqual(decisions[name], "read", name)
+
+    def test_the_main_set_lists_no_exhibits(self):
+        self.assertFalse(any(d.get("exhibits") for d in TRUTH["documents"]))
