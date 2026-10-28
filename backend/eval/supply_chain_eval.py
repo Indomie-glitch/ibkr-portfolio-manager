@@ -8,6 +8,12 @@
 Reader answers are saved in backend/eval/reader_cache/ (eval/reader_cache.py), keyed by the whole Reader request (chunk text, prompt,
 schema, model, effort), one per run number. A run reuses them, so a change to the Verifier, merge or confidence is measured on the same
 Reader output; a changed prompt or chunk reads afresh by itself; --fresh reads everything again and replaces what is saved.
+What the name resolver asked OpenFIGI is saved too, in backend/eval/resolver_cache.json (eval/resolver_cache.py), shared by every run.
+
+Spending is capped at DAILY_CAP_USD (US$3) a local day, counted in data/eval_spend.json; --cap USD changes it for one command.
+
+The truth file is frozen (its "frozen" note): entries aren't added after looking at a run's output. A true relationship a run
+shows that the file lacks is listed in the write-up as "possibly missing from truth" for the user to decide.
 
 backend/eval/supply_chain_eval.json lists 10 filings and what each states: the relationships known to be true (30 of them the "headline" cases:
 named customers with percentages, named suppliers in risk factors, 8-K agreements, unnamed customers, ended relationships, private counterparties),
@@ -40,11 +46,38 @@ import anthropic  # noqa: E402
 
 import config  # noqa: E402
 from eval.reader_cache import CachingClient  # noqa: E402
-from supply_chain import chunker, db, graph, jobs, merge, orchestrator, reader, resolver, themes, verifier  # noqa: E402
+from eval.resolver_cache import CachingSearch  # noqa: E402
+from supply_chain import chunker, db, graph, jobs, merge, openfigi, orchestrator, reader, resolver, themes, verifier  # noqa: E402
 
 TRUTH = Path(__file__).with_name("supply_chain_eval.json")
 REPORTS = BACKEND.parent / "docs" / "eval"
 PERIOD = re.compile(r"year to (\d{4}-\d{2}-\d{2})")
+SPEND = config.DATA_DIR / "eval_spend.json"
+DAILY_CAP_USD = 3.0
+
+
+# ---------- Spending ----------
+
+def today():
+    return datetime.now().astimezone().strftime("%Y-%m-%d")
+
+
+def spent_today(path=None):
+    try:
+        return json.loads(Path(path or SPEND).read_text(encoding="utf-8")).get(today(), 0.0)
+    except (OSError, ValueError):
+        return 0.0
+
+
+def add_spend(usd, path=None):
+    path = Path(path or SPEND)
+    try:
+        days = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        days = {}
+    days[today()] = round(days.get(today(), 0.0) + usd, 6)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(days, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
 
 # ---------- The truth file ----------
@@ -151,6 +184,18 @@ async def run_pipeline(conn, ids, reader_effort="medium", verifier_effort="mediu
     run_index; fresh reads them all again). Returns {reader_cost, verifier_cost, tokens..., reader_cache}."""
     reader.EFFORT, verifier.EFFORT = reader_effort, verifier_effort
     client = CachingClient(anthropic.AsyncAnthropic(api_key=config.anthropic_api_key(), timeout=reader.TIMEOUT_S), run_index, fresh)
+    lookups = CachingSearch(openfigi.search)
+    real_search, openfigi.search = openfigi.search, lookups  # resolver.resolve looks openfigi.search up when called
+    try:
+        totals = await _run_documents(conn, ids, client, say)
+    finally:
+        openfigi.search = real_search
+    totals["reader_cache"] = {"hits": client.hits, "misses": client.misses, "saved_usd": client.saved_usd}
+    totals["resolver_cache"] = {"hits": lookups.hits, "misses": lookups.misses}
+    return totals
+
+
+async def _run_documents(conn, ids, client, say):
     totals = {"reader_cost": 0.0, "verifier_cost": 0.0, "reader_in": 0, "reader_out": 0, "verifier_in": 0, "verifier_out": 0, "declined": 0, "deferred": 0}
     def start(kind, key):
         """A run row, so what each call costs is on it and the spend cap sees it."""
@@ -180,7 +225,6 @@ async def run_pipeline(conn, ids, reader_effort="medium", verifier_effort="mediu
             conn.execute("UPDATE candidates SET verify_after = NULL WHERE document_id = ? AND status = 'pending'", (document_id,))
         say(f"  {eval_id}: {checked['linked']} linked, {checked['rejected']} rejected")
     totals["merge"] = merge.recompute_all(conn)
-    totals["reader_cache"] = {"hits": client.hits, "misses": client.misses, "saved_usd": client.saved_usd}
     return totals
 
 
@@ -439,12 +483,13 @@ def render(truth, ids, out, metrics, run, label, started):
     if subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], capture_output=True, text=True, cwd=BACKEND).stdout.strip():
         commit += " + uncommitted changes"
     late = sum(1 for d in truth["documents"] if d["id"] in ids for r in d["relationships"] if r.get("late"))
+    frozen = f"; file frozen {truth['frozen']['on']}" if truth.get("frozen") else ""
     lines = [f"# Supply chain evaluation: {label}", "",
              f"Run {started:%Y-%m-%d %H:%M} · commit {commit} · chunker v{chunker.CHUNKER_VERSION} · Reader {config.READER_MODEL} (effort {run['reader_effort']}) · "
              f"Verifier {config.VERIFIER_MODEL} (effort {run['verifier_effort']}) · {len(ids)} filings", "",
              "## Summary", "",
              "| | |", "|---|---|",
-             f"| Known relationships | {m['truth']} (30 headline; {late} added to the file after reviewing the first run) |",
+             f"| Known relationships | {m['truth']} (30 headline; {late} added after reviewing the first runs{frozen}) |",
              f"| **Found** (right companies, and for unnamed ones the right share and year) | **{m['found']}** ({m['recall']:.0%} recall) |",
              f"| Found with the right share but another year | {m['found_other_year']} |",
              f"| Found, but the number was lost (the customer and passage are right) | {m['found_no_number']} (recall counting these two: {m['recall_loose']:.0%}) |",
@@ -488,7 +533,8 @@ def render(truth, ids, out, metrics, run, label, started):
         lines += [f"- **{d}** {i['supplier'] or '?'} → {i['customer'] or '?'}: ended in the filing, not marked ended" for d, i in m["_ended_missed"]]
         lines += [f"- **{d}** {i['supplier'] or '?'} → {i['customer'] or '?'}: marked ended, the filing says no" for d, i in m["_wrongly_ended"]]
     lines += ["", f"## Wrong links ({len(m['_wrong'])})", "",
-              "These match nothing in the truth. Each needs a look: a wrong link, or a true one the annotation missed (then it goes into the file).", ""]
+              "These match nothing in the truth. Each needs a look: a wrong link, or a true one the annotation missed. The truth file is frozen, "
+              "so a true one is listed as possibly missing from truth for a decision, not added to the file.", ""]
     for link in m["_wrong"]:
         e = link["evidence"][0]
         arrow = "↔" if link["kind"] == "partnership" else "→"
@@ -548,6 +594,7 @@ async def main(argv=None):
     parser.add_argument("--estimate-only", action="store_true", help="print the estimated cost and stop")
     parser.add_argument("--fresh", action="store_true", help="read every chunk again instead of using saved Reader answers (and save the new ones)")
     parser.add_argument("--runs", type=int, default=1, help="run N times (each Reader answer number i is run i's) and report mean and range")
+    parser.add_argument("--cap", type=float, default=DAILY_CAP_USD, help=f"most to spend today, counting earlier runs (default US${DAILY_CAP_USD:g})")
     parser.add_argument("--rescore", metavar="STEM", help="score a saved run again (docs/eval/<STEM>.raw.json) against the current truth file: no API calls")
     args = parser.parse_args(argv)
     truth = load_truth()
@@ -596,18 +643,27 @@ async def main(argv=None):
     reading = "every chunk read again" if args.fresh else "Reader answers from the cache where saved (then only the Verifier is paid for)"
     print(f"\n{len(ids)} filings, {chunks} chunks, {args.runs} run(s), {reading}. Estimated cost at most about {money(args.runs * (low + high_))} "
           f"(per run: Reader {money(low)}, Verifier {money(high_)}). The estimate is deliberately high.")
+    spent = spent_today()
+    print(f"Spent on eval runs today: {money(spent)} of the {money(args.cap)} daily cap.")
     if args.estimate_only:
         return 0
+    if spent + low + high_ > args.cap:
+        print("Not run: one run could take today's eval spending over the cap (--cap to change it).")
+        return 1
     if not args.yes and input("Run it with the real Claude API? [y/N] ").strip().lower() != "y":
         print("Not run.")
         return 0
     started = datetime.now(timezone.utc).astimezone()
     orchestrator.limits.pacing = False
-    orchestrator.limits.run_cap_usd = max(2.0, 4 * args.runs * (low + high_))
     orchestrator.limits.run_since = started.astimezone(timezone.utc)
     stem = f"{started:%Y-%m-%d}-{label}"
     results = []
     for index in range(args.runs):
+        left = args.cap - spent_today()
+        if index and low + high_ > left:
+            print(f"\nStopped after {index} run(s): another could take today's eval spending over the {money(args.cap)} cap.")
+            break
+        orchestrator.limits.run_cap_usd = max(0.0, left)  # a hard stop inside the run: the next call waits instead (deferred)
         run_stem = f"{stem}-run{index + 1}" if args.runs > 1 else stem
         run_label = f"{label} (run {index + 1} of {args.runs})" if args.runs > 1 else label
         with tempfile.TemporaryDirectory(prefix="supply-chain-eval-") as folder:
@@ -618,6 +674,7 @@ async def main(argv=None):
             run.update(reader_effort=args.reader_effort, verifier_effort=args.verifier_effort, fresh=args.fresh, run_index=index)
             out = collect(conn, ids)
             conn.close()
+        add_spend(run["reader_cost"] + run["verifier_cost"])
         raw = {"label": run_label, "started": started.isoformat(), "run": run, "ids": ids, "outside": outside, "out": {k: out[k] for k in ("links", "candidates", "rejected")}}
         metrics, report = build_report(truth, ids, out, outside, run, run_label, started)
         save(run_stem, report, run_label, run, metrics, raw)
@@ -625,7 +682,7 @@ async def main(argv=None):
         if args.runs == 1:
             print("\n" + report)
         print(f"Saved docs/eval/{run_stem}.md, .json and .raw.json")
-    if args.runs > 1:
+    if len(results) > 1:
         summary = render_runs(label, started, results, truth, ids)
         (REPORTS / f"{stem}.md").write_text(summary, encoding="utf-8")
         (REPORTS / f"{stem}.json").write_text(json.dumps({**runs_summary(results), "label": label}, indent=1), encoding="utf-8")

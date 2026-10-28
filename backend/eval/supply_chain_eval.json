@@ -1,6 +1,7 @@
 {
  "version": 1,
  "created": "2026-10-27",
+ "frozen": {"on": "2026-10-28", "relationships": 90, "optional": 35, "traps": 27, "note": "No entries are added, changed or removed after looking at a run's output. A true relationship a run shows that the file lacks is listed in the write-up as possibly missing from truth; the user decides whether it goes in (tests/test_supply_chain_eval.py checks the file's hash)."},
  "scope": "Each document lists the supplier, customer and partnership relationships its text states between the filer and a named company, or an unnamed one with a stated figure (a share, a contract), within the sections the chunker sends to the Reader. Not counted: financing (lenders, underwriters, trustees), equity stakes on their own, leases, litigation, competitors, auditors, directors, and relationships between two other companies. 'relationships' are known true; 'optional' ones are stated ambiguously and count neither for nor against; 'not_relationships' are traps the run must not turn into links. Every quote is cut from the filing's cleaned text; `python -m eval.supply_chain_eval --check` finds each one again.",
  "companies": {
   "TSMC": {
