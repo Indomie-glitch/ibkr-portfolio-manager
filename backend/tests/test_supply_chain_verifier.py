@@ -236,6 +236,43 @@ class CounterpartyTests(VerifierTestCase):
         self.assertIn("Customer 2 of 4 (unnamed: number 2 of the 4 unnamed counterparties the passage gives a share for, in its order)",
                       client.calls[0]["messages"][0]["content"])
 
+    def numbered_supplier(self, share=17):
+        return self.add_candidate(supplier_name="Supplier 2 of 3", supplier_id=None, supplier_unnamed=1, what=None,
+                                  customer_supply_share=share, customer_share_scope="purchases", period_as_written="2025",
+                                  stated_on="2025-12-31",
+                                  quote="For 2025, three suppliers accounted for 23%, 20% and 17% of our purchases.")
+
+    def test_a_numbered_unnamed_counterparty_with_the_wrong_share_is_rejected(self):
+        candidate = self.numbered_supplier(share=23)  # the first supplier's share, claimed for the second
+        self.verify(lambda m, r: response([verdict(1, "partly_supported", ["customer_supply_share"])]))
+        self.assertEqual(self.relationships(), [])  # not linked as a share-less "Supplier 2 of 3"
+        self.assertEqual(self.rejected()[0]["reason"], "partly_supported_unnamed")
+        self.assertIn("customer_supply_share", self.rejected()[0]["detail"])
+        self.assertEqual(self.candidate(candidate)["status"], "partly_supported")
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM companies WHERE is_placeholder = 1").fetchone()[0], 0)
+
+    def test_a_numbered_unnamed_counterparty_with_the_wrong_period_is_rejected(self):
+        self.numbered_supplier()
+        self.verify(lambda m, r: response([verdict(1, "partly_supported", ["period"])]))
+        self.assertEqual(self.rejected()[0]["reason"], "partly_supported_unnamed")
+        self.assertEqual(self.relationships(), [])
+
+    def test_a_numbered_unnamed_counterparty_on_the_wrong_side_is_rejected(self):
+        self.numbered_supplier()
+        self.verify(lambda m, r: response([verdict(1, "partly_supported", ["supplier"])]))
+        self.assertEqual(self.rejected()[0]["reason"], "partly_supported_link")
+        self.assertEqual(self.relationships(), [])
+
+    def test_a_numbered_unnamed_counterparty_keeps_a_wrong_what(self):
+        self.numbered_supplier()
+        self.verify(lambda m, r: response([verdict(1, "partly_supported", ["what"])]))
+        self.assertEqual(self.relationships()[0]["customer_supply_share"], 17)  # share and period checked, so it links
+
+    def test_a_named_counterparty_with_the_wrong_share_still_links_without_it(self):
+        self.beta_customer(supplier_revenue_share=40)
+        self.verify(lambda m, r: response([verdict(1, "partly_supported", ["supplier_revenue_share"])]))
+        self.assertIsNone(self.relationships()[0]["supplier_revenue_share"])
+
     def test_a_label_is_kept_per_filing(self):
         first = self.beta_customer(customer_name="Customer B", customer_id=None, customer_unnamed=1, stated_on="2024-12-31")
         later = graph.add_document(self.conn, "sec", "10-K", "0002/acme.htm", "https://www.sec.gov/y", company_id=self.acme,

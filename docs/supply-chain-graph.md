@@ -233,7 +233,7 @@ A share outside 0-100, or whose digits aren't in the quote, doesn't reject the c
 | Verdict | What happens |
 |---|---|
 | supported | `graph.add_relationship` writes the link and its evidence: tier 2, extractor `reader`, verification `verified`, `verified_by` the model that answered, the candidate's locator and `stated_on`, `states_ended` when the passage says it ended. A link that already exists (from XBRL, or another filing) gets the evidence added instead. The candidate becomes `linked`. |
-| partly_supported | If the supplier, customer, direction or kind is unsupported, the link itself is, so it goes to `rejected` (`partly_supported_link`). Otherwise it is written with only the supported fields; the evidence's `share_note` lists what was left out. |
+| partly_supported | If the supplier, customer, direction or kind is unsupported, the link itself is, so it goes to `rejected` (`partly_supported_link`). For an unnamed counterparty ("Supplier 2 of 3"), its claimed share and period are what identify it, so either unsupported also rejects it (`partly_supported_unnamed`). Otherwise it is written with only the supported fields; the evidence's `share_note` lists what was left out. |
 | not_supported | `rejected` with the reason, `rejected_by` `verifier`. |
 
 An unnamed counterparty becomes a placeholder company exactly as the XBRL import makes them: one per filer, label and period ("Customer A (unnamed customer of Acme Semiconductor Inc., year to 2026-01-25)"), so XBRL and the Reader share it and the merge (#127) can later upgrade it. A candidate whose share the Reader dropped is still checked for the link itself (the claim then has no share). Shares, confidence, dates and status are then set by the merge rules below.

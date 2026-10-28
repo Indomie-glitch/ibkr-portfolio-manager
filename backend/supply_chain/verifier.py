@@ -264,12 +264,29 @@ def link(conn, candidate, verdict, model, run_id=None):
     return relationship_id
 
 
+IDENTITY_FIELDS = {"supplier_revenue_share", "customer_supply_share", "period"}
+
+
+def _unsupported_identity(candidate, verdict):
+    """For an unnamed counterparty, its stated share and period are all that tell it apart ("Supplier 2 of 3, 17% in
+    2025"), so an unsupported one of those rejects the candidate instead of linking it without them."""
+    if not (candidate["supplier_unnamed"] or candidate["customer_unnamed"]):
+        return set()
+    claimed = {f for f in ("supplier_revenue_share", "customer_supply_share") if candidate[f] is not None}
+    if candidate["stated_on"] or candidate["period_as_written"]:
+        claimed.add("period")
+    return IDENTITY_FIELDS & claimed & set(verdict["unsupported_fields"])
+
+
 def apply(conn, candidate, verdict, model, run_id=None):
     """Links, or rejects, one candidate by its verdict; returns "linked" or "rejected"."""
     stored = json.dumps({**verdict, "model": model})
     unsupported_link = LINK_FIELDS & set(verdict["unsupported_fields"])
-    if verdict["verdict"] == "not_supported" or unsupported_link:
-        reason = "not_supported" if verdict["verdict"] == "not_supported" else "partly_supported_link"
+    unsupported_unnamed = _unsupported_identity(candidate, verdict)
+    if verdict["verdict"] == "not_supported" or unsupported_link or unsupported_unnamed:
+        reason = ("not_supported" if verdict["verdict"] == "not_supported"
+                  else "partly_supported_link" if unsupported_link else "partly_supported_unnamed")
+        unsupported_link = unsupported_link or unsupported_unnamed
         detail = verdict["reason"] + (f" (unsupported: {', '.join(sorted(unsupported_link))})" if unsupported_link else "")
         graph.reject(conn, candidate["document_id"], candidate["quote"], reason, "verifier",
                      supplier_name=candidate["supplier_name"], customer_name=candidate["customer_name"],
