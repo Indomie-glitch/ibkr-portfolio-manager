@@ -12,6 +12,7 @@ from supply_chain.worker import Permanent
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "supplier_lists"
 NOW = datetime(2026, 11, 15, 9, 0, tzinfo=timezone.utc)
+REAL_PDF_PAGES = sl.pdf_pages  # some tests replace it with the fixture pages
 
 
 def run(coro):
@@ -346,6 +347,10 @@ class ImportingAList(Base):
     def test_a_page_instead_of_a_pdf_needs_a_new_url(self):
         with self.assertRaises(Permanent):
             self.import_list(b"<!DOCTYPE html><title>Supply chain</title>")
+
+    def test_a_damaged_pdf_is_a_permanent_failure(self):
+        with mock.patch.object(sl, "pdf_pages", REAL_PDF_PAGES), self.assertRaises(Permanent):
+            self.import_list(b"%PDF-1.7 not really a pdf")
 
     def test_a_list_with_no_entries_is_a_permanent_failure(self):
         with mock.patch.object(sl, "pdf_pages", lambda content: ([APPLE[0]], None)), self.assertRaises(Permanent):

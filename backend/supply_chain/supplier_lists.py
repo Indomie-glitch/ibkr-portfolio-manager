@@ -445,7 +445,11 @@ def summarise(results):
 
 def read_list(source, content):
     """(entries, fiscal year, published date) from a downloaded list; raises Permanent when it can't be read."""
-    pages, created = pdf_pages(content)
+    from pypdf.errors import PdfReadError
+    try:
+        pages, created = pdf_pages(content)
+    except PdfReadError as exc:
+        raise Permanent(f"{source['title']} isn't a readable PDF: {exc}") from exc
     entries = PARSERS[source["parser"]](pages)
     if not entries:
         raise Permanent(f"no entries found in {source['title']}: the layout may have changed")
