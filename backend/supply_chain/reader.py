@@ -12,7 +12,8 @@ One Claude call per chunk (config.READER_MODEL, structured output). After the ca
 - an unnamed lease of space, or an unnamed partner, with no share is rejected (unnamed_lease / unnamed_partner);
 - a period named without a date ("fiscal year 2024") gets its end date from the filing (period_ends_on).
 
-Job kind "read" (key = document id), queued when a download finishes for 10-Ks, 20-Fs and 8-Ks with Item 1.01 / 1.02.
+Job kind "read" (key = document id), queued when a download finishes for 10-Ks, 20-Fs, 8-Ks with Item 1.01 / 1.02, Taiwan
+annual reports (#128) and ASX announcements (#131).
 Every chunk read is recorded in chunk_reads, so a job retried after a failure only pays for the chunks it hadn't read.
 """
 import asyncio
@@ -36,7 +37,7 @@ EFFORT = "medium"
 MAX_TOKENS = 16000
 TIMEOUT_S = 300
 MAX_SPLITS = 2  # an answer cut off at MAX_TOKENS is read again as two halves, at most twice over
-READ_PRIORITY = {"10-K": 45, "20-F": 45, "annual report": 45, "8-K": 40}  # below downloads (30-60) and XBRL (55) of the same filing; reading costs money
+READ_PRIORITY = {"10-K": 45, "20-F": 45, "annual report": 45, "8-K": 40, "ASX announcement": 40}  # below downloads (30-60) and XBRL (55) of the same filing; reading costs money
 # ("annual report": a Taiwan annual report from MOPS, #128)
 AGREEMENT_ITEMS = {"1.01", "1.02"}
 

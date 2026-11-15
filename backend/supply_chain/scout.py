@@ -12,15 +12,17 @@ holds one open job per kind and key.
 
 Forms watched: 10-K, 10-Q, 8-K, and for foreign private issuers (TSMC, ASML ...) the 20-F annual report and 6-K
 reports. 8-Ks and 6-Ks are mostly press releases, so they only go back 60 days on the first look; annual reports go back
-13 months. Companies with no US ticker (so no EDGAR number) produce nothing, except Taiwan-listed ones: their English
-annual reports come from MOPS instead (mops.py, #128), through the same scout and download jobs.
+13 months. Companies with no US ticker (so no EDGAR number) produce nothing, except Taiwan-listed ones, whose English
+annual reports come from MOPS instead (mops.py, #128), and ASX-listed ones, whose material contract announcements come
+from asx.com.au once the user has accepted ASX's terms (asx.py, #131), through the same scout and download jobs.
 """
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+import asx_client
 import mops_client
 import sec_client
-from supply_chain import db, exhibits, graph, jobs, merge, mops, reader, sec, verifier
+from supply_chain import asx, db, exhibits, graph, jobs, merge, mops, reader, sec, verifier
 from supply_chain.worker import Permanent, handler
 
 FORMS = {"10-K": 60, "20-F": 60, "10-Q": 50, "8-K": 30, "6-K": 30}  # form -> download priority (higher runs first)
@@ -103,9 +105,25 @@ def uses_mops(conn, company_id):
     return cik_of(conn, company_id) is None and us_ticker(conn, company_id) is None and mops.company_code(conn, company_id) is not None
 
 
+def uses_asx(conn, company_id):
+    """An ASX-listed company without a US listing: its material contract announcements come from asx.com.au (#131)."""
+    return cik_of(conn, company_id) is None and us_ticker(conn, company_id) is None and asx.company_code(conn, company_id) is not None
+
+
 @handler("scout")
 async def scout_job(job, conn):
     company_id = int(job["key"])
+    if uses_asx(conn, company_id):
+        if not asx.terms_accepted():  # ASX's announcements are for personal use, once the user has accepted that (#131)
+            return {"notes": "waiting for ASX terms: accept ASX's terms in the app to read its announcements"}
+        try:
+            result = await asx.scan(conn, company_id)
+        except asx_client.AsxNotFound as exc:
+            raise Permanent(str(exc)) from exc
+        if not result["found"]:
+            return {"notes": f"no contract announcements on the ASX in the last {asx.LOOKBACK_DAYS} days ({result['listed']} announcements)"}
+        return {"notes": f"{result['found']} ASX announcement{'' if result['found'] == 1 else 's'} worth reading "
+                         f"(of {result['listed']}), {result['new']} new"}
     if uses_mops(conn, company_id):
         try:
             result = await mops.scan(conn, company_id)
@@ -126,6 +144,16 @@ async def scout_job(job, conn):
 @handler("download")
 async def download_job(job, conn):
     p = job["payload"]
+    if p.get("source") == asx.SOURCE:  # an ASX announcement (#131)
+        if not asx.terms_accepted():
+            raise Permanent("ASX's terms aren't accepted (they were withdrawn after this was queued)")
+        try:
+            digest = await asx.fetch_document(conn, p["document_id"], p["ids_id"], p["code"])
+        except asx_client.AsxNotFound as exc:
+            conn.execute("UPDATE documents SET status = 'failed' WHERE id = ?", (p["document_id"],))
+            raise Permanent(str(exc)) from exc
+        reader.queue_read(conn, p["document_id"], asx.KIND, company_id=job.get("company_id"))
+        return {"notes": f"{asx.KIND} {digest[:12]}"}
     if p.get("source") == mops.SOURCE:  # a Taiwan annual report (#128)
         try:
             digest = await mops.fetch_document(conn, p["document_id"], p["co_id"], p["filename"])
@@ -148,18 +176,20 @@ async def download_job(job, conn):
 
 
 def due_companies(conn, now=None, every_s=SCOUT_EVERY_S):
-    """Watched companies (theme or held) that no scout job has covered within `every_s` (or has open)."""
+    """Watched companies (theme or held, orchestrator.py) that no scout job has covered within `every_s` (or has open). A
+    company listed only on the ASX is left out until the user has accepted ASX's terms (#131)."""
     cutoff = jobs._iso((now or datetime.now(timezone.utc)) - timedelta(seconds=every_s))
-    # theme companies and the ones the user holds (orchestrator.py); a company listed only on the ASX waits for an ASX source (#131)
     rows = conn.execute(
         """SELECT c.id FROM companies c
            WHERE (c.held = 1 OR EXISTS (SELECT 1 FROM theme_companies tc WHERE tc.company_id = c.id)) AND c.merged_into IS NULL
-             AND NOT (EXISTS (SELECT 1 FROM identifiers i WHERE i.company_id = c.id AND i.scheme = 'ticker' AND i.market = 'ASX')
-                      AND NOT EXISTS (SELECT 1 FROM identifiers i WHERE i.company_id = c.id AND i.scheme = 'ticker' AND i.market = 'US'))
              AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.kind = 'scout' AND j.key = CAST(c.id AS TEXT)
                              AND (j.status IN ('queued', 'running') OR j.created_at > ?))
            ORDER BY c.id""", (cutoff,)).fetchall()
-    return [row["id"] for row in rows]
+    due = [row["id"] for row in rows]
+    asx_only = {company_id for company_id in due if uses_asx(conn, company_id)}
+    if asx_only and not asx.terms_accepted():  # the terms are looked up only when an ASX company is due
+        due = [company_id for company_id in due if company_id not in asx_only]
+    return due
 
 
 def schedule(conn, now=None, every_s=SCOUT_EVERY_S):

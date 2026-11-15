@@ -34,7 +34,7 @@ flowchart LR
     funds[("ETF holdings files<br/>State Street, iShares")]
     sec[("SEC EDGAR<br/>US proxy statements,<br/>filings")]
     mops[("Taiwan MOPS<br/>doc.twse.com.tw<br/>annual reports")]
-    asx[("ASX announcements<br/>annual reports<br/>(personal use)")]
+    asx[("ASX announcements<br/>annual reports, contract<br/>announcements (personal use)")]
     wikidata[("Wikidata + Wikipedia<br/>people's IDs, articles,<br/>photos (Commons)")]
     claude[("Anthropic API<br/>Claude writes the<br/>AI summaries, judges news<br/>sentiment, reads boards<br/>and filings")]
     gh[("GitHub Releases<br/>new app versions")]
@@ -47,7 +47,7 @@ flowchart LR
     app -->|"index members, weekly<br/>(no key; off by default)"| funds
     app -->|"proxy statements, filings<br/>(contact email)"| sec
     app -->|"annual reports of Taiwan-listed<br/>companies (no key; pipeline only)"| mops
-    app -->|"annual reports, on request<br/>(after you accept ASX's terms)"| asx
+    app -->|"annual reports for boards, on request;<br/>contract announcements, pipeline only<br/>(after you accept ASX's terms)"| asx
     app -->|"who is who, summaries,<br/>photos (no key)"| wikidata
     app -->|"facts sheet, headlines, board pages or filing chunks in,<br/>summary, sentiment, directors or relationships out (API key)"| claude
     app -->|"check for update,<br/>download signed update"| gh
@@ -155,7 +155,8 @@ flowchart TB
         pdat["person_data.py + wikimedia.py<br/>Wikipedia + Wikidata facts about<br/>executives and directors (SQLite);<br/>seed/persons.json, weekly"]
         secc["sec_client.py<br/>the one EDGAR client: User-Agent,<br/>rate limit, retries, filing lists,<br/>download + SHA-256"]
         mopsc["mops_client.py<br/>the one MOPS client: listings,<br/>English annual reports, download<br/>(3 s apart, retries)"]
-        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>MOPS scout (Taiwan annual reports),<br/>8-K exhibits (material agreements,<br/>financing / employment skipped),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration,<br/>document chunker (filings and<br/>PDFs -> chunks),<br/>Reader (chunks -> candidates, Claude),<br/>Verifier (candidates -> verified links),<br/>merge (one link per pair, confidence,<br/>stale / ended, placeholder upgrades),<br/>orchestrator (holdings first, daily pace,<br/>cost estimates, Claude call spacing),<br/>Anthropic account check (pause when<br/>out of credits, resume by itself),<br/>pipeline switches + status<br/>(supply_chain.sqlite; GET/POST /pipeline)"]
+        asxc["asx_client.py<br/>the one asx.com.au client: yearly<br/>announcement lists, terms page -> PDF<br/>(3 s apart; pipeline retries)"]
+        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>MOPS scout (Taiwan annual reports),<br/>ASX scout (contract announcements,<br/>after ASX's terms; headline rules),<br/>8-K exhibits (material agreements,<br/>financing / employment skipped),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration,<br/>document chunker (filings and<br/>PDFs -> chunks),<br/>Reader (chunks -> candidates, Claude),<br/>Verifier (candidates -> verified links),<br/>merge (one link per pair, confidence,<br/>stale / ended, placeholder upgrades),<br/>orchestrator (holdings first, daily pace,<br/>cost estimates, Claude call spacing),<br/>Anthropic account check (pause when<br/>out of credits, resume by itself),<br/>pipeline switches + status<br/>(supply_chain.sqlite; GET/POST /pipeline)"]
         ppl["people.py<br/>same person across companies<br/>(Wikidata ID, or name + the<br/>document naming the company)"]
     end
 
@@ -187,9 +188,9 @@ flowchart TB
     dirs --> dsrc & ppl & usage & cons
     pdat --> dirs & dsrc & ppl
     r_pos -.->|records executives| pdat
-    dsrc --> secc
+    dsrc --> secc & asxc
     scg --> cons
-    scg --> secc & mopsc
+    scg --> secc & mopsc & asxc
     r_idx -.->|reuses Yahoo info| r_pos
     cons --> yahoo & names
 
@@ -203,6 +204,7 @@ flowchart TB
     flex -->|HTTPS| FX[["Flex Web Service"]]
     cons -->|HTTPS| FUNDS[["ETF holdings files"]]
     mopsc -->|HTTPS| MOPS[["Taiwan MOPS"]]
+    asxc -->|HTTPS| ASXW[["asx.com.au"]]
     ai -->|anthropic SDK| AN[["Anthropic API"]]
     dirs -->|anthropic SDK| AN
     senti -->|anthropic SDK| AN
@@ -474,6 +476,7 @@ When a stock is opened, `lots_for()` matches these lots to the shares you hold n
 | People facts: Wikipedia link, summary, photo and licence, birth year, education, positions and boards, and how each match was made (`person_data.sqlite`; the bundled `seed/persons.json`) | `person_data.sqlite` | new people weekly; skipped people retried after 30 days |
 | Supply chain graph (companies, identifiers, documents, relationships, evidence, rejected, jobs, runs, themes, chunk_reads, Reader candidates; [the schema](supply-chain-graph.md)) | `supply_chain.sqlite` | every relationship keeps the evidence it came from; ended links are kept |
 | Supply chain pipeline switches (run, paused, monthly budget) | `pipeline_settings.json` next to the database | until changed |
+| Downloaded filings the pipeline reads: SEC filings, Taiwan annual reports, ASX announcements (ASX's only after you accept its terms, never in a seed) | `filings/<cik>/<accession>/`, `filings/mops/<code>/`, `filings/asx/<code>/` | kept |
 | Boards of directors (each seat with its document, page and quote; Wikidata IDs) and whether you accepted ASX's terms | `directors.sqlite` (US index members from the bundled `seed/directors.json`; ASX boards only when you ask) | until a newer document is read |
 | Index members (S&P 500, Nasdaq 100, Dow, ASX 20 / 50 / 200) with weights, market cap, P/E, 1-year change, sectors and industries | `indices.sqlite` (a fresh install starts from the bundled `seed/indices.json`) | members weekly per index, market data daily; the last good copy stays if a download fails |
 | Daily closes for the risk analysis (holdings, indexes, exchange rate pairs against the account's currency) | `risk_prices.sqlite` | about 3 years, updated once a day per symbol |

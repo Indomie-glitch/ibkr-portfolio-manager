@@ -168,7 +168,8 @@ class AsxTests(unittest.TestCase):
     def test_announcement_rows(self):
         rows = sources.parse_announcements(ASX_PAGE)
         self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0], {"date": "2026-08-12", "headline": "2026 Annual Report", "ids_id": "03124133", "pages": 452})
+        self.assertEqual(rows[0], {"date": "2026-08-12", "headline": "2026 Annual Report", "ids_id": "03124133", "pages": 452,
+                                   "price_sensitive": False})
 
     def test_the_annual_report_not_the_notice_or_the_us_filing(self):
         report = sources.choose_annual_report(sources.parse_announcements(ASX_PAGE), NOW)

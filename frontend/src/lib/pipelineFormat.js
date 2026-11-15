@@ -75,7 +75,7 @@ export function statusPill(pipeline) {
 export function tiles(pipeline) {
   const { coverage, links, attention, cost } = pipeline
   const edgar = coverage.not_on_edgar ? ` · ${coverage.not_on_edgar} not on EDGAR` : ''
-  const asx = coverage.waiting_for_asx ? ` · ${coverage.waiting_for_asx} waiting for an ASX source` : ''
+  const asx = coverage.waiting_for_asx ? ` · ${coverage.waiting_for_asx} waiting for ASX terms` : ''
   return [
     { id: 'coverage', label: 'COVERAGE', value: `${coverage.read} / ${coverage.total}`, sub: `Watched companies with their latest filing read${edgar}${asx}` },
     {
@@ -121,8 +121,8 @@ export function companyKeys(counts) {
     { id: 'failed', label: 'FAILED', count: counts.failed },
     { id: 'up to date', label: 'UP TO DATE', count: counts.up_to_date },
   ]
-  // only when there are some: companies listed only on the ASX, which wait for an ASX source
-  if (counts.waiting_for_ASX_source) keys.push({ id: 'waiting for ASX source', label: 'ASX', count: counts.waiting_for_ASX_source })
+  // only when there are some: companies listed only on the ASX, which wait until you accept ASX's terms
+  if (counts.waiting_for_ASX_terms) keys.push({ id: 'waiting for ASX terms', label: 'ASX', count: counts.waiting_for_ASX_terms })
   return keys
 }
 
