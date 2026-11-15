@@ -18,7 +18,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 import sec_client
-from supply_chain import db, graph, jobs, merge, reader, sec, verifier
+from supply_chain import db, exhibits, graph, jobs, merge, reader, sec, verifier
 from supply_chain.worker import Permanent, handler
 
 FORMS = {"10-K": 60, "20-F": 60, "10-Q": 50, "8-K": 30, "6-K": 30}  # form -> download priority (higher runs first)
@@ -115,6 +115,9 @@ async def download_job(job, conn):
     except sec_client.SecNotFound as exc:
         conn.execute("UPDATE documents SET status = 'failed' WHERE id = ?", (p["document_id"],))
         raise Permanent(str(exc)) from exc
+    if p.get("form") == "8-K" and exhibits.has_agreement(p.get("items")):  # the agreement itself first (#322); that job queues the read
+        exhibits.queue_exhibits(conn, p["document_id"], {k: p[k] for k in ("cik", "accession", "filename", "items") if k in p}, job.get("company_id"))
+        return {"notes": f"{p.get('form', '')} {digest[:12]}; exhibits next"}
     # Jobs queued before #124 have no items: an 8-K among them is read only if the chunker finds Item 1.01 / 1.02
     reader.queue_read(conn, p["document_id"], p.get("form"), p.get("items") if "items" in p else None, job.get("company_id"))
     return {"notes": f"{p.get('form', '')} {digest[:12]}"}
@@ -152,6 +155,9 @@ async def keep_scheduling(path=None):
                 queued = schedule(conn)
                 if queued:
                     print(f"SEC scout: queued {queued} compan{'y' if queued == 1 else 'ies'}")
+                backfill = exhibits.queue_backfill(conn)  # 8-Ks downloaded before their exhibits were fetched (#322)
+                if backfill:
+                    print(f"8-K exhibits: queued {backfill} filing{'' if backfill == 1 else 's'}")
                 reads = reader.queue_unread(conn)  # filings downloaded before the Reader existed
                 if reads:
                     print(f"Reader: queued {reads} downloaded filing{'' if reads == 1 else 's'}")

@@ -47,9 +47,11 @@ import anthropic  # noqa: E402
 import config  # noqa: E402
 from eval.reader_cache import CachingClient  # noqa: E402
 from eval.resolver_cache import CachingSearch  # noqa: E402
-from supply_chain import chunker, db, graph, jobs, merge, openfigi, orchestrator, reader, resolver, themes, verifier  # noqa: E402
+from supply_chain import chunker, db, exhibits, graph, jobs, merge, openfigi, orchestrator, reader, resolver, themes, verifier  # noqa: E402
 
 TRUTH = Path(__file__).with_name("supply_chain_eval.json")
+EXHIBIT_TRUTH = Path(__file__).with_name("supply_chain_exhibits_eval.json")  # 8-K exhibits (#322), scored on their own
+SETS = {"main": TRUTH, "exhibits": EXHIBIT_TRUTH}
 REPORTS = BACKEND.parent / "docs" / "eval"
 PERIOD = re.compile(r"year to (\d{4}-\d{2}-\d{2})")
 SPEND = config.DATA_DIR / "eval_spend.json"
@@ -100,15 +102,30 @@ def filing_folder(doc):
     return config.DATA_DIR / "filings" / str(doc["cik"]) / doc["accession"].replace("-", "")
 
 
-def filing_path(doc):
-    return filing_folder(doc) / doc["primary_document"]
+def filing_path(doc, file=None):
+    return filing_folder(doc) / (file or doc["primary_document"])
 
 
 async def ensure_downloaded(doc):
     import sec_client
-    if not filing_path(doc).exists():
-        await sec_client.download(doc["cik"], doc["accession"], doc["primary_document"])
+    for name in [doc["primary_document"], *(x["file"] for x in doc.get("exhibits", []))]:
+        if not filing_path(doc, name).exists():
+            await sec_client.download(doc["cik"], doc["accession"], name, folder=filing_folder(doc))
     return filing_path(doc)
+
+
+def exhibit_decisions(doc):
+    """[(file, label, description, decision, reason, tokens)] for the exhibit set's documents, by the production rules
+    (exhibits.choose). The main set's documents list no exhibits: the switch stays off for the frozen file."""
+    return [(x["file"], x["label"], x["description"], *exhibits.choose(x["description"], chunker.load_paragraphs(filing_path(doc, x["file"])), x["label"]))
+            for x in doc.get("exhibits", [])]
+
+
+def exhibits_read(doc):
+    """chunk_filing's exhibits argument: the files the rules read, or False (none) for a document without exhibits."""
+    if not doc.get("exhibits"):
+        return False
+    return [(file, label) for file, label, _, decision, _, _ in exhibit_decisions(doc) if decision in ("read", "partial")]
 
 
 def check_quotes(truth, docs=None):
@@ -122,10 +139,12 @@ def check_quotes(truth, docs=None):
         if not path.exists():
             problems.append(f"{doc['id']}: {path} is missing (run without --check once, or --check downloads it)")
             continue
-        paragraphs = chunker.load_paragraphs(path)
-        chunks = chunker.chunk_filing(path.parent, doc["form"], doc["primary_document"])
+        files = {}
+        chunks = chunker.chunk_filing(path.parent, doc["form"], doc["primary_document"], exhibits=exhibits_read(doc))
         sent = reader.normalise(" ".join(c.text for c in chunks))
         for item in all_items(doc) + doc["not_relationships"]:
+            name = item.get("file") or doc["primary_document"]  # an exhibit's quote names its file
+            paragraphs = files.setdefault(name, chunker.load_paragraphs(filing_path(doc, name)) if filing_path(doc, name).exists() else [])
             text = reader.normalise(paragraphs[item["paragraph"] - 1]) if 0 < item["paragraph"] <= len(paragraphs) else ""
             quote = reader.normalise(item["quote"])
             label = item.get("id") or f"{doc['id']} trap ¶{item['paragraph']}"
@@ -159,6 +178,9 @@ def setup_database(truth, folder, docs=None):
             conn, "sec", doc["form"], f"{doc['accession']}/{doc['primary_document']}", f"https://www.sec.gov/Archives/edgar/data/{doc['cik']}/{doc['primary_document']}",
             company_id=company, title=f"{doc['form']} {doc['filed']}", filed_at=doc["filed"], period_end=doc["period_end"], status="downloaded")
         conn.execute("UPDATE documents SET local_path = ? WHERE id = ?", (str(filing_path(doc)), ids[doc["id"]]))
+        for file, label, description, decision, reason, tokens in exhibit_decisions(doc):  # as the exhibits job would record them
+            conn.execute("""INSERT INTO document_files (document_id, file_name, label, description, decision, reason, tokens, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", (ids[doc["id"]], file, label, description, decision, reason, tokens, db.now()))
     return conn, ids
 
 
@@ -168,7 +190,7 @@ def estimate_cost(conn, truth, ids):
     for doc in truth["documents"]:
         if doc["id"] not in ids:
             continue
-        for chunk in chunker.chunk_filing(filing_folder(doc), doc["form"], doc["primary_document"]):
+        for chunk in chunker.chunk_filing(filing_folder(doc), doc["form"], doc["primary_document"], exhibits=exhibits_read(doc)):
             reader_cost += orchestrator.read_estimate(conn, chunk.tokens)
             chunks_total += 1
         expected += round(1.4 * (len(doc["relationships"]) + len(doc["optional"])))
@@ -179,7 +201,7 @@ def estimate_cost(conn, truth, ids):
 
 # ---------- Running the pipeline ----------
 
-async def run_pipeline(conn, ids, reader_effort="medium", verifier_effort="medium", say=print, run_index=0, fresh=False):
+async def run_pipeline(conn, ids, reader_effort="medium", verifier_effort="medium", say=print, run_index=0, fresh=False, exhibit_docs=()):
     """Reader, Verifier and merge on each document; the Reader's answers come from the cache when saved (answer number
     run_index; fresh reads them all again). Returns {reader_cost, verifier_cost, tokens..., reader_cache}."""
     reader.EFFORT, verifier.EFFORT = reader_effort, verifier_effort
@@ -187,7 +209,7 @@ async def run_pipeline(conn, ids, reader_effort="medium", verifier_effort="mediu
     lookups = CachingSearch(openfigi.search)
     real_search, openfigi.search = openfigi.search, lookups  # resolver.resolve looks openfigi.search up when called
     try:
-        totals = await _run_documents(conn, ids, client, say)
+        totals = await _run_documents(conn, ids, client, say, exhibit_docs)
     finally:
         openfigi.search = real_search
     totals["reader_cache"] = {"hits": client.hits, "misses": client.misses, "saved_usd": client.saved_usd}
@@ -195,7 +217,7 @@ async def run_pipeline(conn, ids, reader_effort="medium", verifier_effort="mediu
     return totals
 
 
-async def _run_documents(conn, ids, client, say):
+async def _run_documents(conn, ids, client, say, exhibit_docs=()):
     totals = {"reader_cost": 0.0, "verifier_cost": 0.0, "reader_in": 0, "reader_out": 0, "verifier_in": 0, "verifier_out": 0, "declined": 0, "deferred": 0}
     def start(kind, key):
         """A run row, so what each call costs is on it and the spend cap sees it."""
@@ -205,7 +227,7 @@ async def _run_documents(conn, ids, client, say):
     for eval_id, document_id in ids.items():
         say(f"  {eval_id}: reading…")
         job = start("read", f"eval-{eval_id}")
-        read = await reader.read_document(conn, document_id, client=client, run_id=job["run_id"])
+        read = await reader.read_document(conn, document_id, client=client, run_id=job["run_id"], exhibits=eval_id in exhibit_docs)
         jobs.finish(conn, job)
         for key, name in (("cost_usd", "reader_cost"), ("input_tokens", "reader_in"), ("output_tokens", "reader_out")):
             totals[name] += read[key]
@@ -489,7 +511,7 @@ def render(truth, ids, out, metrics, run, label, started):
              f"Verifier {config.VERIFIER_MODEL} (effort {run['verifier_effort']}) · {len(ids)} filings", "",
              "## Summary", "",
              "| | |", "|---|---|",
-             f"| Known relationships | {m['truth']} (30 headline; {late} added after reviewing the first runs{frozen}) |",
+             f"| Known relationships | {m['truth']} ({m['headline']} headline; {late} added after reviewing the first runs{frozen}) |",
              f"| **Found** (right companies, and for unnamed ones the right share and year) | **{m['found']}** ({m['recall']:.0%} recall) |",
              f"| Found with the right share but another year | {m['found_other_year']} |",
              f"| Found, but the number was lost (the customer and passage are right) | {m['found_no_number']} (recall counting these two: {m['recall_loose']:.0%}) |",
@@ -595,9 +617,10 @@ async def main(argv=None):
     parser.add_argument("--fresh", action="store_true", help="read every chunk again instead of using saved Reader answers (and save the new ones)")
     parser.add_argument("--runs", type=int, default=1, help="run N times (each Reader answer number i is run i's) and report mean and range")
     parser.add_argument("--cap", type=float, default=DAILY_CAP_USD, help=f"most to spend today, counting earlier runs (default US${DAILY_CAP_USD:g})")
+    parser.add_argument("--set", default="main", choices=sorted(SETS), help="main: the frozen 10-filing set (exhibits off); exhibits: the 8-K exhibit set (#322)")
     parser.add_argument("--rescore", metavar="STEM", help="score a saved run again (docs/eval/<STEM>.raw.json) against the current truth file: no API calls")
     args = parser.parse_args(argv)
-    truth = load_truth()
+    truth = load_truth(SETS[args.set])
     if args.rescore and not (REPORTS / f"{args.rescore}.raw.json").exists():  # a --runs summary: rescore each run, then the summary
         summary = json.loads((REPORTS / f"{args.rescore}.json").read_text(encoding="utf-8"))
         results = []
@@ -635,7 +658,7 @@ async def main(argv=None):
     if not config.anthropic_api_key():
         print("No ANTHROPIC_API_KEY in .env")
         return 1
-    label = args.label or f"reader-{args.reader_effort}"
+    label = args.label or f"{'' if args.set == 'main' else args.set + '-'}reader-{args.reader_effort}"
     with tempfile.TemporaryDirectory(prefix="supply-chain-eval-") as folder:
         conn, ids = setup_database(truth, folder, wanted)
         low, high_, chunks = estimate_cost(conn, truth, ids)
@@ -670,7 +693,7 @@ async def main(argv=None):
             conn, ids = setup_database(truth, folder, wanted)
             print(f"\nRun {index + 1} of {args.runs}", flush=True)
             run = await run_pipeline(conn, ids, args.reader_effort, args.verifier_effort, say=lambda text: print(text, flush=True),
-                                     run_index=index, fresh=args.fresh)
+                                     run_index=index, fresh=args.fresh, exhibit_docs={d["id"] for d in truth["documents"] if d.get("exhibits")})
             run.update(reader_effort=args.reader_effort, verifier_effort=args.verifier_effort, fresh=args.fresh, run_index=index)
             out = collect(conn, ids)
             conn.close()

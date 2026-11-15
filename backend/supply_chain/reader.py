@@ -81,6 +81,9 @@ number. customer_supply_share: the percentage of what the customer buys (of cust
 "total purchases") that comes from this supplier, only if the passage gives the number. Never estimate or calculate. \
 "Substantially all" or "a significant portion" is not a number: leave the share null and copy the words into \
 share_as_written.
+- Redactions: "[***]", "[REDACTED]", "[*]", "[ ]" or "confidential treatment requested" means the value is hidden. Never \
+guess it and never treat it as zero: if the share or price is redacted, leave it null and put "redacted" in \
+share_as_written. The relationship itself still counts when the passage states it.
 - period_as_written: the date or period the statement refers to ("fiscal year 2026", "as of January 25, 2026"); \
 stated_on: that date as YYYY-MM-DD when it is a specific day or period end, else null.
 - ended: true only if the passage says the relationship has ended or will end (terminated, not renewed, expired, \
@@ -247,7 +250,7 @@ def check(answer, chunk, filer_name):
         "stated_on": _date(answer.get("stated_on")),
         "ended": int(bool(answer.get("ended"))),
         "quote": quote,
-        "locator": chunker.locator_for(chunk.section, numbers[first], numbers[last]),
+        "locator": chunker.locator_for(chunk.section, numbers[first], numbers[last], chunk.headings[first] if chunk.headings else None),
         "context": "\n\n".join(pieces[max(0, first - 1):last + 2]),
     }
 
@@ -407,9 +410,17 @@ def _save(conn, document_id, chunk, outcomes, usage, found_count, run_id):
     return added, rejected
 
 
-async def read_document(conn, document_id, client=None, resolve=None, run_id=None):
-    """Reads every chunk of a downloaded document not read yet. Returns {chunks, skipped, candidates, rejected, declined,
-    input_tokens, output_tokens, cost_usd}."""
+def exhibit_files(conn, document_id):
+    """[(file name, label)] of an 8-K's exhibits the exhibits job chose to read (#322), in exhibit order."""
+    rows = conn.execute("""SELECT file_name, label FROM document_files WHERE document_id = ? AND decision IN ('read', 'partial')
+                           ORDER BY label, file_name""", (document_id,)).fetchall()
+    return [(r["file_name"], r["label"]) for r in rows]
+
+
+async def read_document(conn, document_id, client=None, resolve=None, run_id=None, exhibits=True):
+    """Reads every chunk of a downloaded document not read yet: for an 8-K also the exhibits the exhibits job chose
+    (exhibits=False reads the main document only, as the frozen evaluation set does). Returns {chunks, skipped,
+    candidates, rejected, declined, input_tokens, output_tokens, cost_usd, notes}."""
     document = conn.execute("SELECT * FROM documents WHERE id = ?", (document_id,)).fetchone()
     if document is None:
         raise Permanent(f"no document {document_id}")
@@ -418,11 +429,14 @@ async def read_document(conn, document_id, client=None, resolve=None, run_id=Non
     if document["company_id"] is None:
         raise Permanent(f"document {document_id} has no filer")
     path = Path(document["local_path"])
-    chunks = await asyncio.to_thread(chunker.chunk_filing, path.parent, document["kind"], path.name, document["source"])
+    chosen = exhibit_files(conn, document_id) if exhibits and document["kind"] == "8-K" else False
+    notes = []
+    chunks = await asyncio.to_thread(chunker.chunk_filing, path.parent, document["kind"], path.name, document["source"],
+                                     exhibits=chosen, notes=notes)
     filer = filer_of(conn, document["company_id"])
     resolve = resolve or resolver.resolve
     totals = {"chunks": len(chunks), "skipped": 0, "candidates": 0, "rejected": 0, "declined": 0, "deferred": None,
-              "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+              "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "notes": notes}
     for chunk in chunks:
         if _already_read(conn, document_id, chunk):
             totals["skipped"] += 1
@@ -463,9 +477,13 @@ def should_read(form, items=None):
     return form != "8-K" or items is None or bool(AGREEMENT_ITEMS & set(items))
 
 
-def queue_read(conn, document_id, form, items=None, company_id=None):
-    """Queues the read of a downloaded document once (a document already read, or queued, isn't queued again)."""
-    if not should_read(form, items) or conn.execute("SELECT 1 FROM jobs WHERE kind = 'read' AND key = ?", (str(document_id),)).fetchone():
+def queue_read(conn, document_id, form, items=None, company_id=None, again=False):
+    """Queues the read of a downloaded document once (a document already read, or queued, isn't queued again). again: read
+    it once more, e.g. after its exhibits arrived (#322): only the chunks not read yet cost anything."""
+    if not should_read(form, items):
+        return False
+    done = conn.execute("SELECT status FROM jobs WHERE kind = 'read' AND key = ? ORDER BY id DESC", (str(document_id),)).fetchone()
+    if done and (not again or done["status"] in ("queued", "running")):
         return False
     jobs.enqueue(conn, "read", str(document_id), {"form": form}, priority=READ_PRIORITY[form], company_id=company_id, document_id=document_id)
     return True
@@ -475,7 +493,9 @@ def queue_unread(conn):
     """Queues reads for documents downloaded before the Reader existed (or whose read was never queued). Returns how many."""
     rows = conn.execute(
         f"""SELECT d.id, d.kind, d.company_id FROM documents d WHERE d.status = 'downloaded' AND d.kind IN ({", ".join("?" * len(READ_PRIORITY))})
-            AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.kind = 'read' AND j.key = CAST(d.id AS TEXT))""", tuple(READ_PRIORITY)).fetchall()
+            AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.kind = 'read' AND j.key = CAST(d.id AS TEXT))
+            AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.kind = 'exhibits' AND j.key = CAST(d.id AS TEXT) AND j.status IN ('queued', 'running'))""",
+        tuple(READ_PRIORITY)).fetchall()
     return sum(queue_read(conn, row["id"], row["kind"], company_id=row["company_id"]) for row in rows)
 
 
@@ -486,7 +506,8 @@ async def read_job(job, conn):
     if not totals["chunks"]:
         return {"notes": "nothing to read"}
     notes = (f"{totals['chunks']} chunks ({totals['skipped']} read before), {totals['candidates']} candidates, "
-             f"{totals['rejected']} rejected" + (f", {totals['declined']} declined" if totals["declined"] else ""))
+             f"{totals['rejected']} rejected" + (f", {totals['declined']} declined" if totals["declined"] else "")
+             + "".join(f"; {note}" for note in totals.get("notes", [])))
     result = {"notes": notes, "model": config.READER_MODEL, "input_tokens": totals["input_tokens"],
               "output_tokens": totals["output_tokens"], "cost_usd": round(totals["cost_usd"], 6)}
     if totals["deferred"] is not None:  # the worker queues the rest again for when the allowance allows (orchestrator.requeue_later)
