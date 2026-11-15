@@ -4,7 +4,7 @@ Run 2026-10-28 00:19 · Reader claude-haiku-5-5 (effort medium) · Verifier clau
 
 | | Mean | Lowest | Highest | Each run |
 |---|---|---|---|---|
-| Found (of 90) | 64.0 | 58 | 69 | 69, 65, 58 |
+| Found (of 93) | 64.0 | 58 | 69 | 69, 65, 58 |
 | Headline cases found | 23.7 | 22 | 25 | 25, 24, 22 |
 | Wrong links | 2.3 | 0 | 4 | 4, 0, 3 |
 | Wrong numbers | 0.0 | 0 | 0 | 0, 0, 0 |

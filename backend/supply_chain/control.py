@@ -6,7 +6,7 @@ development and in the Mac app and survive restarts. Before anyone has chosen, "
 (PIPELINE in .env, or the app's setting).
 
 The supervisor in worker.keep_running asks should_run() every few seconds: workers run while the pipeline is on, not
-paused, and this month's spending (the cost of runs, #116) is under the budget; they stop (the job in hand goes back in the queue)
+paused, the Anthropic account working (account.py) and this month's spending (the cost of runs, #116) is under the budget; they stop (the job in hand goes back in the queue)
 when any of that changes, and start again by themselves, e.g. on the first of next month.
 """
 import calendar
@@ -43,17 +43,21 @@ def load_settings():
         "paused": saved.get("paused") is True,
         "budget_usd": float(budget) if isinstance(budget, (int, float)) and not isinstance(budget, bool) and budget > 0 else DEFAULT_BUDGET_USD,
         "run_now": saved.get("run_now") if isinstance(saved.get("run_now"), dict) else {},
+        # set by account.record when the Anthropic API refuses for credits or the key (#345): the pipeline waits
+        "account_problem": saved["account_problem"] if isinstance(saved.get("account_problem"), dict) and saved["account_problem"].get("kind") else None,
     }
 
 
-def save_settings(enabled=None, paused=None, budget_usd=None, run_now=None):
+def save_settings(enabled=None, paused=None, budget_usd=None, run_now=None, account_problem=None):
     """Changes what's given; returns the settings now. ValueError for a budget that isn't a sensible amount.
-    run_now: {"day": "2026-10-27", "usd": 0.66}, what Run now has added to that day's allowance (orchestrator.py)."""
+    run_now: {"day": "2026-10-27", "usd": 0.66}, what Run now has added to that day's allowance (orchestrator.py).
+    account_problem: account.record's dict, or {} to clear it."""
     if budget_usd is not None:
         if isinstance(budget_usd, bool) or not isinstance(budget_usd, (int, float)) or not 0 < budget_usd <= MAX_BUDGET_USD:
             raise ValueError(f"The budget must be more than 0 and at most US${MAX_BUDGET_USD:,.0f}.")
     current = load_settings()
-    current.update({k: v for k, v in (("enabled", enabled), ("paused", paused), ("budget_usd", budget_usd), ("run_now", run_now)) if v is not None})
+    current.update({k: v for k, v in (("enabled", enabled), ("paused", paused), ("budget_usd", budget_usd), ("run_now", run_now),
+                                      ("account_problem", account_problem)) if v is not None})
     path = settings_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     partial = path.with_name(path.name + ".part")
@@ -114,16 +118,19 @@ def budget_used_up(conn, settings=None, now=None):
 
 def should_run(conn, settings=None, now=None):
     settings = settings or load_settings()
-    return settings["enabled"] and not settings["paused"] and not budget_used_up(conn, settings, now)
+    return settings["enabled"] and not settings["paused"] and not settings["account_problem"] and not budget_used_up(conn, settings, now)
 
 
 def status_word(conn, settings=None, now=None):
-    """off / paused / budget (used up) / running / starting (on, workers about to start)."""
+    """off / paused / credits or api_key (the Anthropic account, #345) / budget (used up) / running / starting (on,
+    workers about to start)."""
     settings = settings or load_settings()
     if not settings["enabled"]:
         return "off"
     if settings["paused"]:
         return "paused"
+    if settings["account_problem"]:
+        return settings["account_problem"]["kind"]
     if budget_used_up(conn, settings, now):
         return "budget"
     return "running" if active_workers else "starting"

@@ -38,6 +38,11 @@ export function settingsLine(pipeline, now = new Date()) {
     : ''
   if (status === 'off') return 'Off. Turn on Run pipeline to start reading company reports.'
   if (status === 'paused') return `Paused. Press Run now in the pipeline to continue. ${spent}.${trouble}`
+  if (status === 'credits' || status === 'api_key') {
+    const why = status === 'credits' ? 'Anthropic credits used up' : 'the Anthropic API key was not accepted'
+    const fix = status === 'credits' ? 'Add credits to your Anthropic account' : 'Check the key in Settings'
+    return `Paused: ${why}. ${fix}; the pipeline checks every 30 minutes and resumes by itself. Nothing was retried or lost. ${spent}.${trouble}`
+  }
   if (status === 'budget') {
     const month = nextMonthStart(now).toLocaleDateString('en-AU', { day: 'numeric', month: 'long' })
     return `Paused: this month’s budget is used up (${spent}). It starts again on ${month}.${trouble}`
@@ -57,6 +62,10 @@ export function statusPill(pipeline) {
       return { tone: 'warn', label: 'Paused' }
     case 'budget':
       return { tone: 'warn', label: 'Paused · budget used' }
+    case 'credits':
+      return { tone: 'warn', label: 'Paused · Anthropic credits used up' }
+    case 'api_key':
+      return { tone: 'warn', label: 'Paused · API key not accepted' }
     default:
       return { tone: 'off', label: 'Off' }
   }

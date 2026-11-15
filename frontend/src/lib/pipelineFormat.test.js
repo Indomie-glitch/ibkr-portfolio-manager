@@ -63,6 +63,8 @@ describe('settingsLine', () => {
     expect(settingsLine(pipeline({ status: 'paused' }))).toMatch(/^Paused\. Press Run now/)
     expect(settingsLine(pipeline({ status: 'budget' }), new Date(2026, 9, 25))).toContain('starts again on 1 November')
     expect(settingsLine(null)).toBe('Checking…')
+    expect(settingsLine(pipeline({ status: 'credits' }))).toMatch(/^Paused: Anthropic credits used up\. Add credits.*resumes by itself/)
+    expect(settingsLine(pipeline({ status: 'api_key' }))).toMatch(/^Paused: the Anthropic API key was not accepted\. Check the key in Settings/)
   })
   it('knows when next month starts', () => {
     expect(nextMonthStart(new Date(2026, 11, 31)).getMonth()).toBe(0)
@@ -75,6 +77,8 @@ describe('statusPill', () => {
     expect(statusPill(pipeline())).toEqual({ tone: 'ok', label: 'Running · 2 workers' })
     expect(statusPill(pipeline({ status: 'paused' })).tone).toBe('warn')
     expect(statusPill(pipeline({ status: 'budget' })).label).toBe('Paused · budget used')
+    expect(statusPill(pipeline({ status: 'credits' }))).toEqual({ tone: 'warn', label: 'Paused · Anthropic credits used up' })
+    expect(statusPill(pipeline({ status: 'api_key' })).label).toBe('Paused · API key not accepted')
     expect(statusPill(pipeline({ status: 'off' }))).toEqual({ tone: 'off', label: 'Off' })
     expect(statusPill(null).label).toBe('Off')
   })
