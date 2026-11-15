@@ -96,9 +96,15 @@ def can_be_private(name, match):
     return match.get("status") == "skipped" and match.get("reason") == "no_match" and (private_alias(name) is not None or not looks_listed(name))
 
 
-def private_company(conn, name):
+PRIVATE_SOURCES = {"verified_private": "a private company the Verifier confirmed",
+                   "supplier_list_private": "a private company named in a customer's published supplier list"}
+
+
+def private_company(conn, name, method="verified_private"):
     """The private company for this name, made on first use: keyed by name_key and by the alias list, so "OpenAI" and "OpenAI,
-    L.P." land on one company. Called only for a counterparty the Verifier has confirmed. Returns the company id."""
+    L.P." land on one company. Called only for a counterparty something has confirmed: the Verifier (method
+    verified_private) or the customer's own published supplier list (supplier_list_private, #132). Returns the company id."""
+    detail = PRIVATE_SOURCES[method]
     entry = private_alias(name)
     keys = {name_key(name)} | ({name_key(entry["name"])} | {name_key(a) for a in entry["aliases"]} if entry else set())
     known = sorted({c for key in keys for c in store_candidates(conn, key)})
@@ -109,10 +115,10 @@ def private_company(conn, name):
         conn.execute("UPDATE companies SET is_private = 1 WHERE id = ?", (company_id,))
     for key in keys:
         try:
-            graph.add_identifier(conn, company_id, "name", key, source="verified_private")
+            graph.add_identifier(conn, company_id, "name", key, source=method)
         except graph.IdentifierConflict:
             pass  # that name already belongs to another company: the one found above stays
-        _save(conn, name, key, result("matched", company_id, "verified_private", detail="a private company the Verifier confirmed"))
+        _save(conn, name, key, result("matched", company_id, method, detail=detail))
     return company_id
 
 
