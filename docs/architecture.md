@@ -34,6 +34,7 @@ flowchart LR
     funds[("ETF holdings files<br/>State Street, iShares")]
     sec[("SEC EDGAR<br/>US proxy statements,<br/>filings")]
     mops[("Taiwan MOPS<br/>doc.twse.com.tw<br/>annual reports")]
+    lists[("Company websites<br/>Apple and Dell<br/>supplier lists (PDF)")]
     asx[("ASX announcements<br/>annual reports<br/>(personal use)")]
     wikidata[("Wikidata + Wikipedia<br/>people's IDs, articles,<br/>photos (Commons)")]
     claude[("Anthropic API<br/>Claude writes the<br/>AI summaries, judges news<br/>sentiment, reads boards<br/>and filings")]
@@ -47,6 +48,7 @@ flowchart LR
     app -->|"index members, weekly<br/>(no key; off by default)"| funds
     app -->|"proxy statements, filings<br/>(contact email)"| sec
     app -->|"annual reports of Taiwan-listed<br/>companies (no key; pipeline only)"| mops
+    app -->|"published supplier lists, weekly check<br/>(no key; pipeline only)"| lists
     app -->|"annual reports, on request<br/>(after you accept ASX's terms)"| asx
     app -->|"who is who, summaries,<br/>photos (no key)"| wikidata
     app -->|"facts sheet, headlines, board pages or filing chunks in,<br/>summary, sentiment, directors or relationships out (API key)"| claude
@@ -155,7 +157,7 @@ flowchart TB
         pdat["person_data.py + wikimedia.py<br/>Wikipedia + Wikidata facts about<br/>executives and directors (SQLite);<br/>seed/persons.json, weekly"]
         secc["sec_client.py<br/>the one EDGAR client: User-Agent,<br/>rate limit, retries, filing lists,<br/>download + SHA-256"]
         mopsc["mops_client.py<br/>the one MOPS client: listings,<br/>English annual reports, download<br/>(3 s apart, retries)"]
-        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>MOPS scout (Taiwan annual reports),<br/>8-K exhibits (material agreements,<br/>financing / employment skipped),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration,<br/>document chunker (filings and<br/>PDFs -> chunks),<br/>Reader (chunks -> candidates, Claude),<br/>Verifier (candidates -> verified links),<br/>merge (one link per pair, confidence,<br/>stale / ended, placeholder upgrades),<br/>orchestrator (holdings first, daily pace,<br/>cost estimates, Claude call spacing),<br/>pipeline switches + status<br/>(supply_chain.sqlite; GET/POST /pipeline)"]
+        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>MOPS scout (Taiwan annual reports),<br/>8-K exhibits (material agreements,<br/>financing / employment skipped),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration,<br/>published supplier lists<br/>(Apple, Dell; PDF tables, no AI),<br/>document chunker (filings and<br/>PDFs -> chunks),<br/>Reader (chunks -> candidates, Claude),<br/>Verifier (candidates -> verified links),<br/>merge (one link per pair, confidence,<br/>stale / ended, placeholder upgrades),<br/>orchestrator (holdings first, daily pace,<br/>cost estimates, Claude call spacing),<br/>pipeline switches + status<br/>(supply_chain.sqlite; GET/POST /pipeline)"]
         ppl["people.py<br/>same person across companies<br/>(Wikidata ID, or name + the<br/>document naming the company)"]
     end
 
@@ -203,6 +205,7 @@ flowchart TB
     flex -->|HTTPS| FX[["Flex Web Service"]]
     cons -->|HTTPS| FUNDS[["ETF holdings files"]]
     mopsc -->|HTTPS| MOPS[["Taiwan MOPS"]]
+    scg -->|HTTPS| LISTS[["Company websites<br/>(supplier lists)"]]
     ai -->|anthropic SDK| AN[["Anthropic API"]]
     dirs -->|anthropic SDK| AN
     senti -->|anthropic SDK| AN
