@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 import anthropic
 
+import directors
 import usage_store
 from supply_chain import control, graph, jobs, orchestrator, reader, scout, status, verifier, worker
 from supply_chain.db import open_graph
@@ -126,14 +127,18 @@ class PriorityTests(OrchestratorCase):
         self.assertEqual(sorted(status.watched_ids(self.conn)), sorted([theme, us_held, asx_held, asx_theme]))
         self.assertNotIn(plain, status.watched_ids(self.conn))
 
-    def test_asx_companies_show_as_waiting_for_an_asx_source(self):
+    def test_asx_companies_wait_for_the_asx_terms(self):
         asx = self.company("Held ASX", "HAX", market="ASX", theme=False, held=True)
         nxt = self.company("ASX Theme", "NXT", market="ASX")
         kr = self.company("Samsung", "005930", market="KR")
         rows = {r["company_id"]: r for r in status.company_rows(self.conn)}
-        self.assertEqual((rows[asx]["status"], rows[nxt]["status"], rows[asx]["held"]), ("waiting for ASX source", "waiting for ASX source", True))
+        self.assertEqual((rows[asx]["status"], rows[nxt]["status"], rows[asx]["held"]), ("waiting for ASX terms", "waiting for ASX terms", True))
         self.assertEqual(rows[kr]["status"], "waiting")
         self.assertEqual(status.overview(self.conn)["coverage"]["waiting_for_asx"], 2)
+        directors.accept_asx_terms(True)  # isolate points directors.sqlite at the temp folder
+        rows = {r["company_id"]: r for r in status.company_rows(self.conn)}
+        self.assertEqual((rows[asx]["status"], rows[nxt]["status"]), ("waiting", "waiting"))
+        self.assertEqual(scout.due_companies(self.conn), [asx, nxt, kr])
 
 
 class PaceTests(OrchestratorCase):

@@ -10,7 +10,8 @@ One Claude call per chunk (config.READER_MODEL, structured output). After the ca
 - the counterparty's name is matched with resolver.resolve; one that can't be matched is rejected (unresolved_company).
   An unnamed one ("Customer A") is kept without a company: the Verifier creates its placeholder.
 
-Job kind "read" (key = document id), queued when a download finishes for 10-Ks, 20-Fs and 8-Ks with Item 1.01 / 1.02.
+Job kind "read" (key = document id), queued when a download finishes for 10-Ks, 20-Fs, 8-Ks with Item 1.01 / 1.02, Taiwan
+annual reports (#128) and ASX announcements (#131).
 Every chunk read is recorded in chunk_reads, so a job retried after a failure only pays for the chunks it hadn't read.
 """
 import asyncio
@@ -33,7 +34,7 @@ EFFORT = "medium"
 MAX_TOKENS = 16000
 TIMEOUT_S = 300
 MAX_SPLITS = 2  # an answer cut off at MAX_TOKENS is read again as two halves, at most twice over
-READ_PRIORITY = {"10-K": 45, "20-F": 45, "annual report": 45, "8-K": 40}  # below downloads (30-60) and XBRL (55) of the same filing; reading costs money
+READ_PRIORITY = {"10-K": 45, "20-F": 45, "annual report": 45, "8-K": 40, "ASX announcement": 40}  # below downloads (30-60) and XBRL (55) of the same filing; reading costs money
 # ("annual report": a Taiwan annual report from MOPS, #128)
 AGREEMENT_ITEMS = {"1.01", "1.02"}
 

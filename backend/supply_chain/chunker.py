@@ -7,7 +7,7 @@ Three steps, each usable on its own:
 2. Sections: a section finder keeps the passages that name business relationships and drops the rest (exhibit lists,
    signatures, boilerplate). A finder is a function (paragraphs, form) -> list[Section] | None, registered for a source
    with @finder("sec"). None means "this finder can't tell" and the whole text is used instead; an empty list means
-   "I read the structure and nothing here matters". Other sources (MOPS, EDINET, DART, ASX PDFs, #128 to #131) register
+   "I read the structure and nothing here matters". Other sources (MOPS #128, ASX announcements #131, EDINET, DART) register
    their own finder and call chunk_paragraphs() with paragraphs from their own loader.
 3. Chunks: each section is cut into chunks under MAX_CHUNK_TOKENS at paragraph boundaries (a paragraph that is too big
    is cut at line, then sentence, then word boundaries). The next chunk starts with the last paragraphs of the previous
@@ -589,6 +589,14 @@ def mops_sections(paragraphs, form):
     if passages:
         sections.append(Section(MOPS_SECTIONS[2], passages))
     return sections
+
+
+# ASX announcements (#131) are a few pages about one piece of news, so the whole text is read: "can't tell" (None) gives
+# the one section "Full text". Their boilerplate (the "About <company>" profile, contacts, ASX's "For personal use only"
+# stamp) is short, and a profile can name customers, so nothing is dropped.
+@finder("asx")
+def asx_sections(paragraphs, form):
+    return None
 
 
 # ---------- Chunks ----------
