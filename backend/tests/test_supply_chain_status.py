@@ -12,7 +12,9 @@ from routers import pipeline as routes
 from supply_chain import control, db, graph, jobs, status, worker
 from supply_chain.db import open_graph
 
-NOW = datetime(2026, 10, 25, 12, 0, tzinfo=timezone.utc)
+# Spending is checked against "this month" by the real clock, so the runs are recorded now too (a fixed date failed from
+# the month after it)
+NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
 
 def run(coro):
