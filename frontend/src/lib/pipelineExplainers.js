@@ -9,12 +9,12 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 export const PIPELINE_EXPLAINERS = {
   coverage: {
     title: 'Coverage',
-    what: 'How many of the companies on your watch list have their most recent SEC filing downloaded. The pipeline checks each company every twelve hours for new annual reports (10-K, 20-F), quarterly reports (10-Q) and news filings (8-K, 6-K).',
+    what: 'How many of the companies on your watch list have their most recent filing downloaded. The pipeline checks each company every twelve hours: on the SEC for new annual reports (10-K, 20-F), quarterly reports (10-Q) and news filings (8-K, 6-K), on Taiwan\'s MOPS for English annual reports, and on the ASX for announcements about contracts, agreements and partnerships.',
     yours: (p) =>
       `${p.coverage.read} of ${p.coverage.total} watched companies are up to date.` +
       (p.coverage.not_on_edgar ? ` ${plural(p.coverage.not_on_edgar, 'company')} ${p.coverage.not_on_edgar === 1 ? 'is' : 'are'} not on EDGAR (no US listing), so there is nothing to read yet.` : '') +
-      (p.coverage.waiting_for_asx ? ` ${plural(p.coverage.waiting_for_asx, 'company')} ${p.coverage.waiting_for_asx === 1 ? 'is' : 'are'} listed only on the ASX and waiting for an ASX source.` : ''),
-    consider: 'The SEC only holds filings of companies listed in the US. Companies listed elsewhere need their own sources, which come later. The companies you hold are read first, then the rest of the watch list.',
+      (p.coverage.waiting_for_asx ? ` ${plural(p.coverage.waiting_for_asx, 'company')} ${p.coverage.waiting_for_asx === 1 ? 'is' : 'are'} listed only on the ASX and waiting until you accept ASX's terms.` : ''),
+    consider: 'The SEC only holds filings of companies listed in the US; Taiwan and ASX companies have their own sources, and companies listed elsewhere wait for theirs. ASX allows its announcements for private and personal use only, so ASX companies are read once you accept ASX\'s terms (on an ASX stock\'s board of directors, in Connections). The companies you hold are read first, then the rest of the watch list.',
   },
   links: {
     title: 'Links',
@@ -43,7 +43,7 @@ export const PIPELINE_EXPLAINERS = {
   companies: {
     title: 'Companies',
     what: 'The companies being watched, newest activity first: the AI hardware list and the companies you hold (marked held, and always read first). Status shows what the pipeline is doing for each: reading now, waiting in the queue, failed, or up to date. Read is when it last finished something for that company.',
-    consider: 'Click a company to see its filings and open it on the Connections map. A company listed only on the ASX says waiting for ASX source: there is no source for those filings yet.',
+    consider: 'Click a company to see its filings and open it on the Connections map. A company listed only on the ASX says waiting for ASX terms until you accept ASX\'s terms for personal use (on an ASX stock\'s board of directors, in Connections).',
   },
   log: {
     title: 'Live log',
