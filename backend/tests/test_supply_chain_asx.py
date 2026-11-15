@@ -3,6 +3,7 @@ download jobs, and how the Reader sees an announcement. No network: the listing 
 (NXT) for 2025 and 2026, the PDF is made in the test, and fetches are faked. directors.sqlite (where ASX's terms are
 accepted) is a temp file."""
 import asyncio
+import html
 import json
 import tempfile
 import unittest
@@ -17,8 +18,53 @@ from supply_chain import asx, chunker, graph, jobs, reader, scout, status, verif
 from supply_chain.db import open_graph
 from tests.pipeline_isolation import isolate
 
-FIXTURES = Path(__file__).parent / "fixtures" / "asx"
-PAGES = {year: (FIXTURES / f"announcements_NXT_{year}.html").read_text(encoding="utf-8") for year in (2025, 2026)}
+# NEXTDC's announcements as listed on asx.com.au (date, time, price sensitive, idsId, headline, pages). Only these facts
+# are kept, not a copy of ASX's page (its terms allow personal use only); listing_page() renders them in ASX's markup.
+LISTED = {
+    2025: [
+        ('15/12/2025', '8:18 am', False, '03040913', 'Change in substantial holding', 30),
+        ('05/12/2025', '1:28 pm', False, '03037632', 'NEXTDC joins OpenAI for Australia as Infrastructure Partner', 3),
+        ('05/12/2025', '8:24 am', True, '03037364', 'Building the Next Generation of Sovereign AI infrastructure', 2),
+        ('01/12/2025', '8:30 am', True, '03034631', 'Contract Utilisation & Capex Guidance Update', 2),
+        ('19/11/2025', '3:02 pm', False, '03028687', 'Annual General Meeting Results', 1),
+        ('26/09/2025', '8:24 am', False, '03000572', 'NEXTDC appoints new board member - Mr Jamaludin Ibrahim', 2),
+        ('10/06/2025', '8:27 am', True, '02956543', 'Contracted Utilisation & Forward Order Book Update', 2),
+    ],
+    2026: [
+        ('13/11/2026', '8:22 am', False, '03165332', 'Change in substantial holding', 38),
+        ('09/11/2026', '11:41 am', True, '03163616', 'Response to Statement by Goodman Group & Digital Realty', 5),
+        ('28/10/2026', '8:20 am', True, '03158123', 'Financial Covenants - Compliance and Headroom', 6),
+        ('26/10/2026', '8:28 am', True, '03156766', 'Board Renewal and AGM Voting Items', 3),
+        ('21/10/2026', '8:35 am', True, '03154955', 'M3 Melbourne Power Delay & Revised FY27 Guidance', 6),
+        ('19/10/2026', '9:33 am', True, '03153882', 'Trading Halt', 2),
+        ('18/09/2026', '8:26 am', False, '03140856', 'Settlement of A$1.1 billion Convertible Notes Offering', 3),
+        ('10/09/2026', '8:51 am', False, '03137983', 'Appendix 3B', 55),
+        ('04/09/2026', '5:10 pm', True, '03136141', 'S&amp;P DJI Announces September 2026 Quarterly Rebalance', 6),
+        ('27/08/2026', '5:38 pm', True, '03131689', 'FY26 Results Announcement', 7),
+        ('27/08/2026', '5:37 pm', True, '03131688', 'FY26 Annual Report & Appendix 4E', 167),
+        ('21/07/2026', '8:32 am', True, '03116569', 'Contracted Utilisation Update', 2),
+        ('05/05/2026', '8:27 am', True, '03090318', 'A$1.8 billion of New Senior Debt Commitments Secured', 3),
+        ('27/04/2026', '8:16 am', True, '03086357', 'Retail Offer Booklet & Eligibility Letters', 131),
+        ('20/04/2026', '7:49 am', False, '03083979', 'Proposed issue of securities - NXT', 7),
+        ('20/04/2026', '7:47 am', True, '03083977', 'Record Contracted Utilisation and A$2.2bn Capital Plan', 10),
+        ('16/01/2026', '5:16 pm', False, '03050630', 'M4 Melbourne Data Centre Development Approval', 2),
+    ],
+}
+
+def listing_page(rows):
+    """An announcements page in asx.com.au's markup: a header row, then one row per announcement."""
+    body = []
+    for day, at, sensitive, ids_id, headline, pages in rows:
+        mark = '<img src="/asx/v2/markets/image/icon-price-sensitive.svg" class="pricesens" title="price sensitive">' if sensitive else ""
+        size = f'<span class="page">{pages} pages</span>' if pages else ""
+        body.append(f'<tr><td>{day}<br><span class="dates-time">{at}</span></td><td class="pricesens">{mark}</td>'
+                    f'<td><a href="/asx/v2/statistics/displayAnnouncement.do?display=pdf&amp;idsId={ids_id}">{html.escape(headline)}<br>'
+                    f'<img src="/asx/v2/markets/image/pdf_icon.png">{size}</a></td></tr>')
+    return ('<html><body><table><thead><tr><th>Date</th><th>Price sens.</th><th>Headline</th></tr></thead><tbody>'
+            + "".join(body) + "</tbody></table></body></html>")
+
+
+PAGES = {year: listing_page(rows) for year, rows in LISTED.items()}
 TODAY = date(2026, 11, 15)
 TERMS_PAGE = '<form><input name="pdfURL" value="https://announcements.asx.com.au/asxpdf/20251205/pdf/06sz8h5wyv4fwj.pdf" type="hidden"></form>'
 

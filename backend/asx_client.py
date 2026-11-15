@@ -23,8 +23,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime
-from html.parser import HTMLParser
 from pathlib import Path
+
+from bs4 import BeautifulSoup
 
 import sec_client
 
@@ -96,52 +97,27 @@ async def fetch(url, retries=RETRY_WAITS_S, max_bytes=MAX_BYTES):
 
 # ---------- The announcements listing ----------
 
-class _Rows(HTMLParser):
-    """The rows of asx.com.au's announcements table: their text, first link, and whether the row has the price
-    sensitive mark (an <img> titled "price sensitive")."""
-
-    def __init__(self):
-        super().__init__()
-        self.rows, self._row = [], None
-
-    def handle_starttag(self, tag, attrs):
-        attrs = dict(attrs)
-        if tag == "tr":
-            self._row = {"text": [], "href": None, "price_sensitive": False}
-        elif self._row is None:
-            return
-        elif tag == "a" and self._row["href"] is None:
-            self._row["href"] = attrs.get("href")
-        elif tag == "img" and ((attrs.get("title") or "").lower() == "price sensitive" or "price-sensitive" in (attrs.get("src") or "")):
-            self._row["price_sensitive"] = True
-
-    def handle_data(self, data):
-        if self._row is not None:
-            self._row["text"].append(data)
-
-    def handle_endtag(self, tag):
-        if tag == "tr" and self._row is not None:
-            self.rows.append({**self._row, "text": " ".join(" ".join(self._row["text"]).split())})
-            self._row = None
+def _price_sensitive(img):
+    return (img.get("title") or "").lower() == "price sensitive" or "price-sensitive" in (img.get("src") or "")
 
 
 def parse_announcements(page):
     """[{date, headline, ids_id, pages, price_sensitive}] from an asx.com.au yearly announcements page, newest first as
-    listed. Rows without a date and an idsId (the header) are skipped."""
-    parser = _Rows()
-    parser.feed(page)
+    listed. Rows without a date and an idsId (the header) are skipped. Price sensitive = the row has ASX's mark (an
+    <img> titled "price sensitive")."""
     found = []
-    for row in parser.rows:
-        ids = re.search(r"idsId=(\d+)", html_lib.unescape(row["href"] or ""))
-        when = re.match(r"(\d{2}/\d{2}/\d{4})\s+\d{1,2}:\d{2}\s*[ap]m\s+(.*)", row["text"], re.IGNORECASE)
+    for tr in BeautifulSoup(page, "html.parser").find_all("tr"):
+        link = tr.find("a", href=True)
+        ids = re.search(r"idsId=(\d+)", link["href"]) if link else None
+        when = re.match(r"(\d{2}/\d{2}/\d{4})\s+\d{1,2}:\d{2}\s*[ap]m\s+(.*)", tr.get_text(" ", strip=True), re.IGNORECASE)
         if not ids or not when:
             continue
-        rest = when.group(2)
+        rest = " ".join(when.group(2).split())
         pages = re.search(r"(\d+)\s+pages?\b", rest)
-        headline = re.sub(r"\s+\d+\s+pages?\b.*$", "", rest).strip()
         found.append({"date": datetime.strptime(when.group(1), "%d/%m/%Y").strftime("%Y-%m-%d"),
-                      "headline": headline, "ids_id": ids.group(1),
-                      "pages": int(pages.group(1)) if pages else None, "price_sensitive": row["price_sensitive"]})
+                      "headline": re.sub(r"\s+\d+\s+pages?\b.*$", "", rest).strip(), "ids_id": ids.group(1),
+                      "pages": int(pages.group(1)) if pages else None,
+                      "price_sensitive": any(_price_sensitive(img) for img in tr.find_all("img"))})
     return found
 
 
