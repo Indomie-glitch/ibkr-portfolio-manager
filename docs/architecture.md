@@ -32,7 +32,8 @@ flowchart LR
     flex[("IBKR Flex Web Service<br/>purchase history report")]
     yahoo[("Yahoo Finance<br/>key stats, news,<br/>company info")]
     funds[("ETF holdings files<br/>State Street, iShares")]
-    sec[("SEC EDGAR<br/>US proxy statements")]
+    sec[("SEC EDGAR<br/>US proxy statements,<br/>filings")]
+    mops[("Taiwan MOPS<br/>doc.twse.com.tw<br/>annual reports")]
     asx[("ASX announcements<br/>annual reports<br/>(personal use)")]
     wikidata[("Wikidata + Wikipedia<br/>people's IDs, articles,<br/>photos (Commons)")]
     claude[("Anthropic API<br/>Claude writes the<br/>AI summaries, judges news<br/>sentiment, reads boards<br/>and filings")]
@@ -44,7 +45,8 @@ flowchart LR
     app -->|"daily report<br/>(Flex token)"| flex
     app -->|"public data<br/>(yfinance)"| yahoo
     app -->|"index members, weekly<br/>(no key; off by default)"| funds
-    app -->|"proxy statements<br/>(contact email)"| sec
+    app -->|"proxy statements, filings<br/>(contact email)"| sec
+    app -->|"annual reports of Taiwan-listed<br/>companies (no key; pipeline only)"| mops
     app -->|"annual reports, on request<br/>(after you accept ASX's terms)"| asx
     app -->|"who is who, summaries,<br/>photos (no key)"| wikidata
     app -->|"facts sheet, headlines, board pages or filing chunks in,<br/>summary, sentiment, directors or relationships out (API key)"| claude
@@ -152,7 +154,8 @@ flowchart TB
         dsrc["directors_sources.py<br/>EDGAR proxy, ASX annual report,<br/>board pages only, Wikidata"]
         pdat["person_data.py + wikimedia.py<br/>Wikipedia + Wikidata facts about<br/>executives and directors (SQLite);<br/>seed/persons.json, weekly"]
         secc["sec_client.py<br/>the one EDGAR client: User-Agent,<br/>rate limit, retries, filing lists,<br/>download + SHA-256"]
-        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>8-K exhibits (material agreements,<br/>financing / employment skipped),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration,<br/>document chunker (filings -> chunks),<br/>Reader (chunks -> candidates, Claude),<br/>Verifier (candidates -> verified links),<br/>merge (one link per pair, confidence,<br/>stale / ended, placeholder upgrades),<br/>orchestrator (holdings first, daily pace,<br/>cost estimates, Claude call spacing),<br/>pipeline switches + status<br/>(supply_chain.sqlite; GET/POST /pipeline)"]
+        mopsc["mops_client.py<br/>the one MOPS client: listings,<br/>English annual reports, download<br/>(3 s apart, retries)"]
+        scg["supply_chain/<br/>supply chain graph schema,<br/>migrations, write helpers,<br/>theme seed (seed/themes.json),<br/>SEC scout (new filings -> queue),<br/>MOPS scout (Taiwan annual reports),<br/>8-K exhibits (material agreements,<br/>financing / employment skipped),<br/>name resolver (names -> tickers, OpenFIGI),<br/>XBRL customer concentration,<br/>document chunker (filings and<br/>PDFs -> chunks),<br/>Reader (chunks -> candidates, Claude),<br/>Verifier (candidates -> verified links),<br/>merge (one link per pair, confidence,<br/>stale / ended, placeholder upgrades),<br/>orchestrator (holdings first, daily pace,<br/>cost estimates, Claude call spacing),<br/>pipeline switches + status<br/>(supply_chain.sqlite; GET/POST /pipeline)"]
         ppl["people.py<br/>same person across companies<br/>(Wikidata ID, or name + the<br/>document naming the company)"]
     end
 
@@ -186,7 +189,7 @@ flowchart TB
     r_pos -.->|records executives| pdat
     dsrc --> secc
     scg --> cons
-    scg --> secc
+    scg --> secc & mopsc
     r_idx -.->|reuses Yahoo info| r_pos
     cons --> yahoo & names
 
@@ -199,6 +202,7 @@ flowchart TB
     yahoo -->|yfinance| YF[["Yahoo Finance"]]
     flex -->|HTTPS| FX[["Flex Web Service"]]
     cons -->|HTTPS| FUNDS[["ETF holdings files"]]
+    mopsc -->|HTTPS| MOPS[["Taiwan MOPS"]]
     ai -->|anthropic SDK| AN[["Anthropic API"]]
     dirs -->|anthropic SDK| AN
     senti -->|anthropic SDK| AN
