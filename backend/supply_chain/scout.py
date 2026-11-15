@@ -12,13 +12,15 @@ holds one open job per kind and key.
 
 Forms watched: 10-K, 10-Q, 8-K, and for foreign private issuers (TSMC, ASML ...) the 20-F annual report and 6-K
 reports. 8-Ks and 6-Ks are mostly press releases, so they only go back 60 days on the first look; annual reports go back
-13 months. Companies with no US ticker (so no EDGAR number) produce nothing.
+13 months. Companies with no US ticker (so no EDGAR number) produce nothing, except Taiwan-listed ones: their English
+annual reports come from MOPS instead (mops.py, #128), through the same scout and download jobs.
 """
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+import mops_client
 import sec_client
-from supply_chain import db, exhibits, graph, jobs, merge, reader, sec, verifier
+from supply_chain import db, exhibits, graph, jobs, merge, mops, reader, sec, verifier
 from supply_chain.worker import Permanent, handler
 
 FORMS = {"10-K": 60, "20-F": 60, "10-Q": 50, "8-K": 30, "6-K": 30}  # form -> download priority (higher runs first)
@@ -95,9 +97,23 @@ def _day(text):
     return datetime.strptime(text[:10], "%Y-%m-%d").date()
 
 
+def uses_mops(conn, company_id):
+    """A Taiwan-listed company without a US listing: its annual reports come from MOPS (#128). One with an ADR (TSMC)
+    files a 20-F, which is read from EDGAR instead, so the same report is never read twice."""
+    return cik_of(conn, company_id) is None and us_ticker(conn, company_id) is None and mops.company_code(conn, company_id) is not None
+
+
 @handler("scout")
 async def scout_job(job, conn):
     company_id = int(job["key"])
+    if uses_mops(conn, company_id):
+        try:
+            result = await mops.scan(conn, company_id)
+        except mops_client.MopsNotFound as exc:
+            raise Permanent(str(exc)) from exc
+        if not result["found"]:
+            return {"notes": "no English annual report on MOPS in the last 400 days"}
+        return {"notes": f"{result['found']} MOPS annual report{'' if result['found'] == 1 else 's'} seen, {result['new']} new"}
     try:
         result = await scan(conn, company_id)
     except sec_client.SecNotFound as exc:
@@ -110,6 +126,14 @@ async def scout_job(job, conn):
 @handler("download")
 async def download_job(job, conn):
     p = job["payload"]
+    if p.get("source") == mops.SOURCE:  # a Taiwan annual report (#128)
+        try:
+            digest = await mops.fetch_document(conn, p["document_id"], p["co_id"], p["filename"])
+        except mops_client.MopsNotFound as exc:
+            conn.execute("UPDATE documents SET status = 'failed' WHERE id = ?", (p["document_id"],))
+            raise Permanent(str(exc)) from exc
+        reader.queue_read(conn, p["document_id"], mops.KIND, company_id=job.get("company_id"))
+        return {"notes": f"{mops.KIND} {digest[:12]}"}
     try:
         digest = await sec.fetch_document(conn, p["document_id"], p["cik"], p["accession"], p["filename"])
     except sec_client.SecNotFound as exc:
