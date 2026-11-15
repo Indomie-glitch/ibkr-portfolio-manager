@@ -47,7 +47,7 @@ import anthropic  # noqa: E402
 import config  # noqa: E402
 from eval.reader_cache import CachingClient  # noqa: E402
 from eval.resolver_cache import CachingSearch  # noqa: E402
-from supply_chain import chunker, db, exhibits, graph, jobs, merge, openfigi, orchestrator, reader, resolver, themes, verifier  # noqa: E402
+from supply_chain import account, chunker, db, exhibits, graph, jobs, merge, openfigi, orchestrator, reader, resolver, themes, verifier  # noqa: E402
 
 TRUTH = Path(__file__).with_name("supply_chain_eval.json")
 EXHIBIT_TRUTH = Path(__file__).with_name("supply_chain_exhibits_eval.json")  # 8-K exhibits (#322), scored on their own
@@ -680,7 +680,7 @@ async def main(argv=None):
     orchestrator.limits.pacing = False
     orchestrator.limits.run_since = started.astimezone(timezone.utc)
     stem = f"{started:%Y-%m-%d}-{label}"
-    results = []
+    results, stopped = [], None
     for index in range(args.runs):
         left = args.cap - spent_today()
         if index and low + high_ > left:
@@ -692,8 +692,19 @@ async def main(argv=None):
         with tempfile.TemporaryDirectory(prefix="supply-chain-eval-") as folder:
             conn, ids = setup_database(truth, folder, wanted)
             print(f"\nRun {index + 1} of {args.runs}", flush=True)
-            run = await run_pipeline(conn, ids, args.reader_effort, args.verifier_effort, say=lambda text: print(text, flush=True),
-                                     run_index=index, fresh=args.fresh, exhibit_docs={d["id"] for d in truth["documents"] if d.get("exhibits")})
+            try:
+                run = await run_pipeline(conn, ids, args.reader_effort, args.verifier_effort, say=lambda text: print(text, flush=True),
+                                         run_index=index, fresh=args.fresh,
+                                         exhibit_docs={d["id"] for d in truth["documents"] if d.get("exhibits")})
+            except Exception as exc:
+                if not account.problem_of(exc):
+                    raise
+                add_spend(jobs.spent_since(conn, started.astimezone(timezone.utc)))  # what the unfinished run had spent
+                conn.close()
+                stopped = account.MESSAGES[account.problem_of(exc)]
+                print(f"\nStopped in run {index + 1}: {stopped} (the Anthropic API refused the call). "
+                      f"{len(results)} finished run(s) are saved; this one is not. Its Reader answers so far are cached.")
+                break
             run.update(reader_effort=args.reader_effort, verifier_effort=args.verifier_effort, fresh=args.fresh, run_index=index)
             out = collect(conn, ids)
             conn.close()
@@ -711,7 +722,7 @@ async def main(argv=None):
         (REPORTS / f"{stem}.json").write_text(json.dumps({**runs_summary(results), "label": label}, indent=1), encoding="utf-8")
         print("\n" + summary)
         print(f"Saved docs/eval/{stem}.md and .json")
-    return 0
+    return 2 if stopped else 0
 
 
 RUN_FIGURES = (("found", "Found"), ("headline_found", "Headline cases found"), ("wrong_links", "Wrong links"),
