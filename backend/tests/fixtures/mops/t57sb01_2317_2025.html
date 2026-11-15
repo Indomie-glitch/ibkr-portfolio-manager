@@ -1,0 +1,197 @@
+<html><head><title>電子資料查詢作業</title><meta http-equiv="Content-Type" content="text/html;charset=big5"><link rel='stylesheet' href='/ppp.css' type='text/css'></head><body>
+<style text='text/css'>
+<!--
+	 TH{color:#000099;font-weight:normal;font-size:10pt}
+-->
+</style>
+<script>
+function readfile(kind,coid,filename)
+{
+	var f = document.forms[0];
+	f.step.value = 9;
+	f.kind.value = kind;
+	f.co_id.value = coid;
+	f.filename.value = filename;
+	f.submit();
+}
+var win = null;
+function readfile2(kind,coid,filename)
+{
+	var f = document.forms[0];
+	var today = new Date();
+	var rand = today.getTime();
+	if (win==null || win.closed){
+		win = window.open('','download'+rand);
+	}
+	f.target = 'download'+rand;
+	f.step.value = 9;
+	f.kind.value = kind;
+	f.co_id.value = coid;
+	f.filename.value = filename;
+	f.submit();
+	f.target = this;
+}
+</script>
+<center>
+<h2><font color="blue">電子資料查詢作業</font></h2>
+<form action='/server-java/t57sb01' method='post' name='fm2'>
+<input type='hidden' name='colorchg' value='1'>
+<input type='hidden' name='step'>
+<input type='hidden' name='kind'>
+<input type='hidden' name='co_id'>
+<input type='hidden' name='filename'>
+<input type='hidden' name='DEBUG' value=''>
+<input type='hidden' name='SKEY1'>
+<input type='hidden' name='SKEY2'>
+<input type='hidden' name='YEAR'>
+<input type='hidden' name='MDATE'>
+<input type='hidden' name='TYPE'>
+公司名稱：鴻海<br><table border=0  width=100% >
+<tr ><td style="padding-left:75%;"><font color='red' size='2'>永續專章更(補)正：<br>為該公司最近一次更補正資訊。<br></font></td></tr>
+<table border='5' bordercolor='#ff6600' bgcolor='#ffffff' align='center'>
+<tr><th>證券代號</th><th>資料年度</th><th>資料類型</th><th>結案類型</th><th>股東會性質</th><th>資料細節說明</th><th>備註</th><th>電子檔案</th><th>檔案大小</th><th>上傳日期</th><th>永續專章更(補)正</th></tr>
+<tr>
+<td align='center'>2317</td><td align='center'>114 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>開會通知</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2025_2317_20250529F01.pdf");'>2025_2317_20250529F01.pdf</a></td><td align='right'>              2,273,182</td>
+<td align='cetern'>114/04/28 17:55:12</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>114 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>英文版-開會通知</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2025_2317_20250529FE1.pdf");'>2025_2317_20250529FE1.pdf</a></td><td align='right'>                172,532</td>
+<td align='cetern'>114/04/28 17:55:32</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>114 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>股東會各項議案參考資料</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2025_2317_20250529F13.pdf");'>2025_2317_20250529F13.pdf</a></td><td align='right'>                218,782</td>
+<td align='cetern'>114/04/28 17:55:53</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>114 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>英文版-會議議事手冊</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2025_2317_20250529FE2.pdf");'>2025_2317_20250529FE2.pdf</a></td><td align='right'>              7,565,929</td>
+<td align='cetern'>114/04/28 17:56:43</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>114 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>議事手冊及會議補充資料</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2025_2317_20250529F02.pdf");'>2025_2317_20250529F02.pdf</a></td><td align='right'>              5,328,369</td>
+<td align='cetern'>114/04/28 18:41:04</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>113 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>股東會年報(尚未適用永續揭露準則)</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2024_2317_20250529F04.pdf");'>2024_2317_20250529F04.pdf</a></td><td align='right'>              7,930,308</td>
+<td align='cetern'>114/05/09 17:44:12</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>113 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>英文版-股東會年報(尚未適用永續揭露準則)</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2024_2317_20250529FE4.pdf");'>2024_2317_20250529FE4.pdf</a></td><td align='right'>              4,308,473</td>
+<td align='cetern'>114/05/09 17:44:37</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>114 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>年報前十大股東相互間關係表</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2025_2317_20250529F17.pdf");'>2025_2317_20250529F17.pdf</a></td><td align='right'>                 79,240</td>
+<td align='cetern'>114/05/14 14:57:32</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>114 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>取得或處分資產處理程序(訂定或修正)</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2025_2317_20250529F14.pdf");'>2025_2317_20250529F14.pdf</a></td><td align='right'>                244,169</td>
+<td align='cetern'>114/06/17 16:12:28</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>114 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>資金貸與他人或背書保證作業程序(訂定或修正)</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2025_2317_20250529F15.pdf");'>2025_2317_20250529F15.pdf</a></td><td align='right'>                211,067</td>
+<td align='cetern'>114/06/17 16:28:38</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>114 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>股東會議事錄</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2025_2317_20250529F05.pdf");'>2025_2317_20250529F05.pdf</a></td><td align='right'>              6,494,533</td>
+<td align='cetern'>114/06/17 17:03:31</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>114 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>英文版-議事錄</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2025_2317_20250529FE3.pdf");'>2025_2317_20250529FE3.pdf</a></td><td align='right'>                 39,944</td>
+<td align='cetern'>114/06/17 19:37:16</td>
+<td align='cetern'>無</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>113 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>股東會年報(股東會後修訂本)</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2024_2317_20250529F11.pdf");'>2024_2317_20250529F11.pdf</a></td><td align='right'>              8,181,715</td>
+<td align='cetern'>114/09/16 18:00:32</td>
+<td align='cetern'>無更補正選項</td>
+</tr>
+<tr>
+<td align='center'>2317</td><td align='center'>113 年</td>
+<td align='center'>股東會相關資料</td>
+<td align='center'>&nbsp;</td>
+<td align='center'>常會</td>
+<td align='center'>英文版-股東會年報(股東會後修訂本)</td><td align='center'>&nbsp;</td><td><a href='javascript:readfile2("F","2317","2024_2317_20250529FE6.pdf");'>2024_2317_20250529FE6.pdf</a></td><td align='right'>              2,847,047</td>
+<td align='cetern'>114/09/16 18:02:08</td>
+<td align='cetern'>無更補正選項</td>
+</tr>
+</table>
+</form>
+<font color='blue'>倘無法順利開啟電子檔案，請注意電腦是否已具備相關讀檔軟體</font>
+<br><font color='red'>Adobe  reader建議安裝8.0(含)以上</font>
+<br><br>
+<form action='/server-java/t57sb01' method='post' name='fm4'>
+<input type='hidden' name='colorchg' value='1'>
+<input type='hidden' name='step' value='1'>
+<input type='hidden' name='co_id' value='2317'>
+<input type='hidden' name='year' value='113'>
+<input type='hidden' name='mtype' value='A'>
+<input type='hidden' name='seamon' value=''>
+<cetern><input type="button" value="查詢財務報告書" onclick='fm4.submit();'></cetern>
+</form>
+<br>
+<table>
+<tr><td><font color='red'>註：</font></td><td align='left'><font color='red'>股東會年報(尚未適用永續揭露準則)，係屬尚未適用或僅參考「IFRS永續揭露準則」之公司。</font></td></tr>
+</table>
+</body></html>

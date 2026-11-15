@@ -81,15 +81,19 @@ class Chunk:
     overlap: int = 0
     number: int = 0  # position in the list chunk_filing / chunk_paragraphs returned
     numbers: list = field(default_factory=list)  # the paragraph number of each piece of `text` (pieces split by "\n\n")
+    headings: list = field(default_factory=list)  # an exhibit's section heading for each piece ("Section 4.2"), or None (#322)
     locator: str = field(init=False)
 
     def __post_init__(self):
         self.locator = locator_for(self.section, self.first_paragraph, self.last_paragraph)
 
 
-def locator_for(section, first, last):
+def locator_for(section, first, last, heading=None):
+    """"Item 1A. Risk Factors, paragraphs 7-10 [chunker v1]"; in an exhibit, its section heading too: "Exhibit 10.1,
+    Section 4.2, paragraph 57 [chunker v1]" (the paragraph numbers are the exhibit file's own)."""
     where = f"paragraph {first}" if first == last else f"paragraphs {first}-{last}"
-    return f"{section}, {where} [chunker v{CHUNKER_VERSION}]"
+    within = f"{heading}, " if heading else ""
+    return f"{section}, {within}{where} [chunker v{CHUNKER_VERSION}]"
 
 
 # ---------- Text ----------
@@ -179,9 +183,10 @@ def text_paragraphs(text):
     return _finish(blocks)
 
 
-def _finish(blocks):
-    paragraphs = []
-    for block in blocks:
+def _finish(blocks, tags=None):
+    """Blocks to paragraphs. With tags (one per block, e.g. its PDF page) returns (paragraphs, the tag of each)."""
+    paragraphs, kept = [], []
+    for at, block in enumerate(blocks):
         rows = [_clean(row) for row in block.split(ROW_BREAK)]
         rows = [row for row in rows if row]
         if not rows or (len(rows) == 1 and _JUNK.match(rows[0])):
@@ -194,7 +199,76 @@ def _finish(blocks):
             paragraphs[-1] = f"{paragraphs[-1]} {text}"
         else:
             paragraphs.append(text)
-    return paragraphs
+            kept.append(tags[at] if tags else None)
+    return (paragraphs, kept) if tags is not None else paragraphs
+
+
+# PDFs (annual reports from MOPS, #128): pypdf gives each page's text line by line. Lines are put back into paragraphs:
+# a line that starts a heading or list item starts a new one, a short line (under SHORT_LINE of the page's longest)
+# ends one, and lines that look like table rows (mostly numbers) or short labels stay rows of their own.
+SHORT_LINE = 0.6
+_PDF_START = re.compile(
+    r"^(?:\(?[IVX]{1,5}[.)、]\s|\(?\d{1,2}[.)]\s|\(\d{1,2}\)|\d{1,2}(?:\.\d{1,2})+\s|[A-Z][.)]\s|Note\s+\d|Chapter\s+\d|"
+    r"(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)[.、]\s|[•●■▪◆◼➢✓-]\s?)")
+_NUMBER_CELL = re.compile(r"^\(?[-–]?[$NT]*\d[\d,]*(?:\.\d+)?%?\)?$")
+
+
+def _numeric_row(line):
+    words = line.split()
+    numbers = sum(1 for w in words if _NUMBER_CELL.match(w))
+    return numbers >= 2 and numbers * 3 >= len(words)
+
+
+def pdf_page_blocks(text):
+    """One page's text (lines) as blocks for _finish. A block is prose (lines joined into one paragraph) or rows (a
+    table, or short labels and headings, one line a row)."""
+    lines = [line.strip() for line in (text or "").replace("\r", "\n").split("\n") if line.strip()]
+    lines = [line for line in lines if not _JUNK.match(_clean(line))]  # printed page numbers, even inside a table
+    width = max((len(line) for line in lines), default=1)
+    blocks, current = [], []
+    rows = False
+
+    def close():
+        if current:
+            blocks.append((ROW_BREAK if rows else " ").join(current))
+        current.clear()
+
+    for line in lines:
+        numeric, short = _numeric_row(line), len(line) < width * SHORT_LINE
+        if current and (_PDF_START.match(line) or (numeric if not rows else not (numeric or short))):
+            close()  # a heading or list item; prose turning into a table; a table turning into prose
+        if not current:
+            rows = numeric or short
+            current.append(line)
+        elif not rows and current[-1].endswith("-") and line[:1].islower():
+            current[-1] += line  # a word broken at the line end
+        else:
+            current.append(line)
+        if not rows and short:  # the last line of a paragraph
+            close()
+    close()
+    return blocks
+
+
+def pdf_paragraphs(source):
+    """(paragraphs, the PDF page number of each) of a PDF file (path or bytes). A scanned PDF with no text gives none."""
+    import io
+    from pypdf import PdfReader
+    reader = PdfReader(io.BytesIO(source) if isinstance(source, (bytes, bytearray)) else str(source))
+    blocks, pages = [], []
+    for number, page in enumerate(reader.pages, 1):
+        try:
+            text = page.extract_text() or ""
+        except Exception:  # one unreadable page doesn't lose the rest
+            text = ""
+        for block in pdf_page_blocks(text):
+            blocks.append(block)
+            pages.append(number)
+    return _finish(blocks, pages)
+
+
+def page_label(page):
+    return f"PDF page {page}"
 
 
 def paragraphs_from(content):
@@ -455,6 +529,68 @@ def sec_sections(paragraphs, form):
     return None
 
 
+# ---------- Finding sections: Taiwan annual reports (MOPS, #128) ----------
+
+# Every Taiwan annual report has to list the suppliers and customers that were 10% or more of purchases or sales in
+# either of the last two years (by name, or as "Customer E"), and its material contracts. The layout and the chapter
+# names differ from company to company (and designed reports like TSMC's have no plain headings), so the finder looks
+# for those two disclosures by their wording and keeps what follows them, plus every passage naming customers,
+# suppliers and the like, with a paragraph either side.
+MOPS_TABLE_RE = re.compile(
+    r"10\s*%\s*(?:or more\s+)?of\s+(?:the\s+)?(?:company'?s?\s+)?(?:total\s+)?(?:net\s+)?(?:annual\s+)?(?:purchases?|procurement|sales|revenues?|operating revenues?)"
+    r"|\bmajor\s+(?:sales\s+)?(?:suppliers?|customers?|vendors?)\b|\b(?:suppliers?|customers?)\s+(?:who|that|which)\s+(?:have\s+)?accounted\s+for", re.I)
+MOPS_CONTRACTS_RE = re.compile(r"^(?:\(?[IVX]{1,5}[.)、]\s*|\(?\d{1,2}(?:\.\d{1,2})*[.)]?\s*)?(?:important|material|major|significant)\s+contracts?\b", re.I)
+MOPS_HEADING_CHARS = 250  # the disclosures are found by their headings, not by prose that mentions major customers
+MOPS_TABLE_CHARS = 8_000  # kept after the heading of the suppliers and customers disclosure (two tables and their notes)
+MOPS_CONTRACTS_CHARS = 15_000  # kept after the heading of the material contracts
+_TOC_ROW = re.compile(r"(?:\.{4,}|…{2,}|\s[‑–-]\s?)\s*-?\s*\d{1,3}\s*-?\s*$|\.{6,}")
+MOPS_SECTIONS = ("Major suppliers and customers", "Material contracts", "Passages naming customers or suppliers")
+
+
+def _contents_line(text):
+    """A paragraph of the table of contents: dotted leaders, or rows that end in a page number."""
+    rows = text.split("\n")
+    return sum(1 for row in rows if _TOC_ROW.search(row)) * 2 >= len(rows)
+
+
+def _following(paragraphs, start, chars, taken):
+    """Paragraph indexes from start on, up to about `chars` characters, stopping at one already taken."""
+    kept, total = [], 0
+    for i in range(start, len(paragraphs)):
+        if total >= chars or i in taken:
+            break
+        kept.append(i)
+        total += len(paragraphs[i])
+    return kept
+
+
+@finder("mops")
+def mops_sections(paragraphs, form):
+    if not paragraphs:
+        return None
+    contents = {i for i, text in enumerate(paragraphs) if _contents_line(text)}
+    taken = set(contents)
+    found = {}
+    # contracts first, so the suppliers and customers block stops where the contracts start
+    for name, regex, search, chars in ((MOPS_SECTIONS[1], MOPS_CONTRACTS_RE, False, MOPS_CONTRACTS_CHARS),
+                                       (MOPS_SECTIONS[0], MOPS_TABLE_RE, True, MOPS_TABLE_CHARS)):
+        kept = []
+        for i, text in enumerate(paragraphs):
+            if (i in taken or len(text) > MOPS_HEADING_CHARS or text.rstrip().endswith(".")  # a heading, not a sentence
+                    or not (regex.search(text) if search else regex.match(text))):
+                continue
+            block = _following(paragraphs, i, chars, taken)
+            kept.extend(block)
+            taken.update(block)
+        if kept:
+            found[name] = Section(name, sorted(kept))
+    sections = [found[name] for name in MOPS_SECTIONS[:2] if name in found]
+    passages = [i for i in _passages(paragraphs, 0, len(paragraphs)) if i not in taken]
+    if passages:
+        sections.append(Section(MOPS_SECTIONS[2], passages))
+    return sections
+
+
 # ---------- Chunks ----------
 
 @dataclass
@@ -536,25 +672,32 @@ def pack(units, limit, overlap):
     return chunks
 
 
-def _section_chunks(paragraphs, section, document, max_tokens, overlap_tokens):
+def _section_chunks(paragraphs, section, document, max_tokens, overlap_tokens, headings=None):
     chunks = []
     for units, repeated in pack(_units(paragraphs, section.paragraphs, max_tokens), max_tokens, overlap_tokens):
         text = "\n\n".join(u.text for u in units)
         chunks.append(Chunk(document, section.name, text, estimate_tokens(text), units[0].number, units[-1].number, repeated,
-                            numbers=[u.number for u in units]))
+                            numbers=[u.number for u in units],
+                            headings=[headings[u.number - 1] for u in units] if headings else []))
     return chunks
 
 
-def chunk_paragraphs(paragraphs, source="sec", form="", document="", max_tokens=MAX_CHUNK_TOKENS, overlap_tokens=OVERLAP_TOKENS):
-    """The chunks of one document's paragraphs: the source's sections, or the whole text when it has none it can find."""
+def chunk_paragraphs(paragraphs, source="sec", form="", document="", max_tokens=MAX_CHUNK_TOKENS, overlap_tokens=OVERLAP_TOKENS,
+                     headings=None):
+    """The chunks of one document's paragraphs: the source's sections, or the whole text when it has none it can find.
+    headings: a label per paragraph that goes into its locators (a PDF's "PDF page 114"), or None."""
     chunks = []
     for section in find_sections(paragraphs, source, form):
-        chunks.extend(_section_chunks(paragraphs, section, document, max_tokens, overlap_tokens))
+        chunks.extend(_section_chunks(paragraphs, section, document, max_tokens, overlap_tokens, headings))
     return chunks
 
 
 def chunk_file(path, source="sec", form="", **limits):
+    """The chunks of one file: HTML or text, or a PDF (paragraphs from pdf_paragraphs, each located by its page)."""
     path = Path(path)
+    if path.suffix.lower() == ".pdf":
+        paragraphs, pages = pdf_paragraphs(path)
+        return chunk_paragraphs(paragraphs, source, form, path.name, headings=[page_label(p) for p in pages], **limits)
     return chunk_paragraphs(load_paragraphs(path), source, form, path.name, **limits)
 
 
@@ -570,17 +713,91 @@ def exhibit_label(filename):
     return f"Exhibit 10.{m.group(1)}" if m and m.group(1) else ("Exhibit 10" if m else None)
 
 
-def chunk_filing(folder, form, primary_document, source="sec", max_tokens=MAX_CHUNK_TOKENS, overlap_tokens=OVERLAP_TOKENS):
+# ---------- Exhibits (#322) ----------
+
+# A heading in an agreement: "Section 4.2 Term.", "4.2 Term.", "4. TERM AND TERMINATION", "ARTICLE IV PRICING"
+AGREEMENT_HEADING = re.compile(
+    r"^(?:(?:Section|SECTION)\s+(\d+(?:\.\d+)*)|(?:ARTICLE|Article)\s+([IVXLC]+|\d+)\b|(\d{1,2}(?:\.\d{1,2})+|\d{1,2}\.)(?=\s+[A-Z]))"
+    r"\s*[.:\-–—]?\s*([^.]{0,80})")
+# What a very large agreement is read for: the commercial terms, not the boilerplate
+KEPT_HEADINGS = re.compile(r"\bterm\b|terminat|exclusiv|minimum purchase|purchase commitment|minimum (?:order|volume)|volume|capacity|"
+                           r"pricing|\bprices?\b|most[- ]favou?red", re.I)
+PARTY_DEFINITION = re.compile(r"^[\"“]?(?:the )?[\"“]?[A-Z][\w&.,' -]{0,60}[\"”]\s+(?:means|shall mean|has the meaning|refers to)", re.I)
+OPENING_END = re.compile(r"now,? therefore|agree as follows|hereby agree", re.I)
+EXHIBIT_FULL_TOKENS = 150_000  # over this an exhibit is read only for its parties and commercial terms
+OPENING_MAX_PARAGRAPHS = 60
+
+
+def agreement_headings(paragraphs):
+    """The section heading each paragraph of an agreement falls under ("Section 4.2", "Article IV"), or None before the
+    first, and {index: title} for the paragraphs that are headings."""
+    current, under, titles = None, [], {}
+    for i, text in enumerate(paragraphs):
+        m = AGREEMENT_HEADING.match(text.strip())
+        if m:
+            number = m.group(1) or m.group(3)
+            current = f"Section {number.rstrip('.')}" if number else f"Article {m.group(2)}"
+            titles[i] = m.group(4).strip()
+        under.append(current)
+    return under, titles
+
+
+def exhibit_plan(paragraphs, label):
+    """(Section to read, note or None). An exhibit up to EXHIBIT_FULL_TOKENS is read whole. A bigger one only for its
+    opening (parties and recitals, up to the first heading or "NOW, THEREFORE"), the definitions of the parties, and the
+    sections whose headings are about term, termination, exclusivity, minimum purchases, volume, capacity, pricing or
+    most favoured customer terms; the note says what was left out."""
+    everything = list(range(len(paragraphs)))
+    total = estimate_tokens("\n\n".join(paragraphs))
+    if total <= EXHIBIT_FULL_TOKENS:
+        return Section(label, everything), None
+    under, titles = agreement_headings(paragraphs)
+    keep = set()
+    for i, text in enumerate(paragraphs[:OPENING_MAX_PARAGRAPHS]):
+        if under[i] is not None:
+            break
+        keep.add(i)
+        if OPENING_END.search(text):
+            break
+    keep |= {i for i, text in enumerate(paragraphs) if PARTY_DEFINITION.match(text.strip())}
+    kept_titles = []
+    for start, title in titles.items():
+        if KEPT_HEADINGS.search(title):
+            kept_titles.append(f"{under[start]} {title}".strip())
+            end = next((j for j in sorted(titles) if j > start), len(paragraphs))
+            keep |= set(range(start, end))
+    indexes = sorted(keep)
+    read = estimate_tokens("\n\n".join(paragraphs[i] for i in indexes))
+    sections = len(titles)
+    note = (f"{label}: about {total:,} tokens, over {EXHIBIT_FULL_TOKENS:,}; read the opening, the party definitions and "
+            f"{len(kept_titles)} of {sections} sections ({'; '.join(kept_titles[:8]) or 'none matched'}), about {read:,} tokens; "
+            f"left out {len(paragraphs) - len(indexes)} paragraphs, about {total - read:,} tokens")
+    return Section(label, indexes), note
+
+
+def chunk_filing(folder, form, primary_document, source="sec", max_tokens=MAX_CHUNK_TOKENS, overlap_tokens=OVERLAP_TOKENS,
+                 exhibits=None, notes=None):
     """The chunks of a downloaded filing (data/filings/<cik>/<accession>/): the main document by its sections and, for an
-    8-K, every exhibit 10.x agreement in the folder as a whole. Chunks are numbered in order."""
+    8-K, its exhibit 10.x agreements (exhibit_plan: whole, or only the commercial terms of a very large one). exhibits:
+    [(file name, label)] to read (the exhibits job's choice, #322), None for every exhibit 10.x file in the folder by its
+    name, or False for none (the frozen evaluation set). Notes about what was left out are appended to `notes`.
+    Chunks are numbered in order: the main document's first, so a filing read before its exhibits keeps its numbers."""
     folder = Path(folder)
     chunks = chunk_file(folder / primary_document, source, form, max_tokens=max_tokens, overlap_tokens=overlap_tokens)
-    if form == "8-K":
-        for path in sorted(folder.iterdir()):
-            label = exhibit_label(path.name)
-            if label and path.name != primary_document:
-                paragraphs = load_paragraphs(path)
-                chunks.extend(_section_chunks(paragraphs, Section(label, list(range(len(paragraphs)))), path.name, max_tokens, overlap_tokens))
+    if form == "8-K" and exhibits is not False:
+        if exhibits is None:
+            exhibits = [(path.name, exhibit_label(path.name)) for path in sorted(folder.iterdir())
+                        if exhibit_label(path.name) and path.name != primary_document]
+        for name, label in exhibits:
+            path = folder / name
+            if not path.exists():
+                continue
+            paragraphs = load_paragraphs(path)
+            section, note = exhibit_plan(paragraphs, label)
+            if note and notes is not None:
+                notes.append(note)
+            headings = agreement_headings(paragraphs)[0]
+            chunks.extend(_section_chunks(paragraphs, section, path.name, max_tokens, overlap_tokens, headings))
     for number, chunk in enumerate(chunks, 1):
         chunk.number = number
     return chunks

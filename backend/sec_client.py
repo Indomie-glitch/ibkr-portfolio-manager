@@ -195,6 +195,30 @@ async def filing_files(cik, accession):
     return parse_index(await get_json(INDEX_URL.format(cik=int(cik), accession=accession.replace("-", ""))), cik, accession)
 
 
+INDEX_PAGE_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{folder}/{accession}-index.htm"
+
+
+def parse_index_page(html):
+    """The document table of a filing's -index.htm page: [{name, type, description}] ("EX-10.1", "Supply Agreement").
+    index.json has no exhibit types or descriptions; this page does (#322)."""
+    from bs4 import BeautifulSoup
+    rows = []
+    for table in BeautifulSoup(html, "lxml").find_all("table", class_="tableFile"):
+        for tr in table.find_all("tr"):
+            cells = tr.find_all("td")
+            if len(cells) < 4 or not cells[2].find("a"):
+                continue
+            rows.append({"name": cells[2].find("a").get_text(strip=True), "type": cells[3].get_text(strip=True),
+                         "description": cells[1].get_text(" ", strip=True)})
+    return rows
+
+
+async def filing_index(cik, accession):
+    """The filing's documents with their exhibit types and descriptions, from its index page."""
+    url = INDEX_PAGE_URL.format(cik=int(cik), folder=accession.replace("-", ""), accession=accession)
+    return parse_index_page((await get_bytes(url)).decode("utf-8", "replace"))
+
+
 # ---------- Downloading ----------
 
 def filings_dir():

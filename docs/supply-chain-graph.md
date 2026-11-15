@@ -59,6 +59,7 @@ erDiagram
     companies ||--o{ identifiers : "has"
     companies ||--o{ documents : "files"
     documents ||--o{ chunk_reads : "read in"
+    documents ||--o{ document_files : "exhibits"
     chunk_reads ||--o{ candidates : "found"
     candidates }o--o| relationships : "becomes"
     companies ||--o{ relationships : "supplies (supplier_id)"
@@ -89,7 +90,8 @@ erDiagram
         text kind
         text external_id "unique per source"
         text content_hash "SHA-256"
-        text status }
+        text status
+        text filed_later "8-K: agreement filed with a later report" }
     relationships { int id PK
         int supplier_id FK
         int customer_id FK
@@ -132,6 +134,12 @@ erDiagram
         real cost_usd }
     themes { int id PK
         text slug }
+    document_files { int id PK
+        int document_id FK
+        text file_name
+        text label "Exhibit 10.1"
+        text decision "read, partial, skipped"
+        text reason }
     chunk_reads { int id PK
         int document_id FK
         int chunker_version
@@ -188,7 +196,7 @@ Nothing here uses AI. `supply_chain/chunker.py` turns a downloaded filing into p
    | 10-K | Item 1 Business, Item 1A Risk Factors, Item 7 MD&A (only the paragraphs that mention customers, suppliers, vendors, distributors, foundries, sole source and similar, plus the paragraph either side), and the notes to the financial statements about revenue, segments, concentration, customers, suppliers, related parties, commitments and accounting policies (found under Item 8 or under Item 15, where many companies put the F-pages). A statements item with no recognisable notes is kept whole. |
    | 10-Q | Part I Item 1 (notes, as above), Part I Item 2 (MD&A passages), Part II Item 1A |
    | 20-F | Items 3, 4, 5 (passages), and the notes (as above) under Item 17, 18 or Item 8 Financial Information, where some 20-Fs put the statements |
-   | 8-K | Item 1.01 (material agreement) and 1.02 (termination), plus attached exhibit 10.x agreements in full. An 8-K about something else (results, a director leaving) gives no chunks. |
+   | 8-K | Item 1.01 (material agreement) and 1.02 (termination), plus the exhibit 10.x agreements the exhibits job chose (#322; a very large one only for its parties and commercial terms). An 8-K about something else (results, a director leaving) gives no chunks. |
    | 6-K, or a filing whose Items can't be found | The whole text, as the section "Full text". |
 
    Items are found by their headings. A table of contents lists the same headings, so of all the places an Item appears, the one with the most text under it is the real one, and a page header repeating "Item 1A (continued)" doesn't cut the section in two. Prose that merely mentions "Item 7 of this report" is not a heading. When the statements Item's own heading isn't found, the notes are looked for from the "Notes to consolidated financial statements" line.
@@ -200,11 +208,46 @@ Why 80,000: `claude-haiku-5-5` costs 5 times more for a prompt over 100,000 toke
 
 Each `Chunk` has the file name (`document`), the `section`, the `text`, the estimated `tokens`, `first_paragraph` / `last_paragraph` and a `locator` such as `Item 1A. Risk Factors, paragraphs 7-10`, which is what evidence points at. The Reader's quote can be found again by loading the same file and reading those paragraphs.
 
-**Other sources.** A finder is a function `(paragraphs, form) -> list[Section] | None` registered with `@chunker.finder("source")`: `None` means "can't tell" (the whole text is used), `[]` means "I read the structure and nothing matters". MOPS, EDINET, DART and ASX PDFs (#128 to #131) bring their own loader for the paragraphs and their own finder, then call `chunk_paragraphs(paragraphs, source, form, document)`.
+**Other sources.** A finder is a function `(paragraphs, form) -> list[Section] | None` registered with `@chunker.finder("source")`: `None` means "can't tell" (the whole text is used), `[]` means "I read the structure and nothing matters". Taiwan annual reports (MOPS, #128) are the first: a PDF goes through `pdf_paragraphs` and the `mops` finder (below). EDINET, DART and ASX PDFs (#129 to #131) bring their own finder the same way, and can reuse the PDF loader, then call `chunk_paragraphs(paragraphs, source, form, document, headings=...)`.
 
-`chunk_filing(folder, form, primary_document)` chunks a whole download folder. The scout downloads only the main document so far, so exhibit 10.x files are chunked only once something downloads them (#322).
+`chunk_filing(folder, form, primary_document, exhibits=...)` chunks a filing: the main document first (so a filing read before its exhibits keeps its chunk numbers), then the exhibits it is given, as (file name, label) pairs, `None` for every exhibit 10.x file in the folder by its name, or `False` for none (the frozen evaluation set).
+
+## 8-K exhibits (#322)
+
+An 8-K's Item 1.01 summarises a material agreement; the agreement itself is an exhibit 10.x file. For an 8-K whose items include 1.01 or 1.02, the download job queues job kind `exhibits` (key = document id, priority 35) instead of the read. `supply_chain/exhibits.py` lists the filing's files from its index page (`sec_client.filing_index`: the `-index.htm` table gives each file's exhibit type, EX-10.1, which `index.json` doesn't), decides for each exhibit 10.x, downloads the chosen ones beside the 8-K, records every decision in `document_files` (migration 10) and then queues the read again (`reader.queue_read(..., again=True)`: chunks read before aren't paid for twice).
+
+**Which exhibits.** The description comes from the 8-K's own exhibit table under Item 9.01 ("10.1 | Supply Agreement, dated ..."), else from the filing index, whose description is usually only the type. Rules (`exhibits.decide`), allow list first:
+- **Read:** supply, manufacturing, foundry, wafer, capacity (not "in its capacity as"), purchase (not of securities, stock, notes, shares, units, receivables or assets), distribution or distributor (not an equity distribution), offtake, collaboration, development, licence, services, master agreement.
+- **Skip, financing:** credit and loan agreements, receivables purchases, indentures, capped calls and hedges, underwriting, securities purchases, guarantees, pledges, registration rights, borrowers / lenders / agents, notes ...; **skip, employment:** employment, severance, separation, retention, compensation, indemnification agreements ...
+- **Neither:** read only when the file is under 30,000 estimated tokens, else skipped as "unclear description" (the download is removed again).
+
+The words were checked on every exhibit 10.x the theme companies filed with an 8-K since 2023 (28 Oct 2026): a "Loan Guarantee Agreement … in its capacity as guarantor", a "Receivables Purchase Agreement" and credit amendments "among Entegris, as borrower" are the cases the exceptions are for.
+
+**Very large exhibits.** Over 150,000 estimated tokens (`chunker.EXHIBIT_FULL_TOKENS`) an exhibit is read only for its opening (parties and recitals, up to the first heading or "NOW, THEREFORE"), the definitions of the parties, and the sections whose headings are about term, termination, exclusivity, minimum purchases, volume, capacity, pricing or most favoured customer terms (`chunker.exhibit_plan`); decision `partial`, and the read job's notes say what was left out ("read the opening, the party definitions and 5 of 60 sections …; left out 55 paragraphs, about 140,000 tokens").
+
+**Locators** of an exhibit's chunks and evidence name the exhibit and, when the agreement has numbered headings, the section: "Exhibit 10.1, Section 4.2, paragraph 57 [chunker v1]" (the paragraph numbers are the exhibit file's own). The chunker version is unchanged: main documents chunk exactly as before.
+
+**Redactions.** "[***]", "[*]", "[ ]", "[REDACTED]" or "confidential treatment requested" mean a value is hidden; the Reader's prompt says never to guess it or read it as zero: the share stays null and `share_as_written` says "redacted".
+
+**Filed later.** An 8-K that says the agreement "will be filed as an exhibit to" a later 10-Q or 10-K has that sentence saved in `documents.filed_later` and logged; fetching it from the later report is backlog (#347).
+
+**Backfill.** The hourly scheduler (`exhibits.queue_backfill`) queues the exhibits job for 8-Ks downloaded before #322 whose download job lists Item 1.01 or 1.02, and `reader.queue_unread` doesn't queue a read while an exhibits job is open.
+
+**Evaluation.** The frozen main set keeps exhibits off. `backend/eval/supply_chain_exhibits_eval.json` (`python -m eval.supply_chain_eval --set exhibits`) is a separate small set scored on its own: CoreWeave's master services agreements with Meta (redacted) and OpenAI, Bloom Energy's distributor agreement amendments with SK ecoplant (volumes redacted), Super Micro's colocation agreement, service order and sublicense (optional: leases of space), and CoreWeave's fifth credit agreement amendment as the financing trap. Its exhibits are read or skipped by the same rules (`exhibits.choose`).
 
 **Checking it on real filings.** `backend/scripts/chunk_report.py` (development only) prints, for every filing in `data/filings`, the sections, chunk count and estimated tokens, and flags a 10-K or 20-F without risk factors or customer / concentration / segment / geographic notes, and a 10-K read as Full text; `--fetch` first downloads a sample of AI hardware filings (27 annual reports, 3 10-Qs, 8-Ks with Item 1.01). On 38 filings (26 Oct 2026) two are flagged and are read whole: Intel's 10-K has no Item headings at all (topic headings and a cross-reference index), and ASML's 20-F is its integrated annual report without Item headings. `backend/scripts/token_calibration.py` compares the estimate with `messages.count_tokens` for the most prose-heavy and table-heavy chunks (needs `ANTHROPIC_API_KEY`; counting is free).
+
+## Taiwan annual reports from MOPS (#128)
+
+Hon Hai (Foxconn) and other companies listed only in Taiwan file nothing with SEC. Every Taiwan-listed company files its annual report on MOPS, Taiwan's Market Observation Post System; the files themselves are served by `doc.twse.com.tw` (no key or account). `backend/mops_client.py` is the only client: the listing page (`t57sb01` step 1, shareholder meeting documents, in ROC years: 2026 is 115) and the two-step download (step 9 gives a temporary `/pdf/...` link, then the PDF). Requests are 3 seconds apart and a busy answer is retried after 10, 30 and 90 seconds, because the server turns away clients that ask too often. Pages are Big5.
+
+**Which file.** File names say what they are: `2025_2317_20260529FE4.pdf` = fiscal year 2025, company 2317, meeting 29 May 2026, code FE4 = the English annual report (F04 is the Chinese one; FE6 / F11 are the versions revised after the meeting). One report a year is read: FE4, or FE6 when it is the only one, so the same report isn't read (and counted as a second document by the merge) twice. Only English reports are read; a company that files only in Chinese gives nothing yet (the Reader's quote checks and the name resolver work in English).
+
+**Which companies.** The scout job (`scout.scout_job`) sends a company to MOPS (`supply_chain/mops.py`) when it has a Taiwan ticker (market `TW`, the company code) and no US listing. TSMC has an ADR and files a 20-F, which is read from EDGAR only. `mops.scan` looks at this year's and last year's meeting lists and registers each English report uploaded within 400 days as a document: source `mops`, kind `annual report`, external id = the file name, `filed_at` = the upload date, `period_end` = 31 December of the fiscal year. Its download job is the same kind `download` as SEC filings (key `mops/<file name>`, payload source `mops`, priority 60), saved under `data/filings/mops/<code>/`; then `reader.queue_read` queues the read (priority 45, as a 10-K). A company with no English report in the window is scouted with the note "no English annual report on MOPS". In the Companies panel the report shows as "Annual report 2025".
+
+**From PDF to paragraphs.** `chunker.pdf_paragraphs` reads each page's text with pypdf and puts the lines back together: a line starting a heading or list item ("Four.", "(IV)", "1.", "5.7", "•") starts a paragraph, a line shorter than 60% of the page's longest ends one, a word broken at a line end is joined, lines that are mostly numbers (table rows) and short labels stay rows of their own, and printed page numbers are dropped. A paragraph whose last line happens to be full width runs on into the next one; that does the Reader no harm. A scanned PDF with no text gives no chunks. Each paragraph keeps its PDF page, so locators read "Major suppliers and customers, PDF page 135, paragraph 1520 [chunker v1]".
+
+**Sections** (`@finder("mops")`). Chapter names and layouts differ by company (Hon Hai's "Four. Operational Overview", MediaTek's roman numerals, TSMC's designed report with no plain headings), so the finder looks for the two disclosures every report must make, by their wording in a heading (a short paragraph not ending in a full stop), and keeps what follows: **Major suppliers and customers** (the suppliers and customers that were 10% or more of purchases or sales in either of the last two years, named or as "Vendor L" / "Customer E"; about 8,000 characters from the heading), and **Material contracts** (about 15,000 characters; found first, so the suppliers block stops where the contracts start). Then **Passages naming customers or suppliers** anywhere else, with a paragraph either side, as in a 10-K's MD&A. The table of contents (dotted leaders, rows ending in page numbers) is never read. On the 2025 reports of Hon Hai, MediaTek and TSMC (Nov 2026) that is about 33,000, 28,000 and 89,000 estimated tokens of 168,000, 131,000 and 252,000.
 
 ## Reading filings (#124)
 
@@ -407,6 +450,7 @@ queued -> running -> done
 | #125 | Verifier (done; `supply_chain/verifier.py`: candidates to verified tier 2 links) | `relationships`, `evidence`, `rejected`, placeholder companies |
 | #133 | evaluation set (done; `backend/eval/`: 89 known relationships in 10 filings, `python -m eval.supply_chain_eval`) | reports in `docs/eval/` |
 | #126 | orchestrator (done; `supply_chain/orchestrator.py`: holdings first, daily pace, cost estimates, spacing of Claude calls) | `companies.held`, `runs.cost_usd` |
+| #128 | Taiwan annual reports (done; `mops_client.py`, `supply_chain/mops.py`, the PDF loader and `mops` finder in `chunker.py`) | `documents` (source `mops`) |
 | #127 | merge (done; `supply_chain/merge.py`: one link per pair, shares, confidence, stale / ended, placeholder upgrades) | `relationships`, `evidence.copied_from`, `merge_decisions` |
 | M12 | graph API and explorer | indexes on both ends of `relationships`; chains of up to three layers by a recursive query |
 | M13 | server, export, sync | plain SQL (Postgres), `updated_at`, `ended` instead of deletes |
