@@ -6,7 +6,8 @@ A watched company is one in a theme (theme_companies). Its status:
 - reading:     a job for it is running now
 - waiting:     jobs are queued for it (a retry after an error counts), or it hasn't been looked at yet
 - up to date:  every job is done and its newest filing has been downloaded
-- not on EDGAR: scouted, but SEC has no filings for it (a company with no US listing)
+- not on EDGAR: scouted, but SEC has no filings for it (a company with no US listing; a Taiwan-listed one is read from
+                MOPS instead, #128)
 """
 import json
 from datetime import datetime, timedelta, timezone
@@ -63,6 +64,8 @@ def filing_label(row):
     try:
         if form in ("10-K", "20-F"):
             return f"{form} {(period or filed)[:4]}"
+        if form == "annual report":  # Taiwan, from MOPS (#128)
+            return f"Annual report {(period or filed)[:4]}"
         if form == "10-Q" and period:
             return f"{form} {datetime.strptime(period[:10], '%Y-%m-%d').strftime('%b %Y')}"
         if filed:
@@ -103,7 +106,7 @@ def company_rows(conn, now=None):
         by_company.setdefault(row["company_id"], []).append(row)
     latest = {r["company_id"]: r for r in conn.execute(
         """SELECT d.* FROM documents d WHERE d.company_id IS NOT NULL AND d.filed_at = (
-               SELECT MAX(filed_at) FROM documents WHERE company_id = d.company_id AND source = 'sec') AND d.source = 'sec'
+               SELECT MAX(filed_at) FROM documents WHERE company_id = d.company_id AND source IN ('sec', 'mops')) AND d.source IN ('sec', 'mops')
            GROUP BY d.company_id""")}
     links = {r["company_id"]: r for r in conn.execute(
         """SELECT cid AS company_id, COUNT(*) AS total, SUM(created_at >= ?) AS week FROM (
@@ -118,7 +121,7 @@ def company_rows(conn, now=None):
     scouted_empty = {r["company_id"] for r in conn.execute(
         """SELECT j.company_id FROM jobs j JOIN runs r ON r.job_id = j.id WHERE j.kind = 'scout' AND j.status = 'done' AND r.notes LIKE '%no SEC listing%'""")}
     document_count = {r["company_id"]: r["n"] for r in conn.execute(
-        "SELECT company_id, COUNT(*) AS n FROM documents WHERE source = 'sec' GROUP BY company_id")}
+        "SELECT company_id, COUNT(*) AS n FROM documents WHERE source IN ('sec', 'mops') GROUP BY company_id")}
     rows = []
     for company_id in ids:
         company_jobs = by_company.get(company_id, [])
@@ -161,7 +164,7 @@ def company_filings(conn, company_id):
                   (SELECT j.id FROM jobs j WHERE j.document_id = d.id AND j.kind = 'download' ORDER BY j.id DESC LIMIT 1) AS job_id,
                   (SELECT j.status FROM jobs j WHERE j.document_id = d.id AND j.kind = 'download' ORDER BY j.id DESC LIMIT 1) AS job_status,
                   (SELECT j.last_error FROM jobs j WHERE j.document_id = d.id AND j.kind = 'download' ORDER BY j.id DESC LIMIT 1) AS error
-           FROM documents d WHERE d.company_id = ? AND d.source = 'sec' ORDER BY d.filed_at DESC, d.id DESC""", (company_id,)).fetchall()
+           FROM documents d WHERE d.company_id = ? AND d.source IN ('sec', 'mops') ORDER BY d.filed_at DESC, d.id DESC""", (company_id,)).fetchall()
     return [{**dict(r), "label": filing_label(r)} for r in rows]
 
 

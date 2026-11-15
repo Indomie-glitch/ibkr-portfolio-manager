@@ -33,7 +33,8 @@ EFFORT = "medium"
 MAX_TOKENS = 16000
 TIMEOUT_S = 300
 MAX_SPLITS = 2  # an answer cut off at MAX_TOKENS is read again as two halves, at most twice over
-READ_PRIORITY = {"10-K": 45, "20-F": 45, "8-K": 40}  # below downloads (30-60) and XBRL (55) of the same filing; reading costs money
+READ_PRIORITY = {"10-K": 45, "20-F": 45, "annual report": 45, "8-K": 40}  # below downloads (30-60) and XBRL (55) of the same filing; reading costs money
+# ("annual report": a Taiwan annual report from MOPS, #128)
 AGREEMENT_ITEMS = {"1.01", "1.02"}
 
 SYSTEM_PROMPT = """You read one passage of a company's filing and list the business relationships it states between named \
@@ -268,17 +269,18 @@ def _halves(chunk):
     """The chunk as two smaller chunks (by paragraphs, or a single paragraph cut at sentence ends)."""
     pieces = chunk.text.split("\n\n")
     numbers = chunk.numbers or [chunk.first_paragraph] * len(pieces)
+    headings = chunk.headings or []  # an exhibit's section or a PDF's page per piece: kept so the locators still say it
     if len(pieces) == 1:
         parts = chunker.split_text(chunk.text, max(1, chunk.tokens // 2))
-        groups = [([p], [numbers[0]]) for p in parts]
+        groups = [([p], [numbers[0]], headings[:1]) for p in parts]
     else:
         middle = len(pieces) // 2
-        groups = [(pieces[:middle], numbers[:middle]), (pieces[middle:], numbers[middle:])]
+        groups = [(pieces[:middle], numbers[:middle], headings[:middle]), (pieces[middle:], numbers[middle:], headings[middle:])]
     halves = []
-    for texts, nums in groups:
+    for texts, nums, heads in groups:
         text = "\n\n".join(texts)
         halves.append(chunker.Chunk(chunk.document, chunk.section, text, chunker.estimate_tokens(text), nums[0], nums[-1],
-                                    number=chunk.number, numbers=nums))
+                                    number=chunk.number, numbers=nums, headings=heads))
     return halves
 
 

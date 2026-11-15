@@ -183,9 +183,10 @@ def text_paragraphs(text):
     return _finish(blocks)
 
 
-def _finish(blocks):
-    paragraphs = []
-    for block in blocks:
+def _finish(blocks, tags=None):
+    """Blocks to paragraphs. With tags (one per block, e.g. its PDF page) returns (paragraphs, the tag of each)."""
+    paragraphs, kept = [], []
+    for at, block in enumerate(blocks):
         rows = [_clean(row) for row in block.split(ROW_BREAK)]
         rows = [row for row in rows if row]
         if not rows or (len(rows) == 1 and _JUNK.match(rows[0])):
@@ -198,7 +199,76 @@ def _finish(blocks):
             paragraphs[-1] = f"{paragraphs[-1]} {text}"
         else:
             paragraphs.append(text)
-    return paragraphs
+            kept.append(tags[at] if tags else None)
+    return (paragraphs, kept) if tags is not None else paragraphs
+
+
+# PDFs (annual reports from MOPS, #128): pypdf gives each page's text line by line. Lines are put back into paragraphs:
+# a line that starts a heading or list item starts a new one, a short line (under SHORT_LINE of the page's longest)
+# ends one, and lines that look like table rows (mostly numbers) or short labels stay rows of their own.
+SHORT_LINE = 0.6
+_PDF_START = re.compile(
+    r"^(?:\(?[IVX]{1,5}[.)、]\s|\(?\d{1,2}[.)]\s|\(\d{1,2}\)|\d{1,2}(?:\.\d{1,2})+\s|[A-Z][.)]\s|Note\s+\d|Chapter\s+\d|"
+    r"(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)[.、]\s|[•●■▪◆◼➢✓-]\s?)")
+_NUMBER_CELL = re.compile(r"^\(?[-–]?[$NT]*\d[\d,]*(?:\.\d+)?%?\)?$")
+
+
+def _numeric_row(line):
+    words = line.split()
+    numbers = sum(1 for w in words if _NUMBER_CELL.match(w))
+    return numbers >= 2 and numbers * 3 >= len(words)
+
+
+def pdf_page_blocks(text):
+    """One page's text (lines) as blocks for _finish. A block is prose (lines joined into one paragraph) or rows (a
+    table, or short labels and headings, one line a row)."""
+    lines = [line.strip() for line in (text or "").replace("\r", "\n").split("\n") if line.strip()]
+    lines = [line for line in lines if not _JUNK.match(_clean(line))]  # printed page numbers, even inside a table
+    width = max((len(line) for line in lines), default=1)
+    blocks, current = [], []
+    rows = False
+
+    def close():
+        if current:
+            blocks.append((ROW_BREAK if rows else " ").join(current))
+        current.clear()
+
+    for line in lines:
+        numeric, short = _numeric_row(line), len(line) < width * SHORT_LINE
+        if current and (_PDF_START.match(line) or (numeric if not rows else not (numeric or short))):
+            close()  # a heading or list item; prose turning into a table; a table turning into prose
+        if not current:
+            rows = numeric or short
+            current.append(line)
+        elif not rows and current[-1].endswith("-") and line[:1].islower():
+            current[-1] += line  # a word broken at the line end
+        else:
+            current.append(line)
+        if not rows and short:  # the last line of a paragraph
+            close()
+    close()
+    return blocks
+
+
+def pdf_paragraphs(source):
+    """(paragraphs, the PDF page number of each) of a PDF file (path or bytes). A scanned PDF with no text gives none."""
+    import io
+    from pypdf import PdfReader
+    reader = PdfReader(io.BytesIO(source) if isinstance(source, (bytes, bytearray)) else str(source))
+    blocks, pages = [], []
+    for number, page in enumerate(reader.pages, 1):
+        try:
+            text = page.extract_text() or ""
+        except Exception:  # one unreadable page doesn't lose the rest
+            text = ""
+        for block in pdf_page_blocks(text):
+            blocks.append(block)
+            pages.append(number)
+    return _finish(blocks, pages)
+
+
+def page_label(page):
+    return f"PDF page {page}"
 
 
 def paragraphs_from(content):
@@ -459,6 +529,68 @@ def sec_sections(paragraphs, form):
     return None
 
 
+# ---------- Finding sections: Taiwan annual reports (MOPS, #128) ----------
+
+# Every Taiwan annual report has to list the suppliers and customers that were 10% or more of purchases or sales in
+# either of the last two years (by name, or as "Customer E"), and its material contracts. The layout and the chapter
+# names differ from company to company (and designed reports like TSMC's have no plain headings), so the finder looks
+# for those two disclosures by their wording and keeps what follows them, plus every passage naming customers,
+# suppliers and the like, with a paragraph either side.
+MOPS_TABLE_RE = re.compile(
+    r"10\s*%\s*(?:or more\s+)?of\s+(?:the\s+)?(?:company'?s?\s+)?(?:total\s+)?(?:net\s+)?(?:annual\s+)?(?:purchases?|procurement|sales|revenues?|operating revenues?)"
+    r"|\bmajor\s+(?:sales\s+)?(?:suppliers?|customers?|vendors?)\b|\b(?:suppliers?|customers?)\s+(?:who|that|which)\s+(?:have\s+)?accounted\s+for", re.I)
+MOPS_CONTRACTS_RE = re.compile(r"^(?:\(?[IVX]{1,5}[.)、]\s*|\(?\d{1,2}(?:\.\d{1,2})*[.)]?\s*)?(?:important|material|major|significant)\s+contracts?\b", re.I)
+MOPS_HEADING_CHARS = 250  # the disclosures are found by their headings, not by prose that mentions major customers
+MOPS_TABLE_CHARS = 8_000  # kept after the heading of the suppliers and customers disclosure (two tables and their notes)
+MOPS_CONTRACTS_CHARS = 15_000  # kept after the heading of the material contracts
+_TOC_ROW = re.compile(r"(?:\.{4,}|…{2,}|\s[‑–-]\s?)\s*-?\s*\d{1,3}\s*-?\s*$|\.{6,}")
+MOPS_SECTIONS = ("Major suppliers and customers", "Material contracts", "Passages naming customers or suppliers")
+
+
+def _contents_line(text):
+    """A paragraph of the table of contents: dotted leaders, or rows that end in a page number."""
+    rows = text.split("\n")
+    return sum(1 for row in rows if _TOC_ROW.search(row)) * 2 >= len(rows)
+
+
+def _following(paragraphs, start, chars, taken):
+    """Paragraph indexes from start on, up to about `chars` characters, stopping at one already taken."""
+    kept, total = [], 0
+    for i in range(start, len(paragraphs)):
+        if total >= chars or i in taken:
+            break
+        kept.append(i)
+        total += len(paragraphs[i])
+    return kept
+
+
+@finder("mops")
+def mops_sections(paragraphs, form):
+    if not paragraphs:
+        return None
+    contents = {i for i, text in enumerate(paragraphs) if _contents_line(text)}
+    taken = set(contents)
+    found = {}
+    # contracts first, so the suppliers and customers block stops where the contracts start
+    for name, regex, search, chars in ((MOPS_SECTIONS[1], MOPS_CONTRACTS_RE, False, MOPS_CONTRACTS_CHARS),
+                                       (MOPS_SECTIONS[0], MOPS_TABLE_RE, True, MOPS_TABLE_CHARS)):
+        kept = []
+        for i, text in enumerate(paragraphs):
+            if (i in taken or len(text) > MOPS_HEADING_CHARS or text.rstrip().endswith(".")  # a heading, not a sentence
+                    or not (regex.search(text) if search else regex.match(text))):
+                continue
+            block = _following(paragraphs, i, chars, taken)
+            kept.extend(block)
+            taken.update(block)
+        if kept:
+            found[name] = Section(name, sorted(kept))
+    sections = [found[name] for name in MOPS_SECTIONS[:2] if name in found]
+    passages = [i for i in _passages(paragraphs, 0, len(paragraphs)) if i not in taken]
+    if passages:
+        sections.append(Section(MOPS_SECTIONS[2], passages))
+    return sections
+
+
 # ---------- Chunks ----------
 
 @dataclass
@@ -550,16 +682,22 @@ def _section_chunks(paragraphs, section, document, max_tokens, overlap_tokens, h
     return chunks
 
 
-def chunk_paragraphs(paragraphs, source="sec", form="", document="", max_tokens=MAX_CHUNK_TOKENS, overlap_tokens=OVERLAP_TOKENS):
-    """The chunks of one document's paragraphs: the source's sections, or the whole text when it has none it can find."""
+def chunk_paragraphs(paragraphs, source="sec", form="", document="", max_tokens=MAX_CHUNK_TOKENS, overlap_tokens=OVERLAP_TOKENS,
+                     headings=None):
+    """The chunks of one document's paragraphs: the source's sections, or the whole text when it has none it can find.
+    headings: a label per paragraph that goes into its locators (a PDF's "PDF page 114"), or None."""
     chunks = []
     for section in find_sections(paragraphs, source, form):
-        chunks.extend(_section_chunks(paragraphs, section, document, max_tokens, overlap_tokens))
+        chunks.extend(_section_chunks(paragraphs, section, document, max_tokens, overlap_tokens, headings))
     return chunks
 
 
 def chunk_file(path, source="sec", form="", **limits):
+    """The chunks of one file: HTML or text, or a PDF (paragraphs from pdf_paragraphs, each located by its page)."""
     path = Path(path)
+    if path.suffix.lower() == ".pdf":
+        paragraphs, pages = pdf_paragraphs(path)
+        return chunk_paragraphs(paragraphs, source, form, path.name, headings=[page_label(p) for p in pages], **limits)
     return chunk_paragraphs(load_paragraphs(path), source, form, path.name, **limits)
 
 
