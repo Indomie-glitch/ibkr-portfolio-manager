@@ -3,7 +3,7 @@
 On top of the job queue (jobs.py) and the monthly budget (control.py):
 - Holdings first. Companies the user holds (ib.portfolio() while IB is connected) are marked companies.held; jobs.claim adds
   jobs.HELD_BOOST to their jobs' priority, so everything about a held company runs before any theme company's. Held companies
-  that aren't in the graph yet are added (US tickers are scouted; ASX ones wait for an ASX source, #131).
+  that aren't in the graph yet are added (US tickers are scouted; ASX-only ones once ASX's terms are accepted, #131).
 - Daily pace inside the monthly budget (no setting of its own): today's cap is the money left at the start of the day divided by the
   days left (counting today), never less than a floor of budget / PACE_FLOOR_DIVISOR, never more than what's left. A day and a month
   start at local midnight (control.py). Run now adds one more day's cap to today.
