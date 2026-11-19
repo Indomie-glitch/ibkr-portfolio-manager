@@ -1,0 +1,33 @@
+{
+ "model": "claude-haiku-5-5",
+ "answers": {
+  "0": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 7143,
+    "output_tokens": 1470
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"OpenAI OpCo, LLC\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"customer\",\"what\":\"AMD GPUs\",\"quote\":\"In October 2025, we entered into a product purchase agreement with OpenAI OpCo, LLC, (OpenAI) to deploy 6 gigawatts of AMD GPUs, with the deployment of the first gigawatt of capacity powered by our AMD Instinct MI450 series products.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"In October 2025\",\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Sanmina Corporation\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"manufacturing capabilities\",\"quote\":\"Sanmina will also be our preferred partner for manufacturing capabilities in building complex AI solutions.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  },
+  "1": {
+   "stop_reason": "end_turn",
+   "model": "claude-haiku-5-5",
+   "usage": {
+    "input_tokens": 7143,
+    "output_tokens": 1375
+   },
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"relationships\":[{\"supplier\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"customer\":{\"name\":\"OpenAI OpCo, LLC\",\"is_filer\":false,\"unnamed\":false},\"counterparty_role\":\"customer\",\"what\":\"AMD GPUs\",\"quote\":\"In October 2025, we entered into a product purchase agreement with OpenAI OpCo, LLC, (OpenAI) to deploy 6 gigawatts of AMD GPUs, with the deployment of the first gigawatt of capacity powered by our AMD Instinct MI450 series products.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":\"October 2025\",\"stated_on\":null,\"ended\":false},{\"supplier\":{\"name\":\"Sanmina Corporation\",\"is_filer\":false,\"unnamed\":false},\"customer\":{\"name\":\"Advanced Micro Devices, Inc.\",\"is_filer\":true,\"unnamed\":false},\"counterparty_role\":\"supplier\",\"what\":\"manufacturing capabilities in building complex AI solutions\",\"quote\":\"Sanmina will also be our preferred partner for manufacturing capabilities in building complex AI solutions.\",\"supplier_revenue_share\":null,\"customer_supply_share\":null,\"customer_share_scope\":null,\"share_as_written\":null,\"period_as_written\":null,\"stated_on\":null,\"ended\":false}]}"
+    }
+   ]
+  }
+ }
+}

@@ -17,7 +17,7 @@ from datetime import timedelta
 
 import config
 from secrets_guard import mask_secrets
-from supply_chain import control, db, jobs, orchestrator
+from supply_chain import account, control, db, jobs, orchestrator
 
 HANDLERS = {}
 HANDLER_TIMEOUT_S = 15 * 60
@@ -63,6 +63,8 @@ class Worker:
     async def run_once(self):
         """Claims and runs one job. Returns True if there was one (whatever its outcome), False if the queue had nothing for us."""
         conn = self.connection()
+        if control.load_settings()["account_problem"]:  # out of credits or the key refused: nothing can run until it's fixed
+            return False
         job = jobs.claim(conn, self.name, kinds=orchestrator.claimable_kinds(conn, self.handlers))
         if job is None:
             return False
@@ -77,6 +79,11 @@ class Worker:
         except asyncio.TimeoutError:
             jobs.fail(conn, job, f"took longer than {self.timeout_s} seconds")
         except Exception as exc:
+            if account.problem_of(exc):  # not the job's fault: it goes back without costing an attempt, and the pipeline waits
+                jobs.release(conn, job, reason=account.MESSAGES[account.problem_of(exc)])
+                problem = account.record(exc)
+                print(f"Supply chain: paused, {problem['message']} ({job['kind']} {job['key']} put back)")
+                return True
             print(f"Supply chain job {job['id']} ({job['kind']} {job['key']}) failed: {exc.__class__.__name__}: {mask_secrets(exc)}")
             jobs.fail(conn, job, f"{exc.__class__.__name__}: {mask_secrets(exc)}")
         else:
@@ -147,6 +154,10 @@ async def keep_running(path=None, count=None, every_s=SUPERVISE_EVERY_S):
     running = None
     try:
         while True:
+            try:
+                await account.check()  # a paused-for-credits pipeline: every 30 minutes, does the API answer again?
+            except Exception as exc:
+                print(f"Supply chain: couldn't check the Anthropic account: {exc.__class__.__name__}")
             try:
                 want = control.should_run(conn)
             except Exception as exc:  # an unreadable settings file or database: try again shortly

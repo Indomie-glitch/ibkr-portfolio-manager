@@ -8,17 +8,21 @@ A watched company is one in a theme (theme_companies). Its status:
 - up to date:  every job is done and its newest filing has been downloaded
 - not on EDGAR: scouted, but SEC has no filings for it (a company with no US listing; a Taiwan-listed one is read from
                 MOPS instead, #128)
+- waiting for ASX terms: listed only on the ASX, whose announcements are read (#131) only once the user has accepted
+                ASX's terms (personal use) in the app
 """
 import json
 from datetime import datetime, timedelta, timezone
 
-from supply_chain import control, jobs, orchestrator, verifier
+from supply_chain import asx, control, jobs, orchestrator, verifier
+
+SOURCES = "('sec', 'mops', 'asx')"  # the documents shown as a company's filings: SEC, MOPS (#128), ASX (#131)
 
 WEEK = timedelta(days=7)
 LOG_LIMIT = 150
 LINK_LIMIT = 80
 VERBS = {"scout": "scout", "download": "fetch", "exhibits": "fetch exhibits", "xbrl": "read", "supplier_list": "import"}
-FILING_SOURCES = "('sec', 'mops', 'supplier_list')"  # a company's own documents in its filings list (supplier lists: #132)
+FILING_SOURCES = SOURCES[:-1] + ", 'supplier_list')"  # its filings list also shows the supplier lists it published (#132)
 
 
 def _iso(moment):
@@ -86,10 +90,11 @@ def watched_ids(conn):
 
 
 def asx_only_ids(conn):
-    """Companies listed only on the ASX: nothing reads them until there is an ASX source (#131)."""
+    """Companies listed only on the ASX (no US ticker or CIK, as scout.uses_asx): read from asx.com.au once the user has
+    accepted ASX's terms (#131)."""
     return {r["company_id"] for r in conn.execute(
         """SELECT DISTINCT company_id FROM identifiers WHERE scheme = 'ticker' AND market = 'ASX'
-           AND company_id NOT IN (SELECT company_id FROM identifiers WHERE scheme = 'ticker' AND market = 'US')""")}
+           AND company_id NOT IN (SELECT company_id FROM identifiers WHERE (scheme = 'ticker' AND market = 'US') OR scheme = 'cik')""")}
 
 
 def theme_names(conn):
@@ -108,8 +113,8 @@ def company_rows(conn, now=None):
     for row in job_rows:
         by_company.setdefault(row["company_id"], []).append(row)
     latest = {r["company_id"]: r for r in conn.execute(
-        """SELECT d.* FROM documents d WHERE d.company_id IS NOT NULL AND d.filed_at = (
-               SELECT MAX(filed_at) FROM documents WHERE company_id = d.company_id AND source IN ('sec', 'mops')) AND d.source IN ('sec', 'mops')
+        f"""SELECT d.* FROM documents d WHERE d.company_id IS NOT NULL AND d.filed_at = (
+               SELECT MAX(filed_at) FROM documents WHERE company_id = d.company_id AND source IN {SOURCES}) AND d.source IN {SOURCES}
            GROUP BY d.company_id""")}
     links = {r["company_id"]: r for r in conn.execute(
         """SELECT cid AS company_id, COUNT(*) AS total, SUM(created_at >= ?) AS week FROM (
@@ -120,11 +125,12 @@ def company_rows(conn, now=None):
            WHERE j.company_id IS NOT NULL AND r.started_at >= ? GROUP BY j.company_id""", (month,))}
     names = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM companies")}
     asx_only = asx_only_ids(conn)
+    asx_terms = asx.terms_accepted() if asx_only else True  # looked up only when there is an ASX company
     held = {r["id"] for r in conn.execute("SELECT id FROM companies WHERE held = 1")}
     scouted_empty = {r["company_id"] for r in conn.execute(
         """SELECT j.company_id FROM jobs j JOIN runs r ON r.job_id = j.id WHERE j.kind = 'scout' AND j.status = 'done' AND r.notes LIKE '%no SEC listing%'""")}
     document_count = {r["company_id"]: r["n"] for r in conn.execute(
-        "SELECT company_id, COUNT(*) AS n FROM documents WHERE source IN ('sec', 'mops') GROUP BY company_id")}
+        f"SELECT company_id, COUNT(*) AS n FROM documents WHERE source IN {SOURCES} GROUP BY company_id")}
     rows = []
     for company_id in ids:
         company_jobs = by_company.get(company_id, [])
@@ -132,17 +138,15 @@ def company_rows(conn, now=None):
         retrying = any(j["status"] == "queued" and j["attempts"] and j["last_error"] for j in company_jobs)
         doc = latest.get(company_id)
         finished = [j["finished_at"] for j in company_jobs if j["finished_at"]]
-        if statuses & {"failed", "dead"}:
+        if company_id in asx_only and not asx_terms:
+            status = "waiting for ASX terms"
+        elif statuses & {"failed", "dead"}:
             status = "failed"
-        elif company_id in asx_only and not document_count.get(company_id):
-            status = "waiting for ASX source"
         elif "running" in statuses:
             status = "reading"
         elif "queued" in statuses or not company_jobs:
             status = "waiting"
-        elif company_id in asx_only:
-            status = "waiting for ASX source"
-        elif company_id in scouted_empty and not document_count.get(company_id):
+        elif company_id in scouted_empty and company_id not in asx_only and not document_count.get(company_id):
             status = "not on EDGAR"
         else:
             status = "up to date"
@@ -178,7 +182,7 @@ def overview(conn, now=None):
     settings = control.load_settings()
     rows = company_rows(conn, now)
     counts = {key: sum(1 for r in rows if r["status"] == key)
-              for key in ("reading", "waiting", "failed", "up to date", "not on EDGAR", "waiting for ASX source")}
+              for key in ("reading", "waiting", "failed", "up to date", "not on EDGAR", "waiting for ASX terms")}
     read = sum(1 for r in rows if r["status"] == "up to date" and r["latest_filing"])
     week_ago = _iso(now - WEEK)
     link_total, link_week, link_ended = conn.execute(
@@ -204,8 +208,9 @@ def overview(conn, now=None):
     return {
         "status": control.status_word(conn, settings, now),
         "enabled": settings["enabled"], "paused": settings["paused"], "workers": control.active_workers,
+        "account_problem": {k: settings["account_problem"][k] for k in ("kind", "message", "since", "checked_at")} if settings["account_problem"] else None,
         "themes": theme_names(conn), "watched": len(rows),
-        "coverage": {"read": read, "total": len(rows), "not_on_edgar": counts["not on EDGAR"], "waiting_for_asx": counts["waiting for ASX source"]},
+        "coverage": {"read": read, "total": len(rows), "not_on_edgar": counts["not on EDGAR"], "waiting_for_asx": counts["waiting for ASX terms"]},
         "links": {"total": link_total or 0, "week": link_week or 0, "ended": link_ended or 0},
         "attention": {"stuck": stuck, "retrying": retrying, "unchecked": unchecked, "oversized": oversized,
                       "total": stuck + retrying + unchecked + oversized},
@@ -307,7 +312,9 @@ def run_now(conn, now=None):
     Returns {queued, added_usd}."""
     added = orchestrator.add_run_now(conn, now)
     queued = 0
-    for company_id in watched_ids(conn):
+    asx_only = asx_only_ids(conn)
+    waiting = asx_only if asx_only and not asx.terms_accepted() else set()  # nothing to look at before ASX's terms
+    for company_id in [c for c in watched_ids(conn) if c not in waiting]:
         _, created = jobs.enqueue(conn, "scout", str(company_id), priority=70, company_id=company_id, now=now)
         queued += 1 if created else 0
     control.save_settings(paused=False)

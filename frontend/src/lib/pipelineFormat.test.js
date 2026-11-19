@@ -63,6 +63,8 @@ describe('settingsLine', () => {
     expect(settingsLine(pipeline({ status: 'paused' }))).toMatch(/^Paused\. Press Run now/)
     expect(settingsLine(pipeline({ status: 'budget' }), new Date(2026, 9, 25))).toContain('starts again on 1 November')
     expect(settingsLine(null)).toBe('Checking…')
+    expect(settingsLine(pipeline({ status: 'credits' }))).toMatch(/^Paused: Anthropic credits used up\. Add credits.*resumes by itself/)
+    expect(settingsLine(pipeline({ status: 'api_key' }))).toMatch(/^Paused: the Anthropic API key was not accepted\. Check the key in Settings/)
   })
   it('knows when next month starts', () => {
     expect(nextMonthStart(new Date(2026, 11, 31)).getMonth()).toBe(0)
@@ -75,6 +77,8 @@ describe('statusPill', () => {
     expect(statusPill(pipeline())).toEqual({ tone: 'ok', label: 'Running · 2 workers' })
     expect(statusPill(pipeline({ status: 'paused' })).tone).toBe('warn')
     expect(statusPill(pipeline({ status: 'budget' })).label).toBe('Paused · budget used')
+    expect(statusPill(pipeline({ status: 'credits' }))).toEqual({ tone: 'warn', label: 'Paused · Anthropic credits used up' })
+    expect(statusPill(pipeline({ status: 'api_key' })).label).toBe('Paused · API key not accepted')
     expect(statusPill(pipeline({ status: 'off' }))).toEqual({ tone: 'off', label: 'Off' })
     expect(statusPill(null).label).toBe('Off')
   })
@@ -104,9 +108,9 @@ describe('tiles', () => {
     expect(costSub(base)).toBe("US$0.50 of today's US$0.66 · 41% of your US$10.00 budget · Run now added US$0.33 · 2 waiting for tomorrow")
     expect(costSub({ ...base, run_now_extra: 0, waiting_for_tomorrow: 0 })).toBe("US$0.50 of today's US$0.66 · 41% of your US$10.00 budget")
   })
-  it('mentions companies waiting for an ASX source', () => {
+  it('mentions companies waiting for ASX terms', () => {
     const t = tiles(pipeline({ coverage: { read: 10, total: 20, not_on_edgar: 0, waiting_for_asx: 6 } }))
-    expect(t[0].sub).toContain('6 waiting for an ASX source')
+    expect(t[0].sub).toContain('6 waiting for ASX terms')
   })
   it('says what Run now added', () => {
     expect(runNowNote(0.333)).toBe("Run now added US$0.33 to today's allowance.")
@@ -123,7 +127,7 @@ describe('companies', () => {
   })
   it('counts the keys', () => {
     expect(companyKeys(pipeline().companies).map((k) => `${k.label} ${k.count}`)).toEqual(['ALL 52', 'RUNNING 2', 'WAITING 29', 'FAILED 3', 'UP TO DATE 18'])
-    expect(companyKeys({ ...pipeline().companies, waiting_for_ASX_source: 6 }).at(-1)).toEqual({ id: 'waiting for ASX source', label: 'ASX', count: 6 })
+    expect(companyKeys({ ...pipeline().companies, waiting_for_ASX_terms: 6 }).at(-1)).toEqual({ id: 'waiting for ASX terms', label: 'ASX', count: 6 })
   })
 })
 

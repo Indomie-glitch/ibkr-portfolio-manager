@@ -14,7 +14,6 @@ board go to Claude: select_passages keeps the pages or parts that mention direct
 Wikidata (no key) gives the people it links to a company, for Wikipedia links (people.py).
 """
 import asyncio
-import html as html_lib
 import io
 import json
 import re
@@ -24,6 +23,7 @@ import urllib.request
 from datetime import datetime, timedelta
 from html.parser import HTMLParser
 
+import asx_client
 import config
 import sec_client
 
@@ -34,10 +34,10 @@ FILING_MAX_AGE = timedelta(days=548)  # 18 months: a proxy older than that is ou
 
 SEC_FORMS = ("DEF 14A", "DEF 14C", "20-F")  # in order of preference (14C: an information statement)
 
-ASX_LIST_URL = ("https://www.asx.com.au/asx/v2/statistics/announcements.do"
-                "?by=asxCode&asxCode={code}&timeframe=Y&year={year}")
-ASX_DISPLAY_URL = "https://www.asx.com.au/asx/v2/statistics/displayAnnouncement.do?display=pdf&idsId={ids_id}"
-ASX_PDF_HOST = "announcements.asx.com.au"
+# The ASX fetching and the listing page are in asx_client.py, shared with the supply chain pipeline (#131)
+ASX_LIST_URL = asx_client.LIST_URL
+ASX_DISPLAY_URL = asx_client.DISPLAY_URL
+ASX_PDF_HOST = asx_client.PDF_HOST
 # Announcements called "annual report" that aren't the annual report. ("Appendix 4E and 2026 Annual
 # Report" is the report itself: BHP announces them together.)
 ASX_NOT_THE_REPORT = re.compile(
@@ -162,46 +162,9 @@ async def latest_sec_document(ib_symbol, now=None):
 
 # ---------- ASX ----------
 
-class _Rows(HTMLParser):
-    """The rows of asx.com.au's announcements table: their text and first link."""
-
-    def __init__(self):
-        super().__init__()
-        self.rows, self._row, self._in_row = [], None, False
-
-    def handle_starttag(self, tag, attrs):
-        if tag == "tr":
-            self._row = {"text": [], "href": None}
-        elif tag == "a" and self._row is not None and self._row["href"] is None:
-            self._row["href"] = dict(attrs).get("href")
-
-    def handle_data(self, data):
-        if self._row is not None:
-            self._row["text"].append(data)
-
-    def handle_endtag(self, tag):
-        if tag == "tr" and self._row is not None:
-            self.rows.append({"text": " ".join(" ".join(self._row["text"]).split()), "href": self._row["href"]})
-            self._row = None
-
-
 def parse_announcements(page):
-    """[{date, headline, ids_id, pages}] from an asx.com.au yearly announcements page."""
-    parser = _Rows()
-    parser.feed(page)
-    found = []
-    for row in parser.rows:
-        ids = re.search(r"idsId=(\d+)", html_lib.unescape(row["href"] or ""))
-        when = re.match(r"(\d{2}/\d{2}/\d{4})\s+\d{1,2}:\d{2}\s*[ap]m\s+(.*)", row["text"], re.IGNORECASE)
-        if not ids or not when:
-            continue
-        rest = when.group(2)
-        pages = re.search(r"(\d+)\s+pages?\b", rest)
-        headline = re.sub(r"\s+\d+\s+pages?\b.*$", "", rest).strip()
-        found.append({"date": datetime.strptime(when.group(1), "%d/%m/%Y").strftime("%Y-%m-%d"),
-                      "headline": headline, "ids_id": ids.group(1),
-                      "pages": int(pages.group(1)) if pages else None})
-    return found
+    """[{date, headline, ids_id, pages, price_sensitive}] from an asx.com.au yearly announcements page."""
+    return asx_client.parse_announcements(page)
 
 
 def choose_annual_report(rows, now):
@@ -224,8 +187,7 @@ async def latest_asx_report(code, now=None):
     now = now or datetime.now()
     rows = []
     for year in (now.year, now.year - 1):
-        page = await get(ASX_LIST_URL.format(code=code.upper(), year=year), {"User-Agent": "Mozilla/5.0"})
-        rows += parse_announcements(page.decode("utf-8", "ignore"))
+        rows += await _asx(asx_client.announcements(code.upper(), year, retries=()))
     report = choose_annual_report(rows, now)
     if report is None:
         raise NoDocument("No annual report announced on the ASX in the last 18 months.")
@@ -235,21 +197,27 @@ async def latest_asx_report(code, now=None):
             "url": ASX_DISPLAY_URL.format(ids_id=report["ids_id"])}
 
 
+async def _asx(call):
+    """An asx_client call, its errors as SourceUnavailable (a board read is on request: one try, no waits)."""
+    try:
+        return await call
+    except asx_client.AsxUnavailable as exc:
+        raise SourceUnavailable(str(exc)) from exc
+
+
 def asx_pdf_url(terms_page):
     """The PDF's address from ASX's terms page (the form's hidden pdfURL), checked to be ASX's own."""
-    found = re.search(r'name="pdfURL"\s+value="([^"]+)"|value="([^"]+)"\s+[^>]*name="pdfURL"', terms_page)
-    url = html_lib.unescape(next((g for g in (found.groups() if found else ()) if g), ""))
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme != "https" or parsed.netloc != ASX_PDF_HOST or not parsed.path.endswith(".pdf"):
-        raise SourceUnavailable("ASX didn't give a link to the annual report.")
-    return url
+    try:
+        return asx_client.pdf_url(terms_page)
+    except asx_client.AsxUnavailable as exc:
+        raise SourceUnavailable("ASX didn't give a link to the annual report.") from exc
 
 
 async def asx_pdf(document):
     """Downloads the annual report PDF. Only called once the user has accepted ASX's terms."""
-    terms_page = (await get(document["url"], {"User-Agent": "Mozilla/5.0"})).decode("utf-8", "ignore")
+    terms_page = (await _asx(asx_client.fetch(document["url"], retries=()))).decode("utf-8", "ignore")
     pdf_url = asx_pdf_url(terms_page)
-    return pdf_url, await get(pdf_url, {"User-Agent": "Mozilla/5.0"})
+    return pdf_url, await _asx(asx_client.fetch(pdf_url, retries=()))
 
 
 # ---------- Text and the passages about the board ----------

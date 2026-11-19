@@ -14,7 +14,7 @@ const STATUS_LABEL = {
   failed: 'failed',
   'up to date': 'up to date',
   'not on EDGAR': 'not on EDGAR',
-  'waiting for ASX source': 'waiting for ASX source',
+  'waiting for ASX terms': 'waiting for ASX terms',
 }
 
 // One company's filings, shown under its row: what each is, where it stands, and the actions
