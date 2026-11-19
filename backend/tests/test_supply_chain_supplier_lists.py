@@ -9,7 +9,7 @@ from unittest import mock
 import requests
 
 import sec_client
-from supply_chain import db, graph, integrity, jobs, resolver, status, supplier_lists as sl
+from supply_chain import db, graph, integrity, jobs, resolver, status, supplier_lists as sl, worker
 from supply_chain.db import open_graph
 from supply_chain.worker import Permanent
 
@@ -422,9 +422,14 @@ class Job(Base):
         fake_time = types.SimpleNamespace(monotonic=lambda: clock[0])
         with mock.patch.object(sl, "fetch", fetch), mock.patch.object(sl, "time", fake_time), \
                 mock.patch.object(resolver, "resolve", slow_resolve), mock.patch.object(sl, "LOOKUP_BUDGET_S", 2.5):
-            first = run(sl.supplier_list_job({"key": "apple-test", "payload": {}}, self.conn))
-            self.assertEqual(first["notes"], "3 of 10 names looked up; continuing")
-            self.assertTrue(first["defer_until"] > db.now())  # the worker queues the job again for then
+            jobs.enqueue(self.conn, sl.JOB_KIND, "apple-test", {})
+            w = worker.Worker(self.path, handlers={sl.JOB_KIND: sl.supplier_list_job}, name="t")
+            self.assertTrue(run(w.run_once()))
+            done, again = self.conn.execute("SELECT status, run_after, last_error FROM jobs ORDER BY id").fetchall()
+            self.assertEqual(done["status"], "done")
+            self.assertEqual(self.conn.execute("SELECT notes FROM runs").fetchone()[0], '"3 of 10 names looked up; continuing"')
+            self.assertEqual((again["status"], again["last_error"]), ("queued", "3 of 10 names looked up; continuing"))
+            self.assertTrue(again["run_after"] > db.now())  # a minute from now
             self.assertEqual(self.conn.execute("SELECT status FROM documents").fetchone()[0], "downloaded")
             links = self.conn.execute("SELECT COUNT(*) FROM evidence").fetchone()[0]
             with mock.patch.object(sl, "LOOKUP_BUDGET_S", 100):

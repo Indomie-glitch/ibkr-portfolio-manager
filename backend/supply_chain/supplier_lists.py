@@ -502,8 +502,8 @@ async def supplier_list_job(job, conn):
     try:
         outcome = await import_list(conn, source, customer_id, content, deadline=time.monotonic() + LOOKUP_BUDGET_S)
     except Unfinished as exc:  # the document stays "downloaded" until every name is done
-        until = (datetime.now(timezone.utc) + timedelta(seconds=CONTINUE_AFTER_S)).strftime("%Y-%m-%dT%H:%M:%SZ")
-        return {"notes": f"{exc}; continuing", "defer_until": until, "defer_reason": f"{exc}; continuing"}
+        return {"notes": f"{exc}; continuing", "defer_until": datetime.now(timezone.utc) + timedelta(seconds=CONTINUE_AFTER_S),
+                "defer_reason": f"{exc}; continuing"}
     if outcome["unchanged"]:
         return {"notes": f"FY{outcome['fiscal_year']} unchanged"}
     s = summarise(outcome["results"])
