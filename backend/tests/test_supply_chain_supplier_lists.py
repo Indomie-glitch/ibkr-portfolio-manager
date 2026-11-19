@@ -1,5 +1,6 @@
 import asyncio
 import tempfile
+import types
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -407,6 +408,32 @@ class Job(Base):
             second = run(sl.supplier_list_job({"key": "apple-test", "payload": {}}, self.conn))
         self.assertEqual(first["notes"], "FY2023: 1 suppliers linked, 9 unresolved")
         self.assertEqual(second["notes"], "FY2023 unchanged")
+
+    def test_a_list_too_long_for_one_run_goes_on_in_the_next(self):
+        clock = [0.0]
+        looked_up = self.resolve
+
+        async def slow_resolve(conn, name):  # each lookup takes a "second"
+            clock[0] += 1
+            return await looked_up(conn, name)
+
+        async def fetch(url):
+            return b"%PDF-1.7 apple"
+        fake_time = types.SimpleNamespace(monotonic=lambda: clock[0])
+        with mock.patch.object(sl, "fetch", fetch), mock.patch.object(sl, "time", fake_time), \
+                mock.patch.object(resolver, "resolve", slow_resolve), mock.patch.object(sl, "LOOKUP_BUDGET_S", 2.5):
+            first = run(sl.supplier_list_job({"key": "apple-test", "payload": {}}, self.conn))
+            self.assertEqual(first["notes"], "3 of 10 names looked up; continuing")
+            self.assertTrue(first["defer_until"] > db.now())  # the worker queues the job again for then
+            self.assertEqual(self.conn.execute("SELECT status FROM documents").fetchone()[0], "downloaded")
+            links = self.conn.execute("SELECT COUNT(*) FROM evidence").fetchone()[0]
+            with mock.patch.object(sl, "LOOKUP_BUDGET_S", 100):
+                second = run(sl.supplier_list_job({"key": "apple-test", "payload": {}}, self.conn))
+        self.assertEqual(second["notes"], "FY2023: 1 suppliers linked, 9 unresolved")
+        self.assertNotIn("defer_until", second)
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM evidence").fetchone()[0], max(links, 1))
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM rejected").fetchone()[0], 9)  # each refusal once
+        self.assertEqual(self.conn.execute("SELECT status FROM documents").fetchone()[0], "processed")
 
     def test_a_url_with_nothing_is_permanent(self):
         async def gone(url):

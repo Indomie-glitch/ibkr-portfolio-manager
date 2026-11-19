@@ -38,6 +38,7 @@ import hashlib
 import io
 import json
 import re
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -64,6 +65,8 @@ MAX_BYTES = 40 * 1024 * 1024
 RETRIES = 3
 BACKOFF_S = 5  # urllib3 waits about 5, 10, 20 s between tries (or what Retry-After says)
 RETRY_STATUS = (429, 500, 502, 503, 504)
+LOOKUP_BUDGET_S = 600  # name lookups per job run, inside the worker's 15 min: OpenFIGI answers 5 searches a minute without a key
+CONTINUE_AFTER_S = 60
 GROUP_WORDS = re.compile(r"\s*(?:,?\s*(?:and|&)\s+(?:its\s+)?(?:affiliates|subsidiaries|affiliated companies)|\s+group\s+(?:of\s+)?companies)\s*$", re.I)
 GENERIC = re.compile(r"^(?:various|others?|other suppliers?|confidential|undisclosed|n/?a|tbd|-+)$", re.I)
 TRAILING_BRACKET = re.compile(r"^(?P<name>.*\S)\s*\((?P<inner>[^()]+)\)\s*$")
@@ -71,6 +74,15 @@ TRAILING_BRACKET = re.compile(r"^(?P<name>.*\S)\s*\((?P<inner>[^()]+)\)\s*$")
 
 class ListUnavailable(Exception):
     """The list's site can't be reached or answered something we can't use (tried again later)."""
+
+
+class Unfinished(Exception):
+    """The time for name lookups ran out: the job runs again and goes on where it stopped (answers are saved by the resolver,
+    and links, evidence and rejections are written once each, so the entries already done cost nothing the next time)."""
+
+    def __init__(self, looked_up, names):
+        super().__init__(f"{looked_up} of {names} names looked up")
+        self.looked_up, self.names = looked_up, names
 
 
 class ListNotFound(ListUnavailable):
@@ -387,10 +399,11 @@ async def resolve_entry(conn, name, resolve, allow_private):
 
 # ---------- Writing to the graph ----------
 
-async def import_entries(conn, customer_id, document_id, entries, stated_on, allow_private=False, resolve=None):
+async def import_entries(conn, customer_id, document_id, entries, stated_on, allow_private=False, resolve=None, deadline=None):
     """Writes the entries as "supplier -> customer" links with tier 1 evidence. Returns one result per entry: {entry,
     status (linked / rejected / left_out), reason, how, relationship_id, supplier_id}. Each distinct name is looked up
-    once and refused once (with its first entry as the quote)."""
+    once and refused once (with its first entry as the quote). Raises Unfinished when time.monotonic() passes `deadline`
+    before a new name is looked up."""
     resolve = resolve or resolver.resolve
     customer = graph.current_company(conn, customer_id)
     customer_name = conn.execute("SELECT name FROM companies WHERE id = ?", (customer,)).fetchone()["name"]
@@ -398,6 +411,8 @@ async def import_entries(conn, customer_id, document_id, entries, stated_on, all
     for entry in entries:
         name = entry["name"]
         if name not in looked_up:
+            if deadline is not None and time.monotonic() > deadline:
+                raise Unfinished(len(looked_up), len({e["name"] for e in entries}))
             looked_up[name] = await resolve_entry(conn, name, resolve, allow_private)
         match = looked_up[name]
         base = {"entry": entry, "how": match.get("how"), "relationship_id": None, "supplier_id": None}
@@ -451,7 +466,7 @@ def read_list(source, content):
     return entries, year, published_on(pages) or created
 
 
-async def import_list(conn, source, customer_id, content, resolve=None, folder=None):
+async def import_list(conn, source, customer_id, content, resolve=None, folder=None, deadline=None):
     """Registers a downloaded list as a document and imports it. Returns {document_id, fiscal_year, results, unchanged}.
     A file imported before (the same SHA-256) is not read again."""
     digest = hashlib.sha256(content).hexdigest()
@@ -468,7 +483,8 @@ async def import_list(conn, source, customer_id, content, resolve=None, folder=N
         conn, SOURCE, KIND, f"{source['slug']}/{digest[:16]}", source["url"], company_id=customer_id,
         title=f"{source['title']} FY{year}", filed_at=published, period_end=stated_on, language="en",
         content_hash=digest, size_bytes=saved["size"], local_path=saved["path"], fetched_at=now(), status="downloaded")
-    results = await import_entries(conn, customer_id, document_id, entries, stated_on, source.get("private_companies", False), resolve)
+    results = await import_entries(conn, customer_id, document_id, entries, stated_on, source.get("private_companies", False), resolve,
+                                   deadline)
     conn.execute("UPDATE documents SET status = 'processed' WHERE id = ?", (document_id,))
     return {"document_id": document_id, "fiscal_year": year, "results": results, "unchanged": False}
 
@@ -483,7 +499,11 @@ async def supplier_list_job(job, conn):
         content = await fetch(source["url"])
     except ListNotFound as exc:
         raise Permanent(str(exc)) from exc
-    outcome = await import_list(conn, source, customer_id, content)
+    try:
+        outcome = await import_list(conn, source, customer_id, content, deadline=time.monotonic() + LOOKUP_BUDGET_S)
+    except Unfinished as exc:  # the document stays "downloaded" until every name is done
+        until = (datetime.now(timezone.utc) + timedelta(seconds=CONTINUE_AFTER_S)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return {"notes": f"{exc}; continuing", "defer_until": until, "defer_reason": f"{exc}; continuing"}
     if outcome["unchanged"]:
         return {"notes": f"FY{outcome['fiscal_year']} unchanged"}
     s = summarise(outcome["results"])
