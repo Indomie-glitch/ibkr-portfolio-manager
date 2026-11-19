@@ -1,0 +1,135 @@
+Public Supplier List
+
+The list of supplier facilities includes original design manufacturers (ODMs), final assembly and                                   material suppliers that Dell buys from directly and/or
+provide substantial product transformation. The volume and nature of business conducted with suppliers shifts as business nee                                                          ds change. This
+list represents a snapshot covering at least 95% of Dell’s spend during fiscal                             year 2025.
+
+      CORPORATE                                          ADDRESS                                              DELL PRODUCTS /                        SUPPLIER TYPE             SUSTAINABILITY         GRI
+        PROFILE                                                                                         PROCUREMENT CATEGORY                                                          SITE
+
+        Celestica           204 & 215 Zone C, Savan‐SENO Special Economic Zone, Road                         Parts / Components                   Final Assembly and/or             Celestica         Yes
+                                  No-9, Nongdurn Village, Kaison Phomviharn        District,                                                          Original Design
+                                            Savannakhet Province, Laos PDR                                                                            Manufacturers
+
+
+        Celestica             49/18, Moo 5, Laem Chabang Industrial Estate, Tungsukla,                            Networking                      Final Assembly and/or             Celestica         Yes
+                                              Sriracha, Chon Buri, Thailand                                  Parts/Components                         Original Design
+                                                                                                                                                      Manufacturers
+
+
+        Celestica              Calle Octava # 102, Parque Industrial Monterrey Apodaca,                           Networking                      Final Assembly and/or             Celestica         Yes
+                                                 Nuevo Leon C.P, Mexico                                                                               Original Design
+                                                                                                                                                      Manufacturers
+
+
+         Compal                 No.58, First Avenue, A Zone, Kunshan Free Trade Zone,                        Inspiron Notebooks                   Final Assembly and/or              Compal           Yes
+                                     Kunshan, Jiangsu, People's Republic of China                            Latitude Notebooks                       Original Design
+                                                                                                             Precision Notebooks                      Manufacturers
+                                                                                                              Vostro Notebooks
+                                                                                                               XPS Notebooks
+                                                                                                             Commercial Chrome
+                                                                                                            Alienware Notebooks
+                                                                                                              Dell Chromebooks
+                                                                                                                 Dell Laptops
+                                                                                                            Dell Laptops Premium
+                                                                                                               Dell Pro Laptops
+                                                                                                            Dell Pro Max Laptops
+                                                                                                                 Accessories
+                                                                                                             Parts/Components
+
+
+
+
+
+                                                                                                                                              Public Supplier List | Published December 2025 | Page 1 of 34   CORPORATE                                              ADDRESS                                                  DELL PRODUCTS /                            SUPPLIER TYPE               SUSTAINABILITY            GRI
+      PROFILE                                                                                                 PROCUREMENT CATEGORY                                                                SITE
+
+      Inventec              789 Puxing Road, Caohejing Export Processing Zone, Pujiang              ,             Parts / Components                      Final Assembly and/or                 Inventec           Yes
+                                    Minhang, Shanghai, People's Republic of China                                                                              Original Design
+                                                                                                                                                               Manufacturers
+
+      Inventec                                88 Dazhi Rd, Taoyuan, Taiwan                                        Parts / Components                      Final Assembly and/or                 Inventec           Yes
+                                                                                                                                                               Original Design
+                                                                                                                                                               Manufacturers
+
+      Inventec                No. 128 Moo 4, Bhakasa Industrial, Phraeksa Sub-district,                                   Servers                         Final Assembly and/or                 Inventec           Yes
+                                Mueang Samut Prakan District, Samut Prakan, 10280                                          PCBA                                Original Design
+                                                           Thailand                                                                                            Manufacturers
+Luxshare Precision              Lot E, Quang Chau Industry Park, Nenh Ward, Bac Ninh                              Parts / Components                      Final Assembly and/or                Luxshare            Yes
+    Industry Co                                      Province, Vietnam                                                                                         Original Design
+                                                                                                                                                               Manufacturers
+Luxshare Precision          No.8 Yongyang Road, National economic and Technological                               Parts / Components                      Final Assembly and/or                Luxshare            Yes
+    Industry Co                development zone, Chuzhou, Anhui, People's Republic of                                                                          Original Design
+                                                             China                                                                                             Manufacturers
+     Pegatron                  5 Shing Yeh Street, Kwei Shan District, Taoyuan, Taiwan                        Latitude Rugged Notebooks                   Final Assembly and/or                Pegatron            Yes
+                                                                                                                Dell Pro Rugged Laptops                        Original Design
+                                                                                                                       Accessories                             Manufacturers
+
+      Wistron               Lots CN09 and CN10, Dong Van III Supporting Industrial Zone                            Inspiron Notebooks                     Final Assembly and/or                 Wistron            Yes
+                              phase II, Tien Son Ward, Duy Ha Ward, Ninh Binh Province,                            Latitude Notebooks                          Original Design
+                                                           Vietnam                                                Precision Notebooks                          Manufacturers
+                                                                                                                     XPS Notebooks
+                                                                                                                  Alienware Notebooks
+                                                                                                                       Dell Laptops
+                                                                                                                 Dell Laptops Premium
+                                                                                                                     Dell Pro Laptops
+                                                                                                                  Dell Pro Max Laptops
+                                                                                                                       Accessories
+                                                                                                                   Parts/Components
+
+
+
+
+
+
+
+
+
+
+
+                                                                                                                                                      Public Supplier List | Published December 2025 | Page 9 of 34    CORPORATE                                               ADDRESS                                                    DELL PRODUCTS /                             SUPPLIER TYPE                SUSTAINABILITY            GRI
+      PROFILE                                                                                                    PROCUREMENT CATEGORY                                                                   SITE
+
+Catcher Technology             Factory No.1, Block A1, Unit 6, Lot CN5 , Duong Hao Ward,                                    Mechanical                          Other direct material                 Catcher             Yes
+                                                 Hung Yen Province, Vietnam                                                                                            suppliers
+
+Chicony Electronics             No.98 JiuJiang Road, ShuangFu Street, JiangJin District,                              Parts / Components                        Other direct material                 Chicony             Yes
+                                           ChongQing, People's Republic of China                                                                                       suppliers
+
+Chicony Electronics             No. 2589, Tongjin Road,Wujiang Economic Development                                   Parts / Components                        Other direct material                 Chicony             Yes
+                                    Zone, Suzhou, Jiangsu, People's Republic of China                                                                                  suppliers
+
+Chicony Electronics                Xincheng Scientific Industrial Garden, Liaobu Town,                                Parts / Components                        Other direct material                 Chicony             Yes
+                                                Dongguan, Guangdong, China                                                                                             suppliers
+
+Chicony Electronics             Sanzhong Industrial Area, Qingxi, Dongguan, Guangdong,                                Parts / Components                        Other direct material                 Chicony             Yes
+                                                  People's Republic of China                                                                                           suppliers
+
+Chicony Electronics            No.1058, Jiu Long Road, Economic, Wujiang Development                                  Parts / Components                        Other direct material                 Chicony             Yes
+                                         Zone, Suzhou, People's Republic of China                                                                                      suppliers
+
+Chicony Electronics          82 Moo.4, Thakham Subdistrict, Bangpakong, Chachoengsao,                                 Parts / Components                        Other direct material                 Chicony             Yes
+                                                         24130, Thailand                                                                                               suppliers
+
+       Chunqiu                   No.3910 Tiandu Road, Jingkai District, Hefei City, Anhui                             Parts / Components                        Other direct material                    No               No
+                                            Province, People's Republic of China                                                                                       suppliers
+
+       Chunqiu                 No. 186 Zhongtang Road, High-tech Zone, Lujiang County,                                Parts / Components                        Other direct material                    No               No
+                                  Hefei City, Anhui Province, People's Republic of China                                                                               suppliers
+
+       Chunqiu                 No. 190 Zhongtang Road, High-tech Zone, Lujiang County,                                Parts / Components                        Other direct material                    No               No
+                                  Hefei City, Anhui Province, People's Republic of China                                                                               suppliers
+
+       Chunqiu                  Lot CN-09, Hoa Phu Industrial Park, Xuan Cam Ward, Bac                                      Mechanical                          Other direct material                    No               No
+                                                    Ninh Province, Vietnam                                                                                             suppliers
+
+       Compal                 18 Jubao Road, Jurong, Jiangsu, People's Republic of China                              Parts / Components                        Other direct material                 Compal              Yes
+                                                                                                                                                                       suppliers
+
+       Compal                                  Rua Javari, 1053, Manaus, Brazil                                       Parts / Components                        Other direct material                 Compal              Yes
+                                                                                                                                                                       suppliers
+
+
+
+
+                                                                                                                                                          Public Supplier List | Published December 2025 | Page 19 of 34

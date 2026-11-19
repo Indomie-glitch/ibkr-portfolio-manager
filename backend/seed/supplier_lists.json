@@ -1,0 +1,35 @@
+{
+  "note": "Published supplier lists read as tier 1 evidence (#132, supply_chain/supplier_lists.py). The customer is the company that publishes the list; the fiscal year comes from the list's own text and fiscal_year_end (MM-DD) dates it. A new year's list at a new url needs a new entry (or the url changed here).",
+  "lists": [
+    {
+      "slug": "apple-fy2023",
+      "title": "Apple Supplier List",
+      "customer": {"name": "Apple Inc.", "ticker": "AAPL", "market": "US", "country": "US"},
+      "url": "https://s203.q4cdn.com/367071867/files/doc_downloads/2024/04/Apple-Supplier-List.pdf",
+      "format": "pdf",
+      "parser": "apple_pdf",
+      "fiscal_year_end": "09-30",
+      "notes": "Suppliers behind 98% of Apple's direct spend on materials, manufacturing and assembly in fiscal year 2023, with the places each makes things for Apple. Published April 2024 on Apple's investor site; the newest Apple has published (checked November 2026)."
+    },
+    {
+      "slug": "apple",
+      "title": "Apple Supplier List",
+      "customer": {"name": "Apple Inc.", "ticker": "AAPL", "market": "US", "country": "US"},
+      "url": "https://www.apple.com/supply-chain/pdf/Apple-Supplier-List.pdf",
+      "format": "pdf",
+      "parser": "apple_pdf",
+      "fiscal_year_end": "09-30",
+      "notes": "The list's long-standing address on apple.com, which still serves the fiscal year 2022 list (published May 2023). Kept so a new list published here is picked up."
+    },
+    {
+      "slug": "dell",
+      "title": "Dell Public Supplier List",
+      "customer": {"name": "Dell Technologies Inc.", "ticker": "DELL", "market": "US", "country": "US"},
+      "url": "https://www.delltechnologies.com/asset/en-us/solutions/business-solutions/briefs-summaries/dell-public-supplier-list.pdf",
+      "format": "pdf",
+      "parser": "dell_pdf",
+      "fiscal_year_end": "01-31",
+      "notes": "Supplier facilities (ODMs, final assembly and direct material suppliers) behind at least 95% of Dell's spend in the fiscal year named on page 1, with addresses, products and supplier type. Updated in place each December. Suppliers are named by short trade names."
+    }
+  ]
+}

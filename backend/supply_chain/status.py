@@ -21,7 +21,8 @@ SOURCES = "('sec', 'mops', 'asx')"  # the documents shown as a company's filings
 WEEK = timedelta(days=7)
 LOG_LIMIT = 150
 LINK_LIMIT = 80
-VERBS = {"scout": "scout", "download": "fetch", "exhibits": "fetch exhibits", "xbrl": "read"}
+VERBS = {"scout": "scout", "download": "fetch", "exhibits": "fetch exhibits", "xbrl": "read", "supplier_list": "import"}
+FILING_SOURCES = SOURCES[:-1] + ", 'supplier_list')"  # its filings list also shows the supplier lists it published (#132)
 
 
 def _iso(moment):
@@ -70,6 +71,8 @@ def filing_label(row):
             return f"{form} {(period or filed)[:4]}"
         if form == "annual report":  # Taiwan, from MOPS (#128)
             return f"Annual report {(period or filed)[:4]}"
+        if form == "supplier list":  # the company's published list of its suppliers (#132), by the fiscal year it covers
+            return f"Supplier list FY{(period or filed)[:4]}"
         if form == "10-Q" and period:
             return f"{form} {datetime.strptime(period[:10], '%Y-%m-%d').strftime('%b %Y')}"
         if filed:
@@ -162,13 +165,13 @@ def company_rows(conn, now=None):
 
 
 def company_filings(conn, company_id):
-    """One company's filings with where each stands, newest first."""
+    """One company's filings (and the supplier lists it published) with where each stands, newest first."""
     rows = conn.execute(
         f"""SELECT d.id, d.kind, d.filed_at, d.period_end, d.status, d.url,
                   (SELECT j.id FROM jobs j WHERE j.document_id = d.id AND j.kind = 'download' ORDER BY j.id DESC LIMIT 1) AS job_id,
                   (SELECT j.status FROM jobs j WHERE j.document_id = d.id AND j.kind = 'download' ORDER BY j.id DESC LIMIT 1) AS job_status,
                   (SELECT j.last_error FROM jobs j WHERE j.document_id = d.id AND j.kind = 'download' ORDER BY j.id DESC LIMIT 1) AS error
-           FROM documents d WHERE d.company_id = ? AND d.source IN {SOURCES} ORDER BY d.filed_at DESC, d.id DESC""", (company_id,)).fetchall()
+           FROM documents d WHERE d.company_id = ? AND d.source IN {FILING_SOURCES} ORDER BY d.filed_at DESC, d.id DESC""", (company_id,)).fetchall()
     return [{**dict(r), "label": filing_label(r)} for r in rows]
 
 
@@ -269,7 +272,7 @@ def log_events(conn, now=None, kind="all", limit=LOG_LIMIT):
         rows = conn.execute(
             """SELECT r.created_at, r.supplier_revenue_share AS rev, r.customer_supply_share AS supply, r.customer_share_scope AS scope,
                       s.id AS supplier_id, s.name AS supplier, c.id AS customer_id, c.name AS customer, r.tier, r.kind,
-                      e.verification
+                      e.verification, e.extractor
                FROM relationships r JOIN companies s ON s.id = r.supplier_id JOIN companies c ON c.id = r.customer_id
                JOIN evidence e ON e.id = r.primary_evidence_id WHERE r.merged_into IS NULL
                ORDER BY r.created_at DESC, r.id DESC LIMIT ?""", (LINK_LIMIT,)).fetchall()
@@ -279,7 +282,7 @@ def log_events(conn, now=None, kind="all", limit=LOG_LIMIT):
             share = f" · {row['rev']:g}% of revenue" if row["rev"] is not None else (
                 f" · {row['supply']:g}% of {row['scope'] or 'purchases'}" if row["supply"] is not None else "")
             arrow = "↔" if row["kind"] == "partnership" else "→"  # a partnership has no direction
-            checked = " · verified" if row["verification"] == "verified" else ""
+            checked = " · verified" if row["verification"] == "verified" else " · supplier list" if row["extractor"] == "supplier_list" else ""
             events.append({"at": row["created_at"], "tag": "LINK", "text": f"{supplier} {arrow} {customer}{share}{checked}", "job_id": None,
                            "company_id": row["supplier_id"]})
     events.sort(key=lambda e: e["at"], reverse=True)

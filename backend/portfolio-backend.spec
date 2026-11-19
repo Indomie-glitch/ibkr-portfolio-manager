@@ -25,6 +25,8 @@ datas += [("seed/persons.json", "seed")]
 datas += [("seed/themes.json", "seed")]
 # Common company names that differ from the legal name (supply_chain/resolver.py, #317)
 datas += [("seed/aliases.json", "seed")]
+# Published supplier lists read as tier 1 evidence (supply_chain/supplier_lists.py, #132)
+datas += [("seed/supplier_lists.json", "seed")]
 # Build-time settings such as the SEC contact email (write_app_config.py; gitignored)
 datas += [("app_config.json", ".")]
 
