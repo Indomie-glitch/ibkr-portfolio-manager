@@ -38,11 +38,12 @@ import hashlib
 import io
 import json
 import re
-import time
-import urllib.error
-import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 import sec_client
 from supply_chain import graph, jobs, resolver
@@ -60,9 +61,9 @@ PRIORITY = 55  # as the XBRL figures: free, structured, worth having before the 
 USER_AGENT = "Mozilla/5.0 (Macintosh; PortfolioManager)"  # no personal details: these sites ask for none
 TIMEOUT_S = 60
 MAX_BYTES = 40 * 1024 * 1024
-MIN_INTERVAL_S = 2.0
-RETRY_WAITS_S = (10, 60)
-RETRY_STATUS = {429, 500, 502, 503, 504}
+RETRIES = 3
+BACKOFF_S = 5  # urllib3 waits about 5, 10, 20 s between tries (or what Retry-After says)
+RETRY_STATUS = (429, 500, 502, 503, 504)
 GROUP_WORDS = re.compile(r"\s*(?:,?\s*(?:and|&)\s+(?:its\s+)?(?:affiliates|subsidiaries|affiliated companies)|\s+group\s+(?:of\s+)?companies)\s*$", re.I)
 GENERIC = re.compile(r"^(?:various|others?|other suppliers?|confidential|undisclosed|n/?a|tbd|-+)$", re.I)
 TRAILING_BRACKET = re.compile(r"^(?P<name>.*\S)\s*\((?P<inner>[^()]+)\)\s*$")
@@ -298,45 +299,36 @@ PARSERS = {"apple_pdf": parse_apple, "dell_pdf": parse_dell}
 
 # ---------- Downloading ----------
 
-_lock = asyncio.Lock()
-_last = 0.0
+def _session():
+    """requests with urllib3's Retry: a busy site (429, 5xx) or a dropped connection is tried again after a growing wait,
+    honouring Retry-After."""
+    session = requests.Session()
+    retry = Retry(total=RETRIES, backoff_factor=BACKOFF_S, status_forcelist=RETRY_STATUS, allowed_methods={"GET"},
+                  respect_retry_after_header=True)
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    session.headers["User-Agent"] = USER_AGENT
+    return session
 
 
-def _open(url, timeout=TIMEOUT_S):
-    """One blocking request: (status, body). HTTP errors come back as a status; a dropped connection raises."""
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+def _download(url):
+    """One blocking download of a list's url (at most MAX_BYTES)."""
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return response.status, response.read(MAX_BYTES + 1)
-    except urllib.error.HTTPError as err:
-        return err.code, b""
+        with _session().get(url, timeout=TIMEOUT_S, stream=True) as response:
+            if response.status_code in (404, 410):
+                raise ListNotFound(f"nothing at {url} any more ({response.status_code})")
+            if response.status_code != 200:
+                raise ListUnavailable(f"the site answered {response.status_code}")
+            body = response.raw.read(MAX_BYTES + 1, decode_content=True)
+    except requests.RequestException as exc:
+        raise ListUnavailable(f"the site didn't answer ({exc.__class__.__name__})") from exc
+    if len(body) > MAX_BYTES:
+        raise ListUnavailable("The list is too large to download.")
+    return body
 
 
 async def fetch(url):
-    """The file at a list's url, spaced out and retried while the site is busy. Returns the bytes."""
-    global _last
-    for attempt in range(len(RETRY_WAITS_S) + 1):
-        async with _lock:
-            wait = MIN_INTERVAL_S - (time.monotonic() - _last)
-            if wait > 0:
-                await asyncio.sleep(wait)
-            _last = time.monotonic()
-        try:
-            status, body = await asyncio.to_thread(_open, url)
-            problem = None
-        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
-            status, body, problem = None, b"", exc.__class__.__name__
-        if status == 200:
-            if len(body) > MAX_BYTES:
-                raise ListUnavailable("The list is too large to download.")
-            return body
-        if status in (404, 410):
-            raise ListNotFound(f"nothing at {url} any more ({status})")
-        if status is not None and status not in RETRY_STATUS:
-            raise ListUnavailable(f"the site answered {status}")
-        if attempt == len(RETRY_WAITS_S):
-            raise ListUnavailable(f"the site didn't answer ({status or problem}) after {attempt + 1} tries")
-        await asyncio.sleep(RETRY_WAITS_S[attempt])
+    """The file at a list's url, as bytes. Lists are checked weekly, so no spacing between requests is needed."""
+    return await asyncio.to_thread(_download, url)
 
 
 def save(slug, content, folder=None):

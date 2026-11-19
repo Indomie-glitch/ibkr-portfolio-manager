@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
+import requests
+
 import sec_client
 from supply_chain import db, graph, integrity, jobs, resolver, status, supplier_lists as sl
 from supply_chain.db import open_graph
@@ -133,6 +135,35 @@ class ReadingPdf(unittest.TestCase):
 
     def test_segments(self):
         self.assertEqual(sl.segments("  AT & S Austria  AG      Styria     Austria"), [(2, "AT & S Austria AG"), (26, "Styria"), (37, "Austria")])
+
+
+class Downloading(unittest.TestCase):
+    """The download maps what the site answers to the job's outcome: bytes, gone for good, or try again later."""
+
+    def session(self, status=200, body=b"%PDF-1.7", error=None):
+        response = mock.MagicMock(status_code=status)
+        response.__enter__.return_value = response
+        response.raw.read.side_effect = lambda size, decode_content=True: body[:size]
+        session = mock.MagicMock()
+        session.get.side_effect = error or (lambda *a, **k: response)
+        return mock.patch.object(sl, "_session", return_value=session)
+
+    def test_a_list_comes_back_as_bytes(self):
+        with self.session():
+            self.assertEqual(asyncio.run(sl.fetch("https://example.com/list.pdf")), b"%PDF-1.7")
+
+    def test_a_missing_list_is_gone_for_good(self):
+        with self.session(status=404), self.assertRaises(sl.ListNotFound):
+            asyncio.run(sl.fetch("https://example.com/list.pdf"))
+
+    def test_a_site_still_busy_after_the_retries_is_tried_later(self):
+        with self.session(error=requests.exceptions.RetryError("too many 503 error responses")), self.assertRaises(sl.ListUnavailable) as caught:
+            asyncio.run(sl.fetch("https://example.com/list.pdf"))
+        self.assertNotIsInstance(caught.exception, sl.ListNotFound)
+
+    def test_too_large_is_refused(self):
+        with self.session(body=b"x" * 20), mock.patch.object(sl, "MAX_BYTES", 10), self.assertRaises(sl.ListUnavailable):
+            asyncio.run(sl.fetch("https://example.com/list.pdf"))
 
 
 class Names(unittest.TestCase):
