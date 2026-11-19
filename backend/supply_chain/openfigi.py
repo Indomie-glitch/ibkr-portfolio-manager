@@ -1,6 +1,7 @@
 """OpenFIGI client (#119): searches OpenFIGI (Bloomberg's open identifier service) for a company name.
 
-Works without a key at a lower limit (25 searches a minute; with OPENFIGI_API_KEY 250), so requests are spaced out
+Works without a key at a lower limit (5 searches a minute; with OPENFIGI_API_KEY 20: the search limits, not the mapping
+endpoint's 25 / 250), so requests are spaced out
 and a 429 waits for Retry-After. The key is sent in a header and never logged.
 """
 import asyncio
@@ -13,8 +14,8 @@ import config
 from secrets_guard import mask_secrets
 
 SEARCH_URL = "https://api.openfigi.com/v3/search"
-INTERVAL_NO_KEY_S = 2.5
-INTERVAL_KEY_S = 0.3
+INTERVAL_NO_KEY_S = 12.5  # 5 a minute, with a little to spare
+INTERVAL_KEY_S = 3.1  # 20 a minute
 RETRY_WAITS_S = (10, 30, 60)
 TIMEOUT_S = 30
 
