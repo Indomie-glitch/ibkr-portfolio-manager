@@ -20,11 +20,10 @@ What comes from where:
   only when seed/aliases.json says it is a common name of one company (Foxconn = Hon Hai). A bracket naming a parent
   ("Unisteel Technology Limited (SFS Group)") is not followed: the parent is another company. A group entry ("X group
   companies", "X and its subsidiaries") is linked to X and says so in the locator. A name the resolver can't match is
-  refused (rejected, unresolved_company). The one exception is a list that prints full legal names (seed
-  "private_companies": true, Apple's): there a name that can be a private company (resolver.can_be_private: a plain
-  no_match on a name that doesn't look listed, "Robert Bosch GmbH") becomes one, because the owner naming its own
-  supplier in a published table is the confirmation the Verifier gives a Reader candidate. A list of short trade names
-  (Dell's "Finisar", "GT", "TPT") never makes one: such a name is too little to say which company it is.
+  refused (rejected, unresolved_company), unless seed/aliases.json lists it as a private company ("private": true),
+  which is then linked. A miss is not taken as a sign that a company is private: OpenFIGI misses listed companies under
+  their old or full English names ("Sony Corporation", "Nippon Steel & Sumitomo Metal Corporation", GoerTek, Nan Ya
+  PCB), and a listed company stored as private would be a wrong fact.
   The owner's own sites (Dell lists its own factories) are left out, and entries that name no company are refused
   (generic_counterparty).
 - Evidence: tier 1, extractor supplier_list, quote = the entry as printed with its cells joined by " | " and its rows
@@ -193,6 +192,7 @@ def parse_apple(pages):
         if header is None:
             continue
         places_at = lines[header].index("PRIMARY LOCATIONS")
+        name_at = lines[header].index("SUPPLIER NAME")
         row = 0
         for line in lines[header + 1:]:
             parts = segments(line)
@@ -200,8 +200,11 @@ def parse_apple(pages):
                 continue
             if parts[0][1].startswith(("*", "©")):
                 break  # the footnote below the table
-            name = [text for at, text in parts if at < places_at - 8]
-            rest = [(at, text) for at, text in parts if at >= places_at - 8]
+            # names start right under their heading; places don't keep to theirs (FY2022's start up to 21 characters left
+            # of it), so a cell is the name by where it starts, not by where the places heading is
+            starts_name = parts[0][0] <= name_at + NAME_MARGIN
+            name = [parts[0][1]] if starts_name else []
+            rest = parts[1:] if starts_name else parts
             if name and not rest and current is not None and current["page"] == page_number and current["_last_was_name"]:
                 current["name"] = f"{current['name']} {' '.join(name)}"  # a name too long for one line
                 continue
@@ -230,6 +233,9 @@ def parse_apple(pages):
         entry["quote"] = " | ".join([entry["name"], " / ".join(rows)]) if rows else entry["name"]
         entry["locator"] = f"page {entry['page']}, row {entry['row']}"
     return entries
+
+
+NAME_MARGIN = 2  # a name starts at most this many characters right of SUPPLIER NAME
 
 
 DELL_COLUMNS = ("name", "address", "category", "supplier_type", "site")
@@ -357,11 +363,11 @@ def save(slug, content, folder=None):
 # ---------- Names ----------
 
 def name_plan(name):
-    """How an entry's name is looked up: {"names": the names to try in order, "private_name": the one a private company
-    would be made from, "note": what the locator adds, "generic": True for an entry that names no company}."""
+    """How an entry's name is looked up: {"names": the names to try in order, "note": what the locator adds, "generic": True
+    for an entry that names no company}."""
     name = " ".join(str(name or "").split())
     if not name or GENERIC.match(name) or resolver.is_unnamed(name):
-        return {"names": [], "private_name": None, "note": None, "generic": True}
+        return {"names": [], "note": None, "generic": True}
     note = None
     if GROUP_WORDS.search(name):  # "Foxconn group companies": the group's parent is the company we can link
         name, note = GROUP_WORDS.sub("", name).strip(" ,"), "listed as a group of companies"
@@ -373,10 +379,10 @@ def name_plan(name):
         alias = resolver.alias_entries().get(resolver.name_key(inner))
         if alias and not alias.get("private"):
             names.append(inner)  # "(Foxconn)": a common name of one company, per seed/aliases.json
-    return {"names": names, "private_name": names[1] if bracket else names[0], "note": note, "generic": False}
+    return {"names": names, "note": note, "generic": False}
 
 
-async def resolve_entry(conn, name, resolve, allow_private):
+async def resolve_entry(conn, name, resolve):
     """{status matched / skipped, company_id, how, reason, detail, note} for one entry's name."""
     plan = name_plan(name)
     if plan["generic"]:
@@ -389,17 +395,17 @@ async def resolve_entry(conn, name, resolve, allow_private):
         if match["status"] == "matched":
             return {**match, "how": match["method"], "note": plan["note"]}
         tried[candidate] = match
-    last = tried.get(plan["private_name"]) or next(iter(tried.values()))
-    if allow_private and resolver.can_be_private(plan["private_name"], last):
-        company_id = resolver.private_company(conn, plan["private_name"], method="supplier_list_private")
+    private = next((n for n in plan["names"] if resolver.private_alias(n)), None)
+    if private:  # a private company seed/aliases.json names (Valve, OpenAI ...): checked by hand, so linked
+        company_id = resolver.private_company(conn, private, method="supplier_list_private")
         return {"status": "matched", "company_id": company_id, "how": "supplier_list_private", "reason": None, "detail": None,
                 "note": plan["note"]}
-    return {**last, "how": None, "note": plan["note"]}
+    return {**next(iter(tried.values())), "how": None, "note": plan["note"]}
 
 
 # ---------- Writing to the graph ----------
 
-async def import_entries(conn, customer_id, document_id, entries, stated_on, allow_private=False, resolve=None, deadline=None):
+async def import_entries(conn, customer_id, document_id, entries, stated_on, resolve=None, deadline=None):
     """Writes the entries as "supplier -> customer" links with tier 1 evidence. Returns one result per entry: {entry,
     status (linked / rejected / left_out), reason, how, relationship_id, supplier_id}. Each distinct name is looked up
     once and refused once (with its first entry as the quote). Raises Unfinished when time.monotonic() passes `deadline`
@@ -413,7 +419,7 @@ async def import_entries(conn, customer_id, document_id, entries, stated_on, all
         if name not in looked_up:
             if deadline is not None and time.monotonic() > deadline:
                 raise Unfinished(len(looked_up), len({e["name"] for e in entries}))
-            looked_up[name] = await resolve_entry(conn, name, resolve, allow_private)
+            looked_up[name] = await resolve_entry(conn, name, resolve)
         match = looked_up[name]
         base = {"entry": entry, "how": match.get("how"), "relationship_id": None, "supplier_id": None}
         if match["status"] == "matched" and graph.current_company(conn, match["company_id"]) == customer:
@@ -483,7 +489,7 @@ async def import_list(conn, source, customer_id, content, resolve=None, folder=N
         conn, SOURCE, KIND, f"{source['slug']}/{digest[:16]}", source["url"], company_id=customer_id,
         title=f"{source['title']} FY{year}", filed_at=published, period_end=stated_on, language="en",
         content_hash=digest, size_bytes=saved["size"], local_path=saved["path"], fetched_at=now(), status="downloaded")
-    results = await import_entries(conn, customer_id, document_id, entries, stated_on, source.get("private_companies", False), resolve,
+    results = await import_entries(conn, customer_id, document_id, entries, stated_on, resolve,
                                    deadline)
     conn.execute("UPDATE documents SET status = 'processed' WHERE id = ?", (document_id,))
     return {"document_id": document_id, "fiscal_year": year, "results": results, "unchanged": False}

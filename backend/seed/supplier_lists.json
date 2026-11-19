@@ -1,5 +1,5 @@
 {
-  "note": "Published supplier lists read as tier 1 evidence (#132, supply_chain/supplier_lists.py). The customer is the company that publishes the list; the fiscal year comes from the list's own text and fiscal_year_end (MM-DD) dates it. private_companies: true only for a list that prints full legal names. A new year's list at a new url needs a new entry (or the url changed here).",
+  "note": "Published supplier lists read as tier 1 evidence (#132, supply_chain/supplier_lists.py). The customer is the company that publishes the list; the fiscal year comes from the list's own text and fiscal_year_end (MM-DD) dates it. A new year's list at a new url needs a new entry (or the url changed here).",
   "lists": [
     {
       "slug": "apple-fy2023",
@@ -9,7 +9,6 @@
       "format": "pdf",
       "parser": "apple_pdf",
       "fiscal_year_end": "09-30",
-      "private_companies": true,
       "notes": "Suppliers behind 98% of Apple's direct spend on materials, manufacturing and assembly in fiscal year 2023, with the places each makes things for Apple. Published April 2024 on Apple's investor site; the newest Apple has published (checked November 2026)."
     },
     {
@@ -20,7 +19,6 @@
       "format": "pdf",
       "parser": "apple_pdf",
       "fiscal_year_end": "09-30",
-      "private_companies": true,
       "notes": "The list's long-standing address on apple.com, which still serves the fiscal year 2022 list (published May 2023). Kept so a new list published here is picked up."
     },
     {
@@ -31,8 +29,7 @@
       "format": "pdf",
       "parser": "dell_pdf",
       "fiscal_year_end": "01-31",
-      "private_companies": false,
-      "notes": "Supplier facilities (ODMs, final assembly and direct material suppliers) behind at least 95% of Dell's spend in the fiscal year named on page 1, with addresses, products and supplier type. Updated in place each December. Suppliers are named by short trade names, so no private companies are made from it."
+      "notes": "Supplier facilities (ODMs, final assembly and direct material suppliers) behind at least 95% of Dell's spend in the fiscal year named on page 1, with addresses, products and supplier type. Updated in place each December. Suppliers are named by short trade names."
     }
   ]
 }

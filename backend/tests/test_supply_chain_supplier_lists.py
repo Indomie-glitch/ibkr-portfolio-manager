@@ -52,10 +52,10 @@ def tiny_pdf(lines, created="D:20240417120234-07'00'"):
 
 
 SOURCE = {"slug": "apple-test", "title": "Apple Supplier List", "url": "https://example.com/Apple-Supplier-List.pdf", "format": "pdf",
-          "parser": "apple_pdf", "fiscal_year_end": "09-30", "private_companies": True,
+          "parser": "apple_pdf", "fiscal_year_end": "09-30",
           "customer": {"name": "Apple Inc.", "ticker": "AAPL", "market": "US"}}
 DELL_SOURCE = {"slug": "dell-test", "title": "Dell Public Supplier List", "url": "https://example.com/dell.pdf", "format": "pdf",
-               "parser": "dell_pdf", "fiscal_year_end": "01-31", "private_companies": False,
+               "parser": "dell_pdf", "fiscal_year_end": "01-31",
                "customer": {"name": "Dell Technologies Inc.", "ticker": "DELL", "market": "US"}}
 
 
@@ -87,6 +87,19 @@ class ReadingApple(unittest.TestCase):
 
     def test_pages_without_the_table_give_nothing(self):
         self.assertEqual(sl.parse_apple([APPLE[0], APPLE[-1]]), [])
+
+    def test_places_that_start_left_of_their_heading_are_not_part_of_the_name(self):
+        # the FY2022 list's places start anywhere around their heading; names always start under theirs
+        page = "\n".join([
+            "SUPPLIER NAME" + " " * 47 + "PRIMARY LOCATIONS WHERE MANUFACTURING FOR APPLE OCCURS",
+            "",
+            "Example Semiconductor Company Limited" + " " * 10 + "Shanghai" + " " * 30 + "China mainland",
+            " " * 70 + "Hsinchu" + " " * 20 + "Taiwan",
+            "Example Display Corporation" + " " * 40 + "Gyeonggi" + " " * 20 + "South Korea",
+        ])
+        entries = sl.parse_apple([page])
+        self.assertEqual([e["name"] for e in entries], ["Example Semiconductor Company Limited", "Example Display Corporation"])
+        self.assertEqual(entries[0]["quote"], "Example Semiconductor Company Limited | Shanghai | China mainland / Hsinchu | Taiwan")
 
 
 class ReadingDell(unittest.TestCase):
@@ -172,7 +185,6 @@ class Names(unittest.TestCase):
         plan = sl.name_plan("Hon Hai Precision Industry Company Limited (Foxconn)")
         self.assertEqual(plan["names"], ["Hon Hai Precision Industry Company Limited (Foxconn)", "Hon Hai Precision Industry Company Limited",
                                          "Foxconn"])
-        self.assertEqual(plan["private_name"], "Hon Hai Precision Industry Company Limited")
 
     def test_a_bracket_naming_a_parent_is_not_followed(self):
         plan = sl.name_plan("Unisteel Technology Limited (SFS Group)")
@@ -242,9 +254,9 @@ class Base(unittest.TestCase):
     def entry(self, name, row=1, page=1):
         return {"name": name, "page": page, "row": row, "quote": f"{name} | Taiwan | Taiwan", "locator": f"page {page}, row {row}"}
 
-    def load(self, entries, stated_on="2026-09-30", allow_private=False, document_id=None):
+    def load(self, entries, stated_on="2026-09-30", document_id=None):
         document_id = document_id or self.document()
-        return run(sl.import_entries(self.conn, self.apple, document_id, entries, stated_on, allow_private, resolve=self.resolve))
+        return run(sl.import_entries(self.conn, self.apple, document_id, entries, stated_on, resolve=self.resolve))
 
 
 class Importing(Base):
@@ -290,20 +302,18 @@ class Importing(Base):
         self.assertEqual((result["status"], result["reason"]), ("left_out", "list_owner"))
         self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM rejected").fetchone()[0], 0)
 
-    def test_a_private_company_only_from_a_list_of_legal_names(self):
-        [refused] = self.load([self.entry("Robert Bosch GmbH")])
-        self.assertEqual(refused["status"], "rejected")
-        [linked] = self.load([self.entry("Robert Bosch GmbH")], allow_private=True, document_id=self.document("b"))
-        self.assertEqual((linked["status"], linked["how"]), ("linked", "supplier_list_private"))
-        company = self.conn.execute("SELECT name, is_private FROM companies WHERE id = ?", (linked["supplier_id"],)).fetchone()
-        self.assertEqual((company["name"], company["is_private"]), ("Robert Bosch GmbH", 1))
-        saved = self.conn.execute("SELECT method FROM name_resolutions WHERE name_key = ?", (resolver.name_key("Robert Bosch GmbH"),)).fetchone()
-        self.assertEqual(saved["method"], "supplier_list_private")
-
-    def test_a_name_that_looks_listed_never_becomes_a_private_company(self):
-        [result] = self.load([self.entry("Shenzhen Example Co., Ltd.")], allow_private=True)
+    def test_a_name_openfigi_misses_is_refused_not_made_a_private_company(self):
+        [result] = self.load([self.entry("Sony Corporation")])  # listed, under its old name
         self.assertEqual(result["status"], "rejected")
         self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM companies WHERE is_private = 1").fetchone()[0], 0)
+
+    def test_a_private_company_in_the_alias_list_is_linked(self):
+        [linked] = self.load([self.entry("Valve Corporation")])
+        self.assertEqual((linked["status"], linked["how"]), ("linked", "supplier_list_private"))
+        company = self.conn.execute("SELECT name, is_private FROM companies WHERE id = ?", (linked["supplier_id"],)).fetchone()
+        self.assertEqual(company["is_private"], 1)
+        saved = self.conn.execute("SELECT method FROM name_resolutions WHERE name_key = ?", (resolver.name_key("Valve Corporation"),)).fetchone()
+        self.assertEqual(saved["method"], "supplier_list_private")
 
     def test_loading_again_adds_nothing(self):
         self.supplier("Micron Technology Incorporated", "MU")
@@ -356,7 +366,7 @@ class ImportingAList(Base):
         self.addCleanup(patch.stop)
 
     def import_list(self, content=b"%PDF-1.7 apple"):
-        return run(sl.import_list(self.conn, dict(SOURCE, private_companies=False), self.apple, content, resolve=self.resolve))
+        return run(sl.import_list(self.conn, SOURCE, self.apple, content, resolve=self.resolve))
 
     def test_the_list_becomes_a_document_with_its_links(self):
         outcome = self.import_list()
@@ -394,7 +404,7 @@ class Job(Base):
         super().setUp()
         self.supplier("Amkor Technology Incorporated", "AMKR")
         for patch in (mock.patch.object(sl, "pdf_pages", lambda content: (APPLE, "2024-04-17")),
-                      mock.patch.object(sl, "load_seed", lambda path=None: [dict(SOURCE, private_companies=False)]),
+                      mock.patch.object(sl, "load_seed", lambda path=None: [SOURCE]),
                       mock.patch.object(resolver, "resolve", self.resolve)):
             patch.start()
             self.addCleanup(patch.stop)
